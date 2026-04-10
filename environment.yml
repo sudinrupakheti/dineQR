@@ -1,0 +1,6 @@
+name: dineQR
+channels:
+  - defaults
+dependencies:
+  - python=3.14.3
+prefix: /home/sudin/miniconda3/envs/dineQR
