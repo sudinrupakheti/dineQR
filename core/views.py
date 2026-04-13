@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import authenticate, login, logout
 from django.views.decorators.http import require_http_methods
@@ -171,6 +171,85 @@ def analytics_view(request):
 
     return render(request, "admin/analytics.html", context)
 
+@login_required(login_url="admin_login")
+def menu_item_add(request):
+    """Add a new menu item"""
+    if not request.user.is_staff:
+        return redirect("admin_login")
+
+    if request.method == "POST":
+        name = request.POST.get("name")
+        description = request.POST.get("description", "")
+        price = request.POST.get("price")
+        category = request.POST.get("category", "main")
+        photo = request.FILES.get("photo")
+
+        item = MenuItem(
+            name=name,
+            description=description,
+            price=price,
+            category=category,
+        )
+        if photo:
+            item.photo = photo
+        item.save()
+        return redirect("menu_management")
+
+    categories = MenuItem.CATEGORY_CHOICES
+    return render(request, "admin/menu_add.html", {"categories": categories})
+
+
+@login_required(login_url="admin_login")
+def menu_item_edit(request, item_id):
+    """Edit an existing menu item"""
+    if not request.user.is_staff:
+        return redirect("admin_login")
+
+    item = get_object_or_404(MenuItem, id=item_id)
+
+    if request.method == "POST":
+        item.name = request.POST.get("name")
+        item.description = request.POST.get("description", "")
+        item.price = request.POST.get("price")
+        item.category = request.POST.get("category", "main")
+        photo = request.FILES.get("photo")
+        if photo:
+            item.photo = photo
+        item.save()
+        return redirect("menu_management")
+
+    categories = MenuItem.CATEGORY_CHOICES
+    return render(request, "admin/menu_edit.html", {"item": item, "categories": categories})
+
+
+@login_required(login_url="admin_login")
+def menu_item_delete(request, item_id):
+    """Delete a menu item"""
+    if not request.user.is_staff:
+        return redirect("admin_login")
+
+    item = get_object_or_404(MenuItem, id=item_id)
+    if request.method == "POST":
+        item.delete()
+        return redirect("menu_management")
+    return render(request, "admin/menu_confirm_delete.html", {"item": item})
+
+
+def customer_menu(request):
+    """Public menu page for customers"""
+    table_number = request.GET.get("table", "")
+    categories = MenuItem.CATEGORY_CHOICES
+    menu_by_category = {}
+
+    for cat_key, cat_label in categories:
+        items = MenuItem.objects.filter(category=cat_key, is_available=True)
+        if items.exists():
+            menu_by_category[cat_label] = items
+
+    return render(request, "admin/customer_menu.html", {
+        "menu_by_category": menu_by_category,
+        "table_number": table_number,
+    })
 
 def admin_logout(request):
     """Logout admin"""

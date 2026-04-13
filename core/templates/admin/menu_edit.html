@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Item - dineQR Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50">
+    <nav class="bg-white shadow-sm border-b border-slate-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <h1 class="text-2xl font-bold text-slate-900">dineQR Admin</h1>
+                <div class="flex items-center space-x-4">
+                    <span class="text-sm text-slate-600">{{ user.username }}</span>
+                    <a href="{% url 'admin_logout' %}" class="text-blue-600 hover:text-blue-700 text-sm font-medium">Logout</a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-2xl mx-auto px-4 py-8">
+        <div class="flex items-center gap-3 mb-6">
+            <a href="{% url 'menu_management' %}" class="text-blue-600 hover:text-blue-700 text-sm">← Back to Menu</a>
+            <h2 class="text-2xl font-bold text-slate-900">Edit: {{ item.name }}</h2>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-sm p-6">
+            <form method="POST" enctype="multipart/form-data" class="space-y-5">
+                {% csrf_token %}
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Name *</label>
+                    <input type="text" name="name" required value="{{ item.name }}"
+                        class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Description</label>
+                    <textarea name="description" rows="3"
+                        class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500">{{ item.description }}</textarea>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Price (Rs.) *</label>
+                        <input type="number" name="price" required step="0.01" min="0" value="{{ item.price }}"
+                            class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-2">Category *</label>
+                        <select name="category"
+                            class="w-full px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                            {% for value, label in categories %}
+                            <option value="{{ value }}" {% if item.category == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-slate-700 mb-2">Photo</label>
+                    {% if item.photo %}
+                    <img src="{{ item.photo.url }}" alt="Current" class="h-24 w-24 object-cover rounded-lg mb-2">
+                    <p class="text-xs text-slate-500 mb-2">Upload new photo to replace current one.</p>
+                    {% endif %}
+                    <input type="file" name="photo" accept="image/*"
+                        class="w-full px-4 py-2 border border-slate-300 rounded-lg text-slate-600">
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button type="submit"
+                        class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition">
+                        Save Changes
+                    </button>
+                    <a href="{% url 'menu_management' %}"
+                        class="flex-1 text-center bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-2 px-4 rounded-lg transition">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</body>
+</html>

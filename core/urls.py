@@ -19,4 +19,11 @@ urlpatterns = [
     path("menu/<int:item_id>/toggle/", views.menu_item_toggle, name="menu_item_toggle"),
     # Analytics
     path("analytics/", views.analytics_view, name="analytics_view"),
-]
+    # Menu CRUD
+    path("menu/add/", views.menu_item_add, name="menu_item_add"),
+    path("menu/<int:item_id>/edit/", views.menu_item_edit, name="menu_item_edit"),
+    path("menu/<int:item_id>/delete/", views.menu_item_delete, name="menu_item_delete"),
+
+    # Customer facing
+    path("menu/view/", views.customer_menu, name="customer_menu"),
+]   
