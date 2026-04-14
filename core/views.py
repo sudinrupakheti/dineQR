@@ -255,3 +255,29 @@ def admin_logout(request):
     """Logout admin"""
     logout(request)
     return redirect("admin_login")
+
+import qrcode
+import io
+import base64
+
+@login_required(login_url="admin_login")
+def qr_code_view(request):
+    if not request.user.is_staff:
+        return redirect("admin_login")
+
+    base_url = request.build_absolute_uri('/menu/view/')
+    
+    qr = qrcode.QRCode(version=1, box_size=10, border=4)
+    qr.add_data(base_url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+
+    buffer = io.BytesIO()
+    img.save(buffer, format='PNG')
+    buffer.seek(0)
+    img_base64 = base64.b64encode(buffer.getvalue()).decode('utf-8')
+
+    return render(request, "admin/qr_code.html", {
+        "qr_image": img_base64,
+        "menu_url": base_url,
+    })
