@@ -26,4 +26,6 @@ urlpatterns = [
 
     # Customer facing
     path("menu/view/", views.customer_menu, name="customer_menu"),
+    #QR
+    path("qr/", views.qr_code_view, name="qr_code_view"),
 ]   
