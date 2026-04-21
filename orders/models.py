@@ -1,4 +1,6 @@
 from django.db import models
+from django.utils.html import format_html
+from django.core.validators import MaxValueValidator, MinValueValidator
 
 
 class Category(models.Model):
@@ -18,12 +20,21 @@ class MenuItem(models.Model):
     image = models.ImageField(upload_to="menu_items/", blank=True, null=True)
     is_available = models.BooleanField(default=True)
 
+    def image_tag(self):
+        if self.image:
+            return format_html(
+                '<img src="{}" style="width: 50px; height:50px; object-fit:cover; border-radius:5px;" />',
+                self.image.url,
+            )
+        return "No Image"
+
+    image_tag.short_description = "Preview"
+
     def __str__(self):
         return self.name
 
 
 class Order(models.Model):
-    # Status choices for the kitchen staff
     STATUS_CHOICES = [
         ("received", "Received"),
         ("preparing", "Preparing"),
@@ -33,7 +44,11 @@ class Order(models.Model):
 
     table_number = models.IntegerField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="received")
-    total_price = models.DecimalField(max_digits=8, decimal_places=2, default=0.00)
+
+    @property
+    def total_price(self):
+        return sum(item.menu_item.price * item.quantity for item in self.items.all())
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -41,11 +56,10 @@ class Order(models.Model):
 
 
 class OrderItem(models.Model):
-    # This links specific food items to a main order
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
     menu_item = models.ForeignKey(MenuItem, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1)
-    notes = models.TextField(blank=True, null=True)  # "No onions", "Extra spicy"
+    notes = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return f"{self.quantity} x {self.menu_item.name}"
@@ -55,7 +69,9 @@ class Review(models.Model):
     menu_item = models.ForeignKey(
         MenuItem, on_delete=models.CASCADE, related_name="reviews"
     )
-    rating = models.IntegerField(default=5)  # 1 to 5 stars
+    rating = models.IntegerField(
+        default=5, validators=[MinValueValidator(1), MaxValueValidator(5)]
+    )
     comment = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
