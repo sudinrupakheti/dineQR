@@ -2,33 +2,36 @@ from django.contrib import admin
 from .models import Category, MenuItem, Order, OrderItem, Review
 
 
-# 1. This allows the owner to see the items INSIDE the order detail page.
-# Very important for the kitchen!
 class OrderItemInline(admin.TabularInline):
     model = OrderItem
-    extra = 0  # Prevents showing 3 empty rows by default
+    extra = 0
     readonly_fields = [
         "menu_item",
         "quantity",
         "notes",
-    ]  # Staff shouldn't change the customer's order
+    ]
 
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
     list_display = ["id", "table_number", "status", "total_price", "created_at"]
-    list_filter = ["status", "created_at"]  # Sidebar filters
-    search_fields = ["table_number", "id"]  # Search bar
-    list_editable = ["status"]  # Change status directly from the list view!
-    inlines = [OrderItemInline]  # Show items inside the order
+    list_filter = ["status", "created_at"]
+    search_fields = ["table_number", "id"]
+    list_editable = ["status"]
+    inlines = [OrderItemInline]
+
+    def total_price(self, obj):
+        return f"Rs. {obj.price}"
+
+    total_price.short_description = "Price"
 
 
 @admin.register(MenuItem)
 class MenuItemAdmin(admin.ModelAdmin):
-    list_display = ["name", "category", "price", "is_available"]
+    list_display = ["image_tag", "name", "category", "price", "is_available"]
     list_filter = ["category", "is_available"]
     search_fields = ["name", "description"]
-    list_editable = ["price", "is_available"]  # Quick updates for "Sold Out" items
+    list_editable = ["price", "is_available"]
 
 
 @admin.register(Category)
@@ -44,4 +47,4 @@ class ReviewAdmin(admin.ModelAdmin):
         "rating",
         "comment",
         "created_at",
-    ]  # Reviews should be permanent
+    ]
