@@ -1,19 +1,34 @@
-let cart = JSON.parse(localStorage.getItem('cart')) || {};
+// static/js/cart.js
 
+// 1. Detect table from URL
 const urlParams = new URLSearchParams(window.location.search);
-const tableNumber = urlParams.get('table') || "0";
+let tableNumber = urlParams.get('table');
+
+// 2. Create a unique key for this table (or 'guest' if no table)
+const cartKey = tableNumber ? `cart_table_${tableNumber}` : 'cart_guest';
+
+// 3. Load the specific cart
+let cart = JSON.parse(localStorage.getItem(cartKey)) || {};
 
 function addToCart(id, name, price) {
-    console.log("Adding to cart:", name);
+    // If no table is found, ask for it
+    if (!tableNumber || tableNumber === "0") {
+        const userTable = prompt("Please enter your table number to start ordering:");
+        if (userTable) {
+            // Redirect to the same page but WITH the table number in the URL
+            window.location.href = `?table=${userTable}`;
+        }
+        return; // Stop the function here
+    }
 
+    // Normal add to cart logic
     if (cart[id]) {
         cart[id].quantity += 1;
     } else {
         cart[id] = {
             name: name,
             price: parseFloat(price),
-            quantity: 1,
-            table: tableNumber
+            quantity: 1
         };
     }
 
@@ -22,7 +37,7 @@ function addToCart(id, name, price) {
 }
 
 function saveCart() {
-    localStorage.setItem('cart', JSON.stringify(cart));
+    localStorage.setItem(cartKey, JSON.stringify(cart));
 }
 
 function updateCartUI() {
@@ -33,10 +48,4 @@ function updateCartUI() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    updateCartUI();
-
-    if (tableNumber !== "0") {
-        console.log("Ordering from Table:", tableNumber);
-    }
-});
+document.addEventListener('DOMContentLoaded', updateCartUI);
