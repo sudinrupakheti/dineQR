@@ -8,11 +8,3 @@ wheels/
 
 # Virtual environments
 .venv
-
-orders/views.py
-templates/orders/base.html
-templates/orders/cart_detail.html
-templates/orders/menu.html
-templates/orders/order_success.html
-
-static/js/cart.js

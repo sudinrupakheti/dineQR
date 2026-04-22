@@ -1,0 +1,83 @@
+{% extends 'orders/base.html' %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <h1 class="text-2xl font-bold mb-6">Your Order Summary</h1>
+
+    <!-- This div will be filled by JavaScript -->
+    <div id="cart-items-container" class="bg-white rounded-lg shadow p-6 space-y-4">
+        <p class="text-gray-500 text-center">Your cart is empty.</p>
+    </div>
+
+    <div class="mt-6 bg-white rounded-lg shadow p-6">
+        <div class="flex justify-between text-xl font-bold">
+            <span>Total:</span>
+            <span id="cart-total-price">Rs. 0</span>
+        </div>
+        <button id="place-order-btn" class="w-full mt-6 bg-orange-600 text-white font-bold py-3 rounded-lg hover:bg-orange-700 transition-colors">
+            Place Order
+        </button>
+    </div>
+</div>
+
+<script>
+    const cartItemsContainer = document.getElementById('cart-items-container');
+    const totalPriceElement = document.getElementById('cart-total-price');
+    const placeOrderBtn = document.getElementById('place-order-btn');
+
+    function renderCart() {
+        if (Object.keys(cart).length === 0) {
+            cartItemsContainer.innerHTML = '<p class="text-gray-500 text-center">Your cart is empty.</p>';
+            totalPriceElement.innerText = `Rs. 0`;
+            placeOrderBtn.style.display = 'none';
+            return;
+        }
+
+        cartItemsContainer.innerHTML = '';
+        let total = 0;
+
+        for (const [id, item] of Object.entries(cart)) {
+            const itemTotal = item.price * item.quantity;
+            total += itemTotal;
+            cartItemsContainer.innerHTML += `
+                <div class="flex justify-between items-center border-b pb-4">
+                    <div>
+                        <h3 class="font-bold">${item.name}</h3>
+                        <p class="text-sm text-gray-500">Rs. ${item.price} x ${item.quantity}</p>
+                    </div>
+                    <span class="font-bold">Rs. ${itemTotal}</span>
+                </div>
+            `;
+        }
+        totalPriceElement.innerText = `Rs. ${total}`;
+    }
+
+    // --- NEW: PLACE ORDER LOGIC ---
+    placeOrderBtn.addEventListener('click', async () => {
+        const response = await fetch("{% url 'place_order' %}", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': "{{ csrf_token }}" // Django's security token
+            },
+            body: JSON.stringify({
+                cart: cart,
+                table_number: tableNumber
+            })
+        });
+
+        const result = await response.json();
+        if (result.status === 'success') {
+            // Clear the cart from localStorage
+            localStorage.removeItem(cartKey);
+            // Redirect to success page
+            window.location.href = `/order-success/${result.order_id}/`;
+        } else {
+            alert("Something went wrong. Please try again.");
+        }
+    });
+
+    document.addEventListener('DOMContentLoaded', renderCart);
+</script>
+
+{% endblock %}
