@@ -1,0 +1,47 @@
+{% extends 'orders/base.html' %}
+{% load static %}
+{% load humanize %}
+
+{% block content %}
+
+<div class="space-y-8">
+    {% for category in categories %}
+    <section>
+        <h2 class="text-2xl font-bold mb-4 border-b-2 border-orange-200 pb-2">{{ category.name }}</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for item in items %}
+                {% if item.category == category %}
+                <div class="bg-white rounded-xl shadow-sm overflow-hidden hover:shadow-md transition-shadow duration-300 flex flex-col">
+                    {% if item.image %}
+                        <img src="{{ item.image.url }}" class="h-48 w-full object-cover" alt="{{ item.name }}">
+                    {% else %}
+                        <div class="h-48 w-full bg-gray-200 flex items-center justify-center">
+                            <i data-lucide="utensils" class="text-gray-400"></i>
+                        </div>
+                    {% endif %}
+
+                    <div class="p-4 flex-grow flex flex-col">
+                        <div class="flex justify-between items-start mb-2">
+                            <h3 class="font-bold text-lg">{{ item.name }}</h3>
+                            <span class="text-orange-600 font-bold">Rs. {{ item.price|intcomma }}</span>
+                        </div>
+                        <p class="text-gray-500 text-sm mb-4 line-clamp-2">{{ item.description }}</p>
+
+                        <div class="mt-auto">
+                            <button
+                                onclick="addToCart('{{ item.id }}', '{{ item.name }}', '{{ item.price }}')"
+                                class="w-full bg-orange-600 hover:bg-orange-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2">
+                                <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                                Add to Cart
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+    </section>
+    {% endfor %}
+</div>
+
+{% endblock %}
