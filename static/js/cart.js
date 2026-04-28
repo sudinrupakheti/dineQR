@@ -1,24 +1,29 @@
 // static/js/cart.js
 
-// 1. Detect table from URL
-const urlParams = new URLSearchParams(window.location.search);
-let tableNumber = urlParams.get('table');
+// 1. Get table from URL immediately
+function getTableFromURL() {
+    const urlParams = new URLSearchParams(window.location.search);
+    return urlParams.get('table');
+}
 
-// 2. Create a unique key for this table (or 'guest' if no table)
+let tableNumber = getTableFromURL();
 const cartKey = tableNumber ? `cart_table_${tableNumber}` : 'cart_guest';
-
-// 3. Load the specific cart
 let cart = JSON.parse(localStorage.getItem(cartKey)) || {};
 
 function addToCart(id, name, price) {
-    // If no table is found, ask for it
-    if (!tableNumber || tableNumber === "0") {
+    console.log("Attempting to add:", name, "Table is:", tableNumber);
+
+    // If no table is found in the URL
+    if (!tableNumber || tableNumber === "null" || tableNumber === "") {
+        console.log("No table detected. Triggering prompt...");
         const userTable = prompt("Please enter your table number to start ordering:");
-        if (userTable) {
-            // Redirect to the same page but WITH the table number in the URL
-            window.location.href = `?table=${userTable}`;
+
+        if (userTable && userTable.trim() !== "") {
+            // Redirect to the URL with the table number
+            const currentUrl = window.location.pathname;
+            window.location.href = `${currentUrl}?table=${userTable.trim()}`;
         }
-        return; // Stop the function here
+        return; // Stop the function until the page reloads with a table
     }
 
     // Normal add to cart logic
@@ -28,12 +33,14 @@ function addToCart(id, name, price) {
         cart[id] = {
             name: name,
             price: parseFloat(price),
-            quantity: 1
+            quantity: 1,
+            notes: ""
         };
     }
 
     saveCart();
     updateCartUI();
+    console.log("Cart updated:", cart);
 }
 
 function saveCart() {
@@ -45,6 +52,32 @@ function updateCartUI() {
     if (badge) {
         const totalItems = Object.values(cart).reduce((sum, item) => sum + item.quantity, 0);
         badge.innerText = totalItems;
+    }
+}
+
+function updateQuantity(id, delta) {
+    if (cart[id]) {
+        cart[id].quantity += delta;
+        if (cart[id].quantity <= 0) {
+            delete cart[id]; // Remove if quantity is 0
+        }
+        saveCart();
+        updateCartUI();
+        if (typeof renderCart === "function") renderCart(); // Refresh the cart page UI
+    }
+}
+
+function removeFromCart(id) {
+    delete cart[id];
+    saveCart();
+    updateCartUI();
+    if (typeof renderCart === "function") renderCart();
+}
+
+function updateNote(id, note) {
+    if (cart[id]) {
+        cart[id].notes = note;
+        saveCart();
     }
 }
 

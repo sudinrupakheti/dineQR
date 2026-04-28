@@ -2,82 +2,150 @@
 
 {% block content %}
 <div class="max-w-2xl mx-auto">
-    <h1 class="text-2xl font-bold mb-6">Your Order Summary</h1>
+    <div class="flex items-center justify-between mb-6">
+        {% if previous_orders %}
+        <div class="mb-8">
+    <h2 class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Already Ordered</h2>
+    <div class="space-y-3">
+        {% for order in previous_orders %}
+        <div class="bg-gray-100 rounded-xl p-4 flex justify-between items-center border border-gray-200">
+            <div>
+                    <p class="font-bold text-gray-800">Order #{{ order.id }}</p>
+                    <p class="text-xs text-gray-500">{{ order.created_at|timesince }} ago • <span class="capitalize text-orange-600 font-bold">{{ order.status }}</span></p>
+                </div>
+                <a href="{% url 'order_success' order.id %}" class="text-sm text-blue-600 font-medium">Track →</a>
+            </div>
+                {% endfor %}
+            </div>
+        </div>
+        <hr class="mb-8 border-gray-200">
+        {% endif %}
 
-    <!-- This div will be filled by JavaScript -->
-    <div id="cart-items-container" class="bg-white rounded-lg shadow p-6 space-y-4">
-        <p class="text-gray-500 text-center">Your cart is empty.</p>
+        <h1 class="text-2xl font-bold text-gray-800 tracking-tight">Your Order Summary</h1>
+        <span class="text-sm font-medium text-orange-600 bg-orange-50 px-3 py-1 rounded-full border border-orange-100">Table {{ request.GET.table }}</span>
     </div>
 
-    <div class="mt-6 bg-white rounded-lg shadow p-6">
-        <div class="flex justify-between text-xl font-bold">
-            <span>Total:</span>
-            <span id="cart-total-price">Rs. 0</span>
+    <div id="cart-items-container" class="space-y-4">
+        <!-- JS will inject items here -->
+    </div>
+
+    <div class="mt-8 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div class="flex justify-between items-center mb-6">
+            <span class="text-gray-500 font-medium">Grand Total</span>
+            <span id="cart-total-price" class="text-2xl font-black text-gray-900">Rs. 0</span>
         </div>
-        <button id="place-order-btn" class="w-full mt-6 bg-orange-600 text-white font-bold py-3 rounded-lg hover:bg-orange-700 transition-colors">
-            Place Order
+        <button id="place-order-btn" class="w-full bg-orange-600 text-white font-bold py-4 rounded-xl hover:bg-orange-700 shadow-lg shadow-orange-200 transition-all active:scale-95 flex items-center justify-center gap-2">
+            Confirm & Place Order
+            <i data-lucide="arrow-right" class="w-5 h-5"></i>
         </button>
     </div>
 </div>
 
 <script>
-    const cartItemsContainer = document.getElementById('cart-items-container');
-    const totalPriceElement = document.getElementById('cart-total-price');
-    const placeOrderBtn = document.getElementById('place-order-btn');
+    // Get the table number from the URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const tableNum = urlParams.get('table') || "0";
 
     function renderCart() {
+        const container = document.getElementById('cart-items-container');
+        const totalEl = document.getElementById('cart-total-price');
+        const placeOrderBtn = document.getElementById('place-order-btn');
+
         if (Object.keys(cart).length === 0) {
-            cartItemsContainer.innerHTML = '<p class="text-gray-500 text-center">Your cart is empty.</p>';
-            totalPriceElement.innerText = `Rs. 0`;
-            placeOrderBtn.style.display = 'none';
+            container.innerHTML = `
+                <div class="text-center py-12 bg-white rounded-2xl border-2 border-dashed border-gray-200">
+                    <p class="text-gray-400 font-medium">Your cart is empty.</p>
+                    <a href="{% url 'menu' %}?table=${tableNum}" class="text-orange-600 font-bold mt-2 inline-block hover:underline">Back to Menu</a>
+                </div>`;
+            totalEl.innerText = "Rs. 0";
+            placeOrderBtn.classList.add('hidden');
             return;
         }
 
-        cartItemsContainer.innerHTML = '';
-        let total = 0;
+        placeOrderBtn.classList.remove('hidden');
+        container.innerHTML = '';
+        let grandTotal = 0;
 
         for (const [id, item] of Object.entries(cart)) {
             const itemTotal = item.price * item.quantity;
-            total += itemTotal;
-            cartItemsContainer.innerHTML += `
-                <div class="flex justify-between items-center border-b pb-4">
-                    <div>
-                        <h3 class="font-bold">${item.name}</h3>
-                        <p class="text-sm text-gray-500">Rs. ${item.price} x ${item.quantity}</p>
+            grandTotal += itemTotal;
+
+            container.innerHTML += `
+                <div class="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm transition-all hover:shadow-md">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h3 class="font-bold text-gray-900 text-lg">${item.name}</h3>
+                            <p class="text-orange-600 font-medium">Rs. ${item.price}</p>
+                        </div>
+                        <button onclick="removeFromCart('${id}')" class="p-2 hover:bg-red-50 text-red-400 rounded-lg transition-colors">
+                            <i data-lucide="trash-2" class="w-5 h-5"></i>
+                        </button>
                     </div>
-                    <span class="font-bold">Rs. ${itemTotal}</span>
+
+                    <textarea
+                        onchange="updateNote('${id}', this.value)"
+                        class="w-full mt-3 p-3 text-sm bg-gray-50 border-none rounded-xl focus:ring-1 focus:ring-orange-200 outline-none"
+                        placeholder="Special instructions (no onion, extra spicy...)"
+                    >${item.notes || ''}</textarea>
+
+                    <div class="flex justify-between items-center mt-4 pt-4 border-t border-gray-50">
+                        <div class="flex items-center gap-4 bg-gray-50 rounded-xl p-1 px-2 border border-gray-100">
+                            <button onclick="updateQuantity('${id}', -1)" class="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm font-bold text-gray-600 hover:bg-gray-100">-</button>
+                            <span class="font-bold text-gray-900 w-4 text-center">${item.quantity}</span>
+                            <button onclick="updateQuantity('${id}', 1)" class="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm font-bold text-gray-600 hover:bg-gray-100">+</button>
+                        </div>
+                        <span class="font-black text-gray-900 text-lg">Rs. ${itemTotal}</span>
+                    </div>
                 </div>
             `;
         }
-        totalPriceElement.innerText = `Rs. ${total}`;
+        totalEl.innerText = `Rs. ${grandTotal}`;
+        lucide.createIcons();
     }
 
-    // --- NEW: PLACE ORDER LOGIC ---
-    placeOrderBtn.addEventListener('click', async () => {
-        const response = await fetch("{% url 'place_order' %}", {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': "{{ csrf_token }}" // Django's security token
-            },
-            body: JSON.stringify({
-                cart: cart,
-                table_number: tableNumber
-            })
-        });
+    // --- THE "PLACE ORDER" CLICK LOGIC ---
+    document.getElementById('place-order-btn').addEventListener('click', async function() {
+        // Change button state to show it's working
+        const originalText = this.innerHTML;
+        this.disabled = true;
+        this.innerHTML = `<i data-lucide="loader" class="w-5 h-5 animate-spin"></i> Processing...`;
+        lucide.createIcons();
 
-        const result = await response.json();
-        if (result.status === 'success') {
-            // Clear the cart from localStorage
-            localStorage.removeItem(cartKey);
-            // Redirect to success page
-            window.location.href = `/order-success/${result.order_id}/`;
-        } else {
-            alert("Something went wrong. Please try again.");
+        try {
+            const response = await fetch("{% url 'place_order' %}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': "{{ csrf_token }}" // Critical for Django
+                },
+                body: JSON.stringify({
+                    cart: cart,
+                    table_number: tableNum
+                })
+            });
+
+            const result = await response.json();
+
+            if (result.status === 'success') {
+                // 1. Clear this specific table's cart
+                localStorage.removeItem(cartKey);
+                // 2. Redirect to success page
+                window.location.href = `/order-success/${result.order_id}/`;
+            } else {
+                alert("Error: " + result.message);
+                this.disabled = false;
+                this.innerHTML = originalText;
+                lucide.createIcons();
+            }
+        } catch (error) {
+            console.error("Fetch Error:", error);
+            alert("Connection error. Is the server running?");
+            this.disabled = false;
+            this.innerHTML = originalText;
+            lucide.createIcons();
         }
     });
 
     document.addEventListener('DOMContentLoaded', renderCart);
 </script>
-
 {% endblock %}

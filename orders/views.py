@@ -1,6 +1,6 @@
 import json
 from django.http import JsonResponse
-from django.shortcuts import render, redirect
+from django.shortcuts import render
 from .models import Order, OrderItem, MenuItem, Category
 from decimal import Decimal
 
@@ -17,7 +17,20 @@ def menu_view(request):
 
 
 def cart_detail(request):
-    return render(request, "orders/cart_detail.html")
+    table_num = request.GET.get("table")
+    previous_orders = []
+
+    if table_num:
+        # Get orders for this table that aren't "completed" yet
+        previous_orders = (
+            Order.objects.filter(table_number=table_num)
+            .exclude(status="completed")
+            .order_by("-created_at")
+        )
+
+    return render(
+        request, "orders/cart_detail.html", {"previous_orders": previous_orders}
+    )
 
 
 def place_order(request):
@@ -66,3 +79,11 @@ def place_order(request):
 def order_success(request, order_id):
     order = Order.objects.get(id=order_id)
     return render(request, "orders/order_success.html", {"order": order})
+
+
+def get_order_status(request, order_id):
+    try:
+        order = Order.objects.get(id=order_id)
+        return JsonResponse({"status": order.status})
+    except Order.DoesNotExist:
+        return JsonResponse({"error": "Not found"}, status=404)
