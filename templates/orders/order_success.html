@@ -1,5 +1,129 @@
 {% extends 'orders/base.html' %}
 
+<<<<<<< HEAD
+{% block content %}
+<div class="max-w-md mx-auto text-center py-12">
+    <div class="bg-white p-8 rounded-2xl shadow-lg border border-green-100">
+        <div class="w-20 h-20 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6">
+            <i data-lucide="check-circle" class="w-12 h-12"></i>
+        </div>
+        <h1 class="text-3xl font-bold text-gray-900 mb-2">Order Received!</h1>
+        <p class="text-gray-500 mb-6">Order #{{ order.id }} is being prepared for Table {{ order.table_number }}</p>
+
+        <div class="bg-gray-50 rounded-lg p-4 mb-8">
+            <div class="flex justify-between text-sm mb-2">
+                <span class="text-gray-500">Total Bill</span>
+                <span class="font-bold text-gray-900 text-lg">Rs. {{ order.total_price }}</span>
+            </div>
+        </div>
+
+        <a href="{% url 'menu' %}?table={{ order.table_number }}"
+           class="inline-block bg-orange-600 text-white font-bold py-3 px-8 rounded-xl hover:bg-orange-700 transition-colors">
+            Order More
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+=======
+{% block content %}
+<div class="max-w-md mx-auto py-10">
+    <div class="bg-white rounded-3xl p-8 shadow-xl border border-gray-100 text-center">
+
+        <!-- Animated Icon Container -->
+        <div id="status-bg" class="w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 transition-colors duration-1000 bg-orange-100 text-orange-600">
+            <i id="main-icon" data-lucide="clock" class="w-12 h-12"></i>
+        </div>
+
+        <h1 id="status-title" class="text-3xl font-black text-gray-900 mb-2 uppercase tracking-tight">Order Received</h1>
+        <p id="status-desc" class="text-gray-500 mb-8">Hang tight! We've sent your order to the kitchen.</p>
+
+        <!-- Status Timeline -->
+        <div class="space-y-6 text-left mb-8">
+            <div class="flex items-center gap-4 opacity-100 transition-opacity" id="step-received">
+                <div class="w-10 h-10 rounded-full flex items-center justify-center bg-orange-600 text-white shadow-lg shadow-orange-100">1</div>
+                <div>
+                    <p class="font-bold text-gray-900">Received</p>
+                    <p class="text-xs text-gray-400">Order confirmed by system</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-4 opacity-30 transition-opacity" id="step-preparing">
+                <div id="circle-2" class="w-10 h-10 rounded-full flex items-center justify-center bg-gray-200 text-gray-500">2</div>
+                <div>
+                    <p class="font-bold text-gray-900">Preparing</p>
+                    <p class="text-xs text-gray-400">Chef is cooking your meal</p>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-4 opacity-30 transition-opacity" id="step-ready">
+                <div id="circle-3" class="w-10 h-10 rounded-full flex items-center justify-center bg-gray-200 text-gray-500">3</div>
+                <div>
+                    <p class="font-bold text-gray-900">Ready</p>
+                    <p class="text-xs text-gray-400">Pick up at the counter or served!</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="pt-6 border-t border-gray-100">
+            <p class="text-xs font-bold text-gray-400 uppercase mb-4">Order Details</p>
+            <div class="flex justify-between text-sm mb-1">
+                <span>Order ID</span>
+                <span class="font-bold">#{{ order.id }}</span>
+            </div>
+            <div class="flex justify-between text-sm">
+                <span>Table</span>
+                <span class="font-bold">{{ order.table_number }}</span>
+            </div>
+        </div>
+
+        <a href="{% url 'menu' %}?table={{ order.table_number }}"
+        class="inline-block bg-orange-600 text-white font-bold py-3 px-8 rounded-xl hover:bg-orange-700">
+            Order More
+        </a>
+
+    </div>
+</div>
+
+<script>
+    const orderId = "{{ order.id }}";
+
+    async function updateLiveStatus() {
+        try {
+            const response = await fetch(`/api/order-status/${orderId}/`);
+            const data = await response.json();
+            const status = data.status;
+
+            const title = document.getElementById('status-title');
+            const desc = document.getElementById('status-desc');
+            const bg = document.getElementById('status-bg');
+
+            if (status === 'preparing') {
+                title.innerText = "Cooking Now";
+                desc.innerText = "The chef has started your meal!";
+                bg.className = "w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 bg-blue-100 text-blue-600";
+                document.getElementById('step-preparing').style.opacity = "1";
+                document.getElementById('circle-2').className = "w-10 h-10 rounded-full flex items-center justify-center bg-blue-600 text-white shadow-lg shadow-blue-100";
+                document.getElementById('main-icon').setAttribute('data-lucide', 'utensils');
+            }
+            else if (status === 'ready') {
+                title.innerText = "Ready to Eat!";
+                desc.innerText = "Your order is ready. Enjoy your meal!";
+                bg.className = "w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 bg-green-100 text-green-600";
+                document.getElementById('step-preparing').style.opacity = "1";
+                document.getElementById('step-ready').style.opacity = "1";
+                document.getElementById('circle-3').className = "w-10 h-10 rounded-full flex items-center justify-center bg-green-600 text-white shadow-lg shadow-green-100";
+                document.getElementById('main-icon').setAttribute('data-lucide', 'party-popper');
+            }
+            lucide.createIcons();
+        } catch (e) { console.errr(e); }
+    }
+
+    setInterval(updateLiveStatus, 4000);
+</script>
+{% endblock %}
+{% extends 'orders/base.html' %}
+
 {% block content %}
 <div class="max-w-md mx-auto py-10">
     <div class="bg-white rounded-3xl p-8 shadow-xl border border-gray-100 text-center">
@@ -96,3 +220,5 @@
     setInterval(updateLiveStatus, 4000);
 </script>
 {% endblock %}
+
+>>>>>>> 10108ed9b1f390593aacd69c5f6daca565bd105e
