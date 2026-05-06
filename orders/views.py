@@ -1,8 +1,9 @@
 import json
 from django.http import JsonResponse
-from django.shortcuts import render
-from .models import Order, OrderItem, MenuItem, Category
+from django.shortcuts import render, redirect
+from .models import Order, OrderItem, MenuItem, Category, Review
 from decimal import Decimal
+from .ai_utils import analyze_note_sentiment
 
 
 def menu_view(request):
@@ -87,3 +88,18 @@ def get_order_status(request, order_id):
         return JsonResponse({"status": order.status})
     except Order.DoesNotExist:
         return JsonResponse({"error": "Not found"}, status=404)
+
+
+def update_order_status(request, order_id):
+    if request.method == "POST":
+        order = Order.objects.get(id=order_id)
+        new_status = request.POST.get("status")
+
+        valid_statuses = ["preparing", "ready", "completed"]
+
+        if new_status in valid_statuses:
+            order.status = new_status
+            order.save()
+
+            return redirect("kitchen_dashboard")
+    return JsonResponse({"status": "error"}, status=400)

@@ -42,9 +42,4 @@ class CategoryAdmin(admin.ModelAdmin):
 @admin.register(Review)
 class ReviewAdmin(admin.ModelAdmin):
     list_display = ["menu_item", "rating", "created_at"]
-    readonly_fields = [
-        "menu_item",
-        "rating",
-        "comment",
-        "created_at",
-    ]
+    readonly_fields = ["menu_item", "rating", "comment", "created_at"]
