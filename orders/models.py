@@ -63,12 +63,11 @@ class OrderItem(models.Model):
 
 
 class Review(models.Model):
-    menu_item = models.ForeignKey(
-        MenuItem, on_delete=models.CASCADE, related_name="reviews"
+    order = models.ForeignKey(
+        Order, on_delete=models.CASCADE, related_name="reviews", null=True
     )
-    rating = models.IntegerField(
-        default=5, validators=[MinValueValidator(1), MaxValueValidator(5)]
-    )
+    menu_item = models.ForeignKey(MenuItem, on_delete=models.CASCADE)
+    rating = models.IntegerField(default=5)
     comment = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

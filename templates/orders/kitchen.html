@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <title>Kitchen Dashboard</title>
+</head>
+<body class="bg-slate-900 text-white p-8">
+    <nav class="flex items-center justify-between mb-8">
+        <a class="text-2xl font-bold text-orange-600 hover:text-orange-700 transition-colors flex items-center gap-2">
+        <i data-lucide="utensils-crosses" class="w-6 h-6"></i>
+        <span>DineQR</span>
+        <a/>
+
+        <div class="text-right">
+            <p id="clock" class="text-2xl font-mono text-slate-400"></p>
+        </div>
+    </nav>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {% for order in orders %}
+        <div class="bg-slate-800 rounded-3xl p-6 border border-slate-700 flex flex-col h-full">
+            <div class="flex justify-between items-start mb-4">
+                <span class="text-3xl font-black text-orange-500">T-{{ order.table_number }}</span>
+                <span class="bg-slate-700 px-3 py-1 rounded-full text-xs font-bold text-slate-400">#{{ order.id }}</span>
+            </div>
+
+            <ul class="space-y-4 mb-6 flex-grow">
+                {% for item in order.items.all %}
+                <li class="border-b border-slate-700 pb-3 last:border-0">
+                    <div class="flex justify-between">
+                        <span class="font-bold text-xl">{{ item.quantity }}x {{ item.menu_item.name }}</span>
+                    </div>
+                    {% if item.notes %}
+                    <div class="mt-2 p-2 bg-slate-900 rounded-lg border-l-4
+                        {% if item.sentiment == 'positive' %}border-green-500
+                        {% elif item.sentiment == 'negative' %}border-red-500
+                        {% else %}border-gray-500{% endif %}">
+                        <p class="text-sm italic text-slate-300 flex items-center gap-2">
+                            <i data-lucide="message-square" class="w-3 h-3"></i>
+                            {{ item.notes }}
+                        </p>
+                        <!-- AI VERIFICATION TAG -->
+                        <span class="text-[10px] uppercase font-black {% if item.sentiment == 'positive' %}text-green-500{% elif item.sentiment == 'negative' %}text-red-500{% else %}text-slate-500{% endif %}">
+                            AI Sentiment: {{ item.sentiment }}
+                        </span>
+                    </div>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+
+            <form method="POST" action="{% url 'update_order_status' order.id %}">
+                {% csrf_token %}
+                {% if order.status == 'received' %}
+                    <input type="hidden" name="status" value="preparing">
+                    <button class="w-full bg-blue-600 py-4 rounded-2xl font-black uppercase hover:bg-blue-500 transition-colors">Start Cooking</button>
+                {% elif order.status == 'preparing' %}
+                    <input type="hidden" name="status" value="ready">
+                    <button class="w-full bg-green-600 py-4 rounded-2xl font-black uppercase hover:bg-green-500 transition-colors">Mark Ready</button>
+                {% elif order.status == 'ready' %}
+                    <input type="hidden" name="status" value="completed">
+                    <button class="w-full bg-slate-100 text-slate-900 py-4 rounded-2xl font-black uppercase hover:bg-white transition-colors">Complete & Bill</button>
+                {% endif %}
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+
+    <script>
+        lucide.createIcons();
+        setInterval(() => { document.getElementById('clock').innerText = new Date().toLocaleTimeString(); }, 1000);
+        setTimeout(() => { location.reload(); }, 10000);
+    </script>
+</body>
+</html>

@@ -27,4 +27,10 @@ urlpatterns = [
         views.get_order_status,
         name="get_order_status",
     ),
+    path("kitchen/", views.kitchen_dashboard, name="kitchen_dashboard"),
+    path(
+        "api/update-order-status/<int:order_id>/",
+        views.update_order_status,
+        name="update_order_status",
+    ),
 ]
