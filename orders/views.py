@@ -103,3 +103,11 @@ def update_order_status(request, order_id):
 
             return redirect("kitchen_dashboard")
     return JsonResponse({"status": "error"}, status=400)
+
+
+def kitchen_dashboard(request):
+    # Get all orders that aren't finished yet
+    active_orders = Order.objects.filter(status__in=["received", "preparing"]).order_by(
+        "created_at"
+    )
+    return render(request, "orders/kitchen.html", {"orders": active_orders})
