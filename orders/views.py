@@ -39,15 +39,26 @@ def place_order(request):
         try:
             data = json.loads(request.body)
             cart = data.get("cart")
-            table_number = data.get("table_number")
+            raw_table_number = data.get("table_number")
 
-            if not cart or not table_number:
+            if not cart or not raw_table_number:
                 return JsonResponse(
                     {"status": "error", "message": "Invalid data"}, status=400
                 )
 
+            try:
+                table_num = int(raw_table_number)
+                if table_num < 1 or table_num > 10:
+                    return JsonResponse(
+                        {"status": "error", "message": "Table must be 1-10"}, status=400
+                    )
+            except ValueError:
+                return JsonResponse(
+                    {"status": "error", "message": "Invalid table format"}, status=400
+                )
+
             new_order = Order.objects.create(
-                table_number=table_number,
+                table_number=table_num,
                 status="received",
                 total_price=Decimal("0.00"),
             )
@@ -111,3 +122,31 @@ def kitchen_dashboard(request):
         "created_at"
     )
     return render(request, "orders/kitchen.html", {"orders": active_orders})
+
+
+def order_review_page(request, order_id):
+    order = Order.objects.get(id=order_id)
+
+    if request.method == "POST":
+        # Loop through the items in the order to get ratings
+        for item in order.items.all():
+            rating = request.POST.get(f"rating_{item.id}")
+            comment = request.POST.get(f"comment_{item.id}", "")
+
+            # RUN AI SENTIMENT ANALYSIS HERE
+            ai_result = analyze_note_sentiment(comment)
+
+            Review.objects.create(
+                order=order,
+                menu_item=item.menu_item,
+                rating=rating,
+                comment=comment,
+                sentiment=ai_result,
+            )
+
+        # Mark order as fully closed and send back to menu
+        order.status = "completed"
+        order.save()
+        return redirect("menu")
+
+    return render(request, "orders/review_form.html", {"order": order})

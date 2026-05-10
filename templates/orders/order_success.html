@@ -1,4 +1,7 @@
 {% extends 'orders/base.html' %}
+{% load static %}
+
+<script src="{% static 'js/status.js' %}" defer></script>
 
 {% block content %}
 <div class="max-w-md mx-auto py-10">
@@ -60,65 +63,9 @@
 </div>
 
 <script>
-    const orderId = "{{ order.id }}";
-
-    async function updateLiveStatus() {
-        try {
-            const response = await fetch(`/api/order-status/${orderId}/`);
-            const data = await response.json();
-            const status = data.status;
-
-            const title = document.getElementById('status-title');
-            const desc = document.getElementById('status-desc');
-            const bg = document.getElementById('status-bg');
-
-            if (status === 'preparing') {
-                title.innerText = "Cooking Now";
-                desc.innerText = "The chef has started your meal!";
-                bg.className = "w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 bg-blue-100 text-blue-600";
-                document.getElementById('step-preparing').style.opacity = "1";
-                document.getElementById('circle-2').className = "w-10 h-10 rounded-full flex items-center justify-center bg-blue-600 text-white shadow-lg shadow-blue-100";
-                document.getElementById('main-icon').setAttribute('data-lucide', 'utensils');
-            }
-            else if (status === 'ready') {
-                title.innerText = "Ready to Eat!";
-                desc.innerText = "Your order is ready. Enjoy your meal!";
-                bg.className = "w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 bg-green-100 text-green-600";
-                document.getElementById('step-preparing').style.opacity = "1";
-                document.getElementById('step-ready').style.opacity = "1";
-                document.getElementById('circle-3').className = "w-10 h-10 rounded-full flex items-center justify-center bg-green-600 text-white shadow-lg shadow-green-100";
-                document.getElementById('main-icon').setAttribute('data-lucide', 'party-popper');
-            }
-            if (status === 'completed') {
-                // Hide progress bar, show review form
-                document.getElementById('status-container').innerHTML = `
-                    <div class="text-center">
-                        <h2 class="text-2xl font-bold mb-4">How was the food?</h2>
-                        <form method="POST" action="/submit-review/${orderId}/" class="space-y-6 text-left">
-                            {% csrf_token %}
-                            ${renderReviewFields()}
-                            <button type="submit" class="w-full bg-orange-600 text-white font-bold py-3 rounded-xl">Submit Review</button>
-                        </form>
-                    </div>
-                `;
-            }
-
-            lucide.createIcons();
-        } catch (e) { console.error(e); }
-    }
-
-    // Function to generate stars for each item in the order
-    function renderReviewFields() {
-        // Note: You might want to pass item names via a small API or Context
-        return `{% for item in order.items.all %}
-            <div class="border-b pb-4 mb-4">
-                <p class="font-bold">{{ item.menu_item.name }}</p>
-                <input type="range" name="rating_{{ item.menu_item.id }}" min="1" max="5" value="5" class="w-full accent-orange-600">
-                <input type="text" name="comment_{{ item.menu_item.id }}" placeholder="Comment (optional)" class="w-full mt-2 p-2 bg-gray-50 border rounded-lg text-sm">
-            </div>
-        {% endfor %}`;
-    }
-
-    setInterval(updateLiveStatus, 4000);
+    // Start the polling logic from the external file
+    document.addEventListener('DOMContentLoaded', () => {
+        startStatusPolling("{{ order.id }}");
+    });
 </script>
 {% endblock %}

@@ -69,7 +69,7 @@ class Review(models.Model):
     menu_item = models.ForeignKey(MenuItem, on_delete=models.CASCADE)
     rating = models.IntegerField(default=5)
     comment = models.TextField(blank=True)
+    sentiment = models.CharField(
+        max_length=20, default="neutral"
+    )  # AI result: positive, negative, neutral
     created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"Review for {self.menu_item.name} - {self.rating} stars"
