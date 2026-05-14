@@ -33,4 +33,10 @@ urlpatterns = [
         views.update_order_status,
         name="update_order_status",
     ),
+    path(
+        "order/review/<int:order_id>/",
+        views.order_review_page,
+        name="order_review_page",
+    ),
+    path("dashboard/", views.owner_dashboard, name="owner_dashboard"),
 ]

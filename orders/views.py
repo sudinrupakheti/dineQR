@@ -4,6 +4,11 @@ from django.shortcuts import render, redirect
 from .models import Order, OrderItem, MenuItem, Category, Review
 from decimal import Decimal
 from .ai_utils import analyze_note_sentiment
+import pandas as pd
+from django.db.models import Sum
+from datetime import date
+from django.utils import timezone
+from django.contrib.auth.decorators import user_passes_test
 
 
 def menu_view(request):
@@ -150,3 +155,56 @@ def order_review_page(request, order_id):
 
     return render(request, "orders/review_form.html", {"order": order})
 
+def kitchen_dashboard(request):
+    # Get all orders that aren't finished yet
+    active_orders = Order.objects.filter(status__in=["received", "preparing"]).order_by(
+        "created_at"
+    )
+    return render(request, "orders/kitchen.html", {"orders": active_orders})
+
+def owner_dashboard(request):
+    filter_type = request.GET.get("filter", "all")  # Default to all-time
+
+    # Base queries
+    completed_orders = Order.objects.filter(status="completed")
+    all_reviews = Review.objects.all()
+
+    # Apply 'Today' filter if requested
+    if filter_type == "today":
+        today = timezone.localdate()
+        completed_orders = completed_orders.filter(created_at__date=today)
+        all_reviews = all_reviews.filter(created_at__date=today)
+
+    total_revenue = (
+        completed_orders.aggregate(Sum("total_price"))["total_price__sum"] or 0
+    )
+    positive_count = all_reviews.filter(sentiment="positive").count()
+    negative_count = all_reviews.filter(sentiment="negative").count()
+
+    best_seller = "No sales"
+    items_sold = 0
+
+    if completed_orders.exists():
+        all_items = OrderItem.objects.filter(order__in=completed_orders)
+        if all_items.exists():
+            data = list(all_items.values("menu_item__name", "quantity"))
+            df = pd.DataFrame(data)
+            if not df.empty:
+                sales_summary = (
+                    df.groupby("menu_item__name")["quantity"].sum().reset_index()
+                )
+                top_item_row = sales_summary.sort_values(
+                    by="quantity", ascending=False
+                ).iloc[0]
+                best_seller = top_item_row["menu_item__name"]
+                items_sold = top_item_row["quantity"]
+
+    context = {
+        "filter_type": filter_type,
+        "total_revenue": total_revenue,
+        "order_count": completed_orders.count(),
+        "best_seller": best_seller,
+        "items_sold": items_sold,
+        "positive_count": positive_count,
+        "negative_count": negative_count,
+    }
