@@ -63,9 +63,42 @@
 </div>
 
 <script>
-    // Start the polling logic from the external file
-    document.addEventListener('DOMContentLoaded', () => {
-        startStatusPolling("{{ order.id }}");
-    });
+    // Grab the exact order ID from Django
+    const orderId = "{{ order.id }}";
+
+    async function checkStatus() {
+        try {
+            const response = await fetch(`/api/order-status/${orderId}/`);
+            if (!response.ok) return; // Stop if the server returns an error
+
+            const data = await response.json();
+            const status = data.status.toLowerCase();
+
+            // 1. If READY or COMPLETED -> Send to Review Page
+            if (status === 'ready' || status === 'completed') {
+                window.location.href = `/order/review/${orderId}/`;
+                return;
+            }
+
+            // 2. If PREPARING -> Update UI
+            if (status === 'preparing') {
+                document.getElementById('status-title').innerText = "Cooking Now";
+                document.getElementById('status-desc').innerText = "The chef has started your meal!";
+                document.getElementById('status-bg').className = "w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 bg-blue-100 text-blue-600 shadow-inner";
+
+                document.getElementById('step-preparing').style.opacity = "1";
+                document.getElementById('circle-2').className = "w-10 h-10 rounded-full flex items-center justify-center bg-blue-600 text-white font-bold";
+
+                document.getElementById('main-icon').setAttribute('data-lucide', 'utensils');
+                lucide.createIcons();
+            }
+        } catch (e) {
+            console.error("Polling error:", e);
+        }
+    }
+
+    // Run immediately, then every 3 seconds
+    checkStatus();
+    setInterval(checkStatus, 3000);
 </script>
 {% endblock %}
