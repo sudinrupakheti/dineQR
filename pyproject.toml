@@ -10,4 +10,6 @@ dependencies = [
     "djangorestframework>=3.17.1",
     "pillow>=12.2.0",
     "vaderSentiment>=3.3.2",
+    "pandas",
+    "django-jazzmin",
 ]
