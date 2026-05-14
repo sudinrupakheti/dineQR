@@ -10,6 +10,12 @@ from datetime import date
 from django.utils import timezone
 from django.contrib.auth.decorators import user_passes_test
 
+def is_owner(user):
+    return user.groups.filter(name="Owner").exists() or user.is_superuser
+
+
+def is_staff(user):
+    return user.groups.filter(name="Staff").exists() or user.is_superuser
 
 def menu_view(request):
     items = MenuItem.objects.filter(is_available=True)
@@ -155,6 +161,7 @@ def order_review_page(request, order_id):
 
     return render(request, "orders/review_form.html", {"order": order})
 
+@user_passes_test(is_staff)
 def kitchen_dashboard(request):
     # Get all orders that aren't finished yet
     active_orders = Order.objects.filter(status__in=["received", "preparing"]).order_by(
@@ -162,6 +169,7 @@ def kitchen_dashboard(request):
     )
     return render(request, "orders/kitchen.html", {"orders": active_orders})
 
+@user_passes_test(is_owner)
 def owner_dashboard(request):
     filter_type = request.GET.get("filter", "all")  # Default to all-time
 
