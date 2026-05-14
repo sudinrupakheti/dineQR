@@ -34,5 +34,18 @@
         </div>
     </nav>
 
+    <!-- Main Content Area -->
+    <main class="max-w-7xl mx-auto p-4 md:p-8">
+        {% block content %}{% endblock %}
+    </main>
+
+    <script>
+        lucide.createIcons();
+        // Live clock for the staff navbar
+        setInterval(() => {
+            document.getElementById('system-clock').innerText = new Date().toLocaleTimeString();
+        }, 1000);
+    </script>
+
 </body>
 </html>
