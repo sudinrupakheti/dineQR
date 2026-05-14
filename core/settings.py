@@ -104,6 +104,26 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+JAZZMIN_SETTINGS = {
+    "site_title": "DineQR Admin",
+    "site_header": "DineQR",
+    "site_brand": "DineQR Management",
+    "welcome_sign": "Welcome to DineQR Restaurant Manager",
+    "search_model": ["orders.Order", "orders.MenuItem"],
+    "show_ui_builder": False,  # Set to True if you want to visually change colors!
+    "topmenu_links": [
+        {"name": "Home", "url": "admin:index", "permissions": ["auth.view_user"]},
+        {
+            "name": "Owner Dashboard",
+            "url": "/dashboard/",
+        },  # Link to your Pandas dashboard
+        {"name": "Kitchen View", "url": "/kitchen/"},  # Link to Kitchen
+    ],
+}
+
+JAZZMIN_UI_TWEAKS = {
+    "theme": "lumen",  # A clean, modern white/orange theme
+}
 
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
