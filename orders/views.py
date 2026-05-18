@@ -5,10 +5,13 @@ from .models import Order, OrderItem, MenuItem, Category, Review
 from decimal import Decimal
 from .ai_utils import analyze_note_sentiment
 import pandas as pd
-from django.db.models import Sum
+from django.db.models import Sum, Q
 from datetime import date
 from django.utils import timezone
 from django.contrib.auth.decorators import user_passes_test
+import difflib
+from django.urls import reverse
+
 
 def is_owner(user):
     return user.groups.filter(name="Owner").exists() or user.is_superuser
@@ -17,14 +20,55 @@ def is_owner(user):
 def is_staff(user):
     return user.groups.filter(name="Staff").exists() or user.is_superuser
 
+
 def menu_view(request):
-    items = MenuItem.objects.filter(is_available=True)
+    query = request.GET.get("search", "").lower().strip()
+    items = MenuItem.objects.all()
     categories = Category.objects.all()
 
-    context = {
-        "items": items,
-        "categories": categories,
-    }
+    if query:
+        matched_categories = categories.filter(name__icontains=query)
+
+        # Intent detection
+        is_veg = "veg" in query and "non" not in query
+        is_spicy = any(w in query for w in ["spicy", "hot", "chili", "spice"])
+        is_mild = any(w in query for w in ["mild", "not spicy", "not hot"])
+
+        if is_spicy:
+            # Pure intent query — skip text search entirely
+            items = items.filter(spice_level__in=["medium", "hot"])
+        elif is_mild:
+            items = items.filter(spice_level="mild")
+        else:
+            # Strip punctuation for fuzzy matching
+            import re
+
+            clean_names = [
+                re.sub(r"[^a-z0-9 ]", "", item.name.lower()) for item in items
+            ]
+            close_matches = difflib.get_close_matches(
+                query, clean_names, n=5, cutoff=0.5
+            )
+
+            lookup = (
+                Q(name__icontains=query)
+                | Q(description__icontains=query)
+                | Q(category__in=matched_categories)
+            )
+
+            # Add ALL close matches, not just [0]
+            for match in close_matches:
+                lookup |= Q(name__icontains=match.replace(" ", ""))
+
+            items = items.filter(lookup)
+
+        if is_veg:
+            items = items.filter(veg=True)
+
+    category_ids = items.values_list("category_id", flat=True)
+    categories = categories.filter(id__in=category_ids)
+
+    context = {"items": items, "categories": categories, "query": query}
     return render(request, "orders/menu.html", context)
 
 
@@ -127,23 +171,12 @@ def update_order_status(request, order_id):
     return JsonResponse({"status": "error"}, status=400)
 
 
-def kitchen_dashboard(request):
-    # Get all orders that aren't finished yet
-    active_orders = Order.objects.filter(status__in=["received", "preparing"]).order_by(
-        "created_at"
-    )
-    return render(request, "orders/kitchen.html", {"orders": active_orders})
-
 def order_review_page(request, order_id):
     order = Order.objects.get(id=order_id)
-
     if request.method == "POST":
-        # Loop through the items in the order to get ratings
         for item in order.items.all():
             rating = request.POST.get(f"rating_{item.id}")
             comment = request.POST.get(f"comment_{item.id}", "")
-
-            # RUN AI SENTIMENT ANALYSIS HERE
             ai_result = analyze_note_sentiment(comment)
 
             Review.objects.create(
@@ -153,13 +186,10 @@ def order_review_page(request, order_id):
                 comment=comment,
                 sentiment=ai_result,
             )
-
-        # Mark order as fully closed and send back to menu
-        order.status = "completed"
-        order.save()
-        return redirect("menu")
+        return redirect(f"{reverse('menu')}?table={order.table_number}")
 
     return render(request, "orders/review_form.html", {"order": order})
+
 
 @user_passes_test(is_staff)
 def kitchen_dashboard(request):
@@ -169,50 +199,94 @@ def kitchen_dashboard(request):
     )
     return render(request, "orders/kitchen.html", {"orders": active_orders})
 
-@user_passes_test(is_owner)
-def owner_dashboard(request):
-    filter_type = request.GET.get("filter", "all")  # Default to all-time
 
-    # Base queries
-    completed_orders = Order.objects.filter(status="completed")
-    all_reviews = Review.objects.all()
+@user_passes_test(is_staff)
+def management_dashboard(request):
+    current_tab = request.GET.get("tab", "tables")
 
-    # Apply 'Today' filter if requested
-    if filter_type == "today":
-        today = timezone.localdate()
-        completed_orders = completed_orders.filter(created_at__date=today)
-        all_reviews = all_reviews.filter(created_at__date=today)
+    table_data = []
+    for i in range(1, 11):
+        active_orders = Order.objects.filter(table_number=i).exclude(status="completed")
+        if active_orders.exists():
+            total_bill = (
+                active_orders.aggregate(Sum("total_price"))["total_price__sum"] or 0
+            )
+            statuses = [o.status for o in active_orders]
+            display_status = (
+                "ready"
+                if "ready" in statuses
+                else ("preparing" if "preparing" in statuses else "received")
+            )
+            table_data.append(
+                {
+                    "number": i,
+                    "status": display_status,
+                    "total": total_bill,
+                    "has_orders": True,
+                }
+            )
+        else:
+            table_data.append(
+                {"number": i, "status": "empty", "total": 0, "has_orders": False}
+            )
 
-    total_revenue = (
-        completed_orders.aggregate(Sum("total_price"))["total_price__sum"] or 0
-    )
-    positive_count = all_reviews.filter(sentiment="positive").count()
-    negative_count = all_reviews.filter(sentiment="negative").count()
-
-    best_seller = "No sales"
-    items_sold = 0
-
-    if completed_orders.exists():
-        all_items = OrderItem.objects.filter(order__in=completed_orders)
-        if all_items.exists():
-            data = list(all_items.values("menu_item__name", "quantity"))
-            df = pd.DataFrame(data)
-            if not df.empty:
-                sales_summary = (
-                    df.groupby("menu_item__name")["quantity"].sum().reset_index()
-                )
-                top_item_row = sales_summary.sort_values(
-                    by="quantity", ascending=False
-                ).iloc[0]
-                best_seller = top_item_row["menu_item__name"]
-                items_sold = top_item_row["quantity"]
+    categories = Category.objects.prefetch_related("items").all()
 
     context = {
-        "filter_type": filter_type,
-        "total_revenue": total_revenue,
-        "order_count": completed_orders.count(),
-        "best_seller": best_seller,
-        "items_sold": items_sold,
-        "positive_count": positive_count,
-        "negative_count": negative_count,
+        "tables": table_data,
+        "categories": categories,
+        "current_tab": current_tab,
     }
+    return render(request, "orders/management_dashboard.html", context)
+
+
+@user_passes_test(is_staff)
+def mark_table_paid(request, table_num):
+    if request.method == "POST":
+        # Find all orders for this table that aren't completed
+        active_orders = Order.objects.filter(table_number=table_num).exclude(
+            status="completed"
+        )
+
+        # Mark all of them as paid and completed
+        active_orders.update(
+            is_paid=True, paid_at=timezone.localtime(), status="completed"
+        )
+    return redirect("management_dashboard")
+
+
+@user_passes_test(is_staff)
+def toggle_item_availability(request, item_id):
+    if request.method == "POST":
+        item = MenuItem.objects.get(id=item_id)
+        item.is_available = not item.is_available
+        item.save()
+    return redirect(f"{request.META.get('HTTP_REFERER', '/management/')}?tab=menu")
+
+
+def table_bill(request, table_num):
+    # Get all active (unpaid) orders for this table
+    active_orders = Order.objects.filter(table_number=table_num).exclude(
+        status="completed"
+    )
+
+    if not active_orders.exists():
+        # If no active orders, maybe they just paid? Show the last completed orders from the last 15 mins
+        active_orders = Order.objects.filter(
+            table_number=table_num,
+            status="completed",
+            paid_at__gte=timezone.localtime() - timezone.timedelta(minutes=15),
+        )
+
+    # Collect all items across these orders
+    items = OrderItem.objects.filter(order__in=active_orders)
+    total = active_orders.aggregate(Sum("total_price"))["total_price__sum"] or 0
+
+    context = {
+        "table_num": table_num,
+        "items": items,
+        "total": total,
+        "date": timezone.localtime(),
+        "bill_id": active_orders.first().id if active_orders.exists() else "000",
+    }
+    return render(request, "orders/bill_print.html", context)

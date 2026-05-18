@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Receipt_Table_{{ table_num }}</title>
+    <style>
+        body { font-family: 'Courier New', Courier, monospace; width: 80mm; margin: 0 auto; padding: 20px; color: #000; }
+        .text-center { text-center: center; text-align: center; }
+        .header { border-bottom: 1px dashed #000; padding-bottom: 10px; margin-bottom: 10px; }
+        .item-row { display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 14px; }
+        .total-row { border-top: 1px dashed #000; margin-top: 10px; padding-top: 10px; font-weight: bold; font-size: 18px; }
+        .footer { margin-top: 20px; font-size: 10px; text-align: center; }
+        @media print { .no-print { display: none; } body { width: 100%; padding: 0; } }
+    </style>
+</head>
+<body>
+    <div class="no-print" style="background: #fff3e0; padding: 10px; margin-bottom: 20px; text-align: center; border-radius: 8px;">
+        <button onclick="window.print()" style="padding: 10px 20px; background: #ea580c; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;">
+            PRINT RECEIPT
+        </button>
+        <p style="font-size: 12px; color: #9a3412;">Choose "Save as PDF" in the print destination if needed.</p>
+    </div>
+
+    <div class="header text-center">
+        <h1 style="margin: 0; font-size: 24px;">DINEQR</h1>
+        <p style="margin: 5px 0;">New Baneshwor, Kathmandu</p>
+        <p style="margin: 0;">Table: {{ table_num }} | Bill #{{ bill_id }}</p>
+        <p style="font-size: 12px;">{{ date|date:"Y-m-d H:i" }}</p>
+    </div>
+
+    {% for item in items %}
+    <div class="item-row">
+        <span>{{ item.quantity }}x {{ item.menu_item.name }}</span>
+        <span>{{ item.menu_item.price }}</span>
+    </div>
+    {% endfor %}
+
+    <div class="total-row item-row">
+        <span>TOTAL</span>
+        <span>Rs. {{ total }}</span>
+    </div>
+
+    <div class="footer">
+        <p>Thank you for dining with us!</p>
+        <p>Software by DineQR</p>
+    </div>
+
+    <script>
+        // Auto-open print dialog on load
+        window.onload = function() {
+            // Optional: window.print();
+        }
+    </script>
+</body>
+</html>

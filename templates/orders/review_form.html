@@ -3,20 +3,38 @@
 {% block content %}
 <div class="max-w-2xl mx-auto py-10">
     <div class="bg-white rounded-3xl p-8 shadow-xl border border-gray-100">
-        <h1 class="text-3xl font-black text-gray-900 mb-2">Rate Your Meal</h1>
-        <p class="text-gray-500 mb-8 border-b pb-4">Order #{{ order.id }} • Table {{ order.table_number }}</p>
+        <h1 class="text-3xl font-black text-gray-900 mb-2">
+            Rate Your Meal
+        </h1>
 
-        <form method="POST">
+        <p class="text-gray-500 mb-8 border-b pb-4">
+            Order #{{ order.id }} • Table {{ order.table_number }}
+        </p>
+
+        <form method="POST" id="review-form">
             {% csrf_token %}
+
             {% for item in order.items.all %}
             <div class="mb-8 p-4 bg-gray-50 rounded-2xl border border-gray-100">
-                <p class="font-bold text-lg text-gray-800 mb-4">{{ item.menu_item.name }}</p>
+                <p class="font-bold text-lg text-gray-800 mb-4">
+                    {{ item.menu_item.name }}
+                </p>
 
-                <label class="text-sm font-bold text-gray-400 uppercase">Rating</label>
+                <label class="text-sm font-bold text-gray-400 uppercase">
+                    Rating
+                </label>
+
                 <div class="flex gap-4 mb-4 mt-2">
                     {% for i in "12345" %}
                     <label class="cursor-pointer">
-                        <input type="radio" name="rating_{{ item.id }}" value="{{ forloop.counter }}" class="hidden peer" {% if forloop.last %}checked{% endif %}>
+                        <input
+                            type="radio"
+                            name="rating_{{ item.id }}"
+                            value="{{ forloop.counter }}"
+                            class="hidden peer"
+                            {% if forloop.last %}checked{% endif %}
+                        >
+
                         <div class="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-gray-200 peer-checked:bg-orange-600 peer-checked:text-white peer-checked:border-orange-600 transition-all font-bold">
                             {{ forloop.counter }}
                         </div>
@@ -24,16 +42,39 @@
                     {% endfor %}
                 </div>
 
-                <label class="text-sm font-bold text-gray-400 uppercase">Your Review</label>
-                <textarea name="comment_{{ item.id }}" placeholder="How was it? Mention taste, spice, etc."
-                    class="w-full mt-2 p-4 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-orange-200 outline-none"></textarea>
+                <label class="text-sm font-bold text-gray-400 uppercase">
+                    Your Review
+                </label>
+
+                <textarea
+                    name="comment_{{ item.id }}"
+                    placeholder="How was it? Mention taste, spice, etc."
+                    class="w-full mt-2 p-4 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-orange-200 outline-none"
+                ></textarea>
             </div>
             {% endfor %}
 
-            <button type="submit" class="w-full bg-orange-600 text-white font-black py-4 rounded-2xl shadow-lg shadow-orange-100 hover:scale-[1.02] transition-transform">
+            <button
+                type="submit"
+                class="w-full bg-orange-600 text-white font-black py-4 rounded-2xl shadow-lg shadow-orange-100 hover:scale-[1.02] transition-transform"
+            >
                 Submit & Finish
             </button>
         </form>
     </div>
 </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    const form = document.getElementById("review-form");
+
+    form.addEventListener("submit", function () {
+        const tableNum = "{{ order.table_number }}";
+        const cartKey = `cart_table_${tableNum}`;
+
+        // remove cart after successful submit
+        localStorage.removeItem(cartKey);
+    });
+});
+</script>
 {% endblock %}

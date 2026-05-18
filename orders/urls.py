@@ -22,5 +22,16 @@ urlpatterns = [
         views.order_review_page,
         name="order_review_page",
     ),
-    path("dashboard/", views.owner_dashboard, name="owner_dashboard"),
+    path("management/", views.management_dashboard, name="management_dashboard"),
+    path(
+        "management/table-paid/<int:table_num>/",
+        views.mark_table_paid,
+        name="mark_table_paid",
+    ),
+    path(
+        "management/toggle-item/<int:item_id>/",
+        views.toggle_item_availability,
+        name="toggle_item_availability",
+    ),
+    path("bill/<int:table_num>/", views.table_bill, name="table_bill"),
 ]

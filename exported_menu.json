@@ -1,0 +1,405 @@
+[
+{
+    "model": "orders.category",
+    "pk": 1,
+    "fields": {
+        "name": "Main Course"
+    }
+},
+{
+    "model": "orders.category",
+    "pk": 2,
+    "fields": {
+        "name": "Snacks & Starters"
+    }
+},
+{
+    "model": "orders.category",
+    "pk": 3,
+    "fields": {
+        "name": "Soups"
+    }
+},
+{
+    "model": "orders.category",
+    "pk": 4,
+    "fields": {
+        "name": "Beverages"
+    }
+},
+{
+    "model": "orders.category",
+    "pk": 5,
+    "fields": {
+        "name": "Desserts"
+    }
+},
+{
+    "model": "orders.menuitem",
+    "pk": 1,
+    "fields": {
+        "category": 1,
+        "name": "Veg Dal Bhat Set",
+        "description": "Traditional Nepali thali with steamed rice, slow-cooked yellow dal, seasonal saag, mixed achar, and a side of papad.",
+        "price": "380.00",
+        "image": "menu_items/veg_khana_set.png",
+        "is_available": true,
+        "veg": true,
+        "spice_level": "mild",
+        "preparation_time": 20,
+        "best_seller": false
+    }
+},
+{
+    "model": "orders.menuitem",
+    "pk": 2,
+    "fields": {
+        "category": 1,
+        "name": "Chicken Dal Bhat Set",
+        "description": "Classic Nepali thali with fragrant rice, rich chicken curry, hearty dal, mixed seasonal vegetables, and tangy homemade pickle.",
+        "price": "520.00",
+        "image": "menu_items/chicken_khana_set.png",
+        "is_available": true,
+        "veg": false,
+        "spice_level": "medium",
+        "preparation_time": 25,
+        "best_seller": false
+    }
+},
+{
+    "model": "orders.menuitem",
+    "pk": 3,
+    "fields": {
+        "category": 1,
+        "name": "Mutton Dal Bhat Set",
+        "description": "Slow-braised mutton curry with melt-off-the-bone tenderness, served alongside steamed rice, golden dal, sautéed greens, and spiced achar.",
+        "price": "700.00",
+        "image": "menu_items/mutton_khana_set.png",
+        "is_available": true,
+        "veg": false,
+        "spice_level": "hot",
+        "preparation_time": 35,
+        "best_seller": false
+    }
+},
+{
+    "model": "orders.menuitem",
+    "pk": 7,
+    "fields": {
+        "category": 2,
+        "name": "Chicken Mo:Mo",
+        "description": "Handcrafted steamed dumplings stuffed with seasoned minced chicken, served with smoked tomato chutney.",
+        "price": "200.00",
+        "image": "menu_items/chichen_momo.png",
+        "is_available": true,
+        "veg": false,
+        "spice_level": "mild",
+        "preparation_time": 15,
+        "best_seller": false
+    }
+},
+{
+    "model": "orders.menuitem",
+    "pk": 8,
+    "fields": {
+        "category": 2,
+        "name": "Chicken Schezwan Mo:Mo",
+        "description": "Crispy tossed dumplings glazed in a bold, fiery schezwan sauce — a street-food favourite with serious heat.",
+        "price": "260.00",
+        "image": "menu_items/chicken_schezwan_momo.png",
+        "is_available": true,
+        "veg": false,
+        "spice_level": "hot",
+        "preparation_time": 18,
+        "best_seller": false
+    }
+},
+{
+    "model": "orders.menuitem",
+    "pk": 9,
+    "fields": {
+        "category": 2,
+        "name": "Chicken Kothey Mo:Mo",
+        "description": "Golden pan-fried dumplings with a crisp base and juicy chicken filling, served with house dipping sauce.",
+        "price": "240.00",
+        "image": "menu_items/chicken_kotheys_momo.png",
+        "is_available": true,
+        "veg": false,
+        "spice_level": "medium",
+        "preparation_time": 20,
+        "best_seller": false
+    }
+},
+{
+    "model": "orders.menuitem",
+    "pk": 12,
+    "fields": {
+        "category": 3,
+        "name": "Chicken Thukpa",
+        "description": "Hearty Tibetan noodle soup with hand-shredded chicken, fresh greens, and a deeply spiced, aromatic broth.",
+        "price": "270.00",
+        "image": "menu_items/chicken_thukpa.png",
+        "is_available": true,
+        "veg": false,
+        "spice_level": "medium",
+        "preparation_time": 25,
+        "best_seller": false
+    }
+},
+{
+    "model": "orders.menuitem",
+    "pk": 13,
+    "fields": {
+        "category": 3,
+        "name": "Clear Chicken Soup",
+        "description": "Light, golden chicken broth slow-cooked with ginger, garlic, and garden herbs — comforting and restorative.",
+        "price": "220.00",
+        "image": "menu_items/chicken_soup.png",
+        "is_available": true,
+        "veg": false,
+        "spice_level": "mild",
+        "preparation_time": 20,
+        "best_seller": false
+    }
+},
+{
+    "model": "orders.menuitem",
+    "pk": 21,
+    "fields": {
+        "category": 2,
+        "name": "Veg Mo:Mo",
+        "description": "Delicate steamed dumplings filled with spiced mixed vegetables and herbs, served with tomato sesame chutney.",
+        "price": "140.00",
+        "image": "menu_items/veg_momo.png",
+        "is_available": true,
+        "veg": true,
+        "spice_level": "mild",
+        "preparation_time": 15,
+        "best_seller": false
+    }
+},
+{
+    "model": "orders.menuitem",
+    "pk": 22,
+    "fields": {
+        "category": 2,
+        "name": "Veg Kothey Mo:Mo",
+        "description": "Pan-fried vegetable dumplings with a beautifully crisped bottom, served with house dipping sauce.",
+        "price": "170.00",
+        "image": "menu_items/veg_khoteys_momo.png",
+        "is_available": true,
+        "veg": true,
+        "spice_level": "mild",
+        "preparation_time": 15,
+        "best_seller": false
+    }
+},
+{
+    "model": "orders.menuitem",
+    "pk": 23,
+    "fields": {
+        "category": 2,
+        "name": "Wai Wai Sadeko",
+        "description": "Crunchy Wai Wai noodles tossed with red onion, tomato, green chilli, fresh coriander, and a zingy lime-spice dressing.",
+        "price": "80.00",
+        "image": "menu_items/waiwai_sadeko.png",
+        "is_available": true,
+        "veg": false,
+        "spice_level": "hot",
+        "preparation_time": 10,
+        "best_seller": false
+    }
+},
+{
+    "model": "orders.menuitem",
+    "pk": 24,
+    "fields": {
+        "category": 3,
+        "name": "Veg Thukpa",
+        "description": "Tibetan-style noodle soup brimming with seasonal vegetables, fresh herbs, and hand-pulled noodles in a flavourful clear broth.",
+        "price": "220.00",
+        "image": "menu_items/veg_thukpa.png",
+        "is_available": true,
+        "veg": true,
+        "spice_level": "medium",
+        "preparation_time": 25,
+        "best_seller": false
+    }
+},
+{
+    "model": "orders.menuitem",
+    "pk": 25,
+    "fields": {
+        "category": 3,
+        "name": "Chicken Hot & Sour Soup",
+        "description": "A bold Chinese-inspired broth loaded with tender chicken strips, silken tofu, wood-ear mushrooms, and swirls of egg ribbon.",
+        "price": "220.00",
+        "image": "menu_items/chicken_spicy_soup.png",
+        "is_available": true,
+        "veg": false,
+        "spice_level": "medium",
+        "preparation_time": 15,
+        "best_seller": false
+    }
+},
+{
+    "model": "orders.menuitem",
+    "pk": 26,
+    "fields": {
+        "category": 3,
+        "name": "Cream of Mushroom Soup",
+        "description": "Velvety blended mushroom soup finished with fresh cream, garlic, and a hint of thyme — earthy and satisfying.",
+        "price": "180.00",
+        "image": "menu_items/mushroom_soup.png",
+        "is_available": true,
+        "veg": true,
+        "spice_level": "mild",
+        "preparation_time": 15,
+        "best_seller": false
+    }
+},
+{
+    "model": "orders.menuitem",
+    "pk": 27,
+    "fields": {
+        "category": 4,
+        "name": "Coca-Cola",
+        "description": "Ice-cold classic Coke, served chilled.",
+        "price": "120.00",
+        "image": "menu_items/coke.png",
+        "is_available": true,
+        "veg": true,
+        "spice_level": "mild",
+        "preparation_time": 2,
+        "best_seller": false
+    }
+},
+{
+    "model": "orders.menuitem",
+    "pk": 28,
+    "fields": {
+        "category": 4,
+        "name": "Sprite",
+        "description": "Crisp, refreshing lemon-lime soda, served chilled.",
+        "price": "120.00",
+        "image": "menu_items/sprite.png",
+        "is_available": true,
+        "veg": true,
+        "spice_level": "mild",
+        "preparation_time": 2,
+        "best_seller": false
+    }
+},
+{
+    "model": "orders.menuitem",
+    "pk": 29,
+    "fields": {
+        "category": 4,
+        "name": "Milkshake",
+        "description": "Thick, creamy blended milkshake made with fresh  fruit and full-cream milk.",
+        "price": "220.00",
+        "image": "menu_items/milkshake.png",
+        "is_available": true,
+        "veg": false,
+        "spice_level": "mild",
+        "preparation_time": 10,
+        "best_seller": false
+    }
+},
+{
+    "model": "orders.menuitem",
+    "pk": 30,
+    "fields": {
+        "category": 4,
+        "name": "Milk Tea",
+        "description": "Classic Nepali-style milk tea brewed strong with tea leaves, whole milk, and a hint of cardamom.",
+        "price": "60.00",
+        "image": "menu_items/milktea.png",
+        "is_available": true,
+        "veg": true,
+        "spice_level": "mild",
+        "preparation_time": 10,
+        "best_seller": false
+    }
+},
+{
+    "model": "orders.menuitem",
+    "pk": 31,
+    "fields": {
+        "category": 4,
+        "name": "Honey Lemon Tea",
+        "description": "Warm, soothing tea with raw honey, fresh lemon juice, and a touch of ginger.",
+        "price": "80.00",
+        "image": "menu_items/honey_lemon_tea.png",
+        "is_available": true,
+        "veg": true,
+        "spice_level": "mild",
+        "preparation_time": 10,
+        "best_seller": false
+    }
+},
+{
+    "model": "orders.menuitem",
+    "pk": 32,
+    "fields": {
+        "category": 4,
+        "name": "Fresh Orange Juice",
+        "description": "Freshly squeezed orange juice, served chilled and pulpy.",
+        "price": "120.00",
+        "image": "menu_items/orange_juice.png",
+        "is_available": true,
+        "veg": true,
+        "spice_level": "mild",
+        "preparation_time": 10,
+        "best_seller": false
+    }
+},
+{
+    "model": "orders.menuitem",
+    "pk": 33,
+    "fields": {
+        "category": 5,
+        "name": "Chocolate Brownie",
+        "description": "Warm, dense chocolate brownie with a fudgy centre — served with a dusting of icing sugar and a scoop of vanilla ice cream.",
+        "price": "180.00",
+        "image": "menu_items/brownie.png",
+        "is_available": true,
+        "veg": false,
+        "spice_level": "mild",
+        "preparation_time": 10,
+        "best_seller": false
+    }
+},
+{
+    "model": "orders.menuitem",
+    "pk": 34,
+    "fields": {
+        "category": 5,
+        "name": "Kheer",
+        "description": "Traditional Nepali rice pudding slow-cooked in full-cream milk, sweetened with sugar, and perfumed with cardamom, saffron, and crushed nuts.",
+        "price": "120.00",
+        "image": "menu_items/kheer.png",
+        "is_available": true,
+        "veg": true,
+        "spice_level": "mild",
+        "preparation_time": 20,
+        "best_seller": false
+    }
+},
+{
+    "model": "orders.menuitem",
+    "pk": 35,
+    "fields": {
+        "category": 5,
+        "name": "Ice Cream",
+        "description": "Two generous scoops of premium ice cream — ask your server for today's flavours.",
+        "price": "120.00",
+        "image": "menu_items/icecream.png",
+        "is_available": true,
+        "veg": true,
+        "spice_level": "mild",
+        "preparation_time": 5,
+        "best_seller": false
+    }
+}
+]

@@ -1,4 +1,4 @@
-{% extends 'orders/staff_base.html' %}
+{% extends 'orders/kitchen_base.html' %}
 
 {% block content %}
 <div class="flex justify-between items-center mb-8">
@@ -28,9 +28,9 @@
                     <span>{{ item.quantity }}x {{ item.menu_item.name }}</span>
                 </div>
                 {% if item.notes %}
-                <div class="mt-2 p-3 bg-red-50 rounded-xl border border-red-100">
-                    <p class="text-sm font-semibold text-red-600 flex items-center gap-2">
-                        <i data-lucide="alert-circle" class="w-4 h-4"></i>
+                <div class="mt-2 p-3 bg-gray-50 rounded-xl border border-gray-200">
+                    <p class="text-sm font-semibold text-gray-500 flex items-center gap-2">
+                        <i data-lucide="message-square" class="w-4 h-4"></i>
                         {{ item.notes }}
                     </p>
                 </div>
