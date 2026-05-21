@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KDS | DineQR</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @keyframes pulse-red {
+            0%, 100% { background-color: rgba(254, 226, 226, 1); }
+            50% { background-color: rgba(254, 202, 202, 1); }
+        }
+        .urgent-card { animation: pulse-red 2s infinite; border-color: #ef4444 !important; }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-900 font-sans antialiased">
+
+    <nav class="bg-white shadow-md sticky top-0 z-50 border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <div class="bg-orange-600 text-white p-2 rounded-xl">
+                    <i data-lucide="chef-hat" class="w-8 h-8"></i>
+                </div>
+                <span class="text-3xl font-black text-gray-900 tracking-tighter uppercase">
+                    Kitchen <span class="text-orange-600">Display</span>
+                </span>
+            </div>
+
+            <div class="flex items-center gap-6">
+                <div class="hidden md:flex flex-col items-end">
+                    <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">System Time</span>
+                    <span id="system-clock" class="text-2xl font-mono font-black text-gray-700"></span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Audio for new orders -->
+    <audio id="order-chime" src="https://assets.mixkit.co/active_storage/sfx/1390/1390-preview.mp3" preload="auto"></audio>
+
+    <main class="max-w-[1600px] mx-auto p-6">
+        {% block content %}{% endblock %}
+    </main>
+
+    <script>
+        lucide.createIcons();
+        setInterval(() => {
+            document.getElementById('system-clock').innerText = new Date().toLocaleTimeString('en-GB');
+        }, 1000);
+    </script>
+</body>
+</html>

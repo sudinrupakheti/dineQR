@@ -1,151 +1,100 @@
 {% extends 'orders/base.html' %}
+{% load humanize %}
 
 {% block content %}
-<div class="max-w-2xl mx-auto">
-    <div class="flex items-center justify-between mb-6">
-        {% if previous_orders %}
-        <div class="mb-8">
-    <h2 class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Already Ordered</h2>
-    <div class="space-y-3">
-        {% for order in previous_orders %}
-        <div class="bg-gray-100 rounded-xl p-4 flex justify-between items-center border border-gray-200">
-            <div>
-                    <p class="font-bold text-gray-800">Order #{{ order.id }}</p>
-                    <p class="text-xs text-gray-500">{{ order.created_at|timesince }} ago • <span class="capitalize text-orange-600 font-bold">{{ order.status }}</span></p>
+<div class="max-w-2xl mx-auto pb-10">
+    <!-- Back to Menu -->
+    <a href="{% url 'menu' %}?table={{ request.GET.table }}"
+    class="inline-flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-orange-600 transition-colors mt-4 mb-2">
+        <i data-lucide="arrow-left" class="w-4 h-4"></i>
+        Order More Food
+    </a>
+
+    <!-- Header & Grand Total -->
+    <div class="flex flex-col gap-2 mb-8 mt-2">
+        <div class="bg-orange-50 border border-orange-100 p-4 rounded-[1.5rem] flex justify-between items-center mt-2 shadow-sm">
+            <span class="text-orange-800 font-bold uppercase tracking-widest text-xs">Total Bill So Far</span>
+            <span id="unified-grand-total" class="text-2xl font-black text-orange-600">Rs. {{ running_total|floatformat:0|intcomma }}</span>
+        </div>
+    </div>
+
+
+    {% if previous_orders %}
+    <div class="mb-10">
+        <div class="flex items-center gap-2 mb-4">
+            <h2 class="text-sm font-black text-gray-400 uppercase tracking-widest">Sent to Kitchen</h2>
+            <div class="flex-grow h-px bg-gray-200"></div>
+        </div>
+
+        <div class="space-y-3" id="kitchen-items-container">
+            {% for order in previous_orders %}
+                {% for item in order.items.all %}
+                <div class="bg-white rounded-[1.5rem] p-4 border border-gray-100 shadow-sm flex justify-between items-center item-row" id="kitchen-item-{{ item.id }}">
+                    <div class="flex items-center gap-4">
+                        <div class="bg-gray-100 text-gray-700 font-black w-10 h-10 rounded-xl flex items-center justify-center text-sm border border-gray-200">
+                            {{ item.quantity }}x
+                        </div>
+                        <div>
+                            <p class="font-bold text-gray-900">{{ item.menu_item.name }}</p>
+                            {% if item.notes %}
+                                <p class="text-[10px] text-gray-500 uppercase font-bold mt-0.5"><i data-lucide="info" class="w-3 h-3 inline"></i> {{ item.notes }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-3">
+                        <!-- Dynamic Status Badge -->
+                        <div class="status-badge-container" data-order-id="{{ order.id }}" data-current-status="{{ order.status }}">
+                            <!-- JS will inject the badge here -->
+                        </div>
+
+                        <!-- Cancel Button (Only if received) -->
+                        {% if order.status == 'received' %}
+                            <button onclick="cancelKitchenItem('{{ item.id }}')" class="cancel-btn-{{ order.id }} p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 transition-colors">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                            </button>
+                        {% endif %}
+                    </div>
                 </div>
-                <a href="{% url 'order_success' order.id %}" class="text-sm text-blue-600 font-medium">Track →</a>
-            </div>
                 {% endfor %}
-            </div>
+            {% endfor %}
         </div>
-        <hr class="mb-8 border-gray-200">
-        {% endif %}
+    </div>
+    <!-- NEW: Bill & Review Actions -->
+    <div id="bill-review-section" class="mt-4 pt-4 border-t border-gray-200 border-dashed flex gap-3 {% if not any_ready %}hidden{% endif %}">
+        <a href="{% url 'table_bill' request.GET.table %}" target="_blank" class="flex-1 bg-white border-2 border-gray-200 text-gray-800 font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:border-gray-900 transition-colors text-sm">
+            <i data-lucide="receipt" class="w-4 h-4"></i> View Bill
+        </a>
+        <a href="{% url 'order_review' previous_orders.0.id %}" class="flex-1 bg-gray-900 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-orange-600 transition-colors text-sm">
+            <i data-lucide="star" class="w-4 h-4 text-yellow-400"></i> Leave Review
+        </a>
+    </div>
+    {% endif %}
 
-        <h1 class="text-2xl font-bold text-gray-800 tracking-tight">Your Order Summary</h1>
-        <span class="text-sm font-medium text-orange-600 bg-orange-50 px-3 py-1 rounded-full border border-orange-100">Table {{ request.GET.table }}</span>
+
+    <div id="new-items-section">
+        <div class="flex items-center gap-2 mb-4 hidden" id="new-items-header">
+            <h2 class="text-sm font-black text-orange-400 uppercase tracking-widest">New Additions</h2>
+            <div class="flex-grow h-px bg-orange-100"></div>
+        </div>
+
+        <div id="cart-items-container" class="space-y-4"></div>
     </div>
 
-    <div id="cart-items-container" class="space-y-4">
-        <!-- JS will inject items here -->
-    </div>
-
-    <div class="mt-8 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+    <!-- ========================================== -->
+    <!-- CHECKOUT BOX                               -->
+    <!-- ========================================== -->
+    <div id="checkout-box" class="mt-8 bg-gray-900 rounded-[2rem] shadow-xl border border-gray-800 p-6 hidden">
         <div class="flex justify-between items-center mb-6">
-            <span class="text-gray-500 font-medium">Grand Total</span>
-            <span id="cart-total-price" class="text-2xl font-black text-gray-900">Rs. 0</span>
+            <span class="text-gray-400 font-bold uppercase tracking-widest text-sm">New Items Total</span>
+            <span id="cart-total-price" class="text-2xl font-black text-white">Rs. 0</span>
         </div>
-        <button id="place-order-btn" class="w-full bg-orange-600 text-white font-bold py-4 rounded-xl hover:bg-orange-700 shadow-lg shadow-orange-200 transition-all active:scale-95 flex items-center justify-center gap-2">
-            Confirm & Place Order
+
+        <button id="place-order-btn" class="w-full bg-orange-600 text-white font-black py-4 rounded-2xl shadow-lg shadow-orange-900 transition-all active:scale-95 flex items-center justify-center gap-2 text-lg">
+            Send to Kitchen
             <i data-lucide="arrow-right" class="w-5 h-5"></i>
         </button>
     </div>
+
 </div>
-
-<script>
-    // Get the table number from the URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const tableNum = urlParams.get('table') || "0";
-
-    function renderCart() {
-        const container = document.getElementById('cart-items-container');
-        const totalEl = document.getElementById('cart-total-price');
-        const placeOrderBtn = document.getElementById('place-order-btn');
-
-        if (Object.keys(cart).length === 0) {
-            container.innerHTML = `
-                <div class="text-center py-12 bg-white rounded-2xl border-2 border-dashed border-gray-200">
-                    <p class="text-gray-400 font-medium">Your cart is empty.</p>
-                    <a href="{% url 'menu' %}?table=${tableNum}" class="text-orange-600 font-bold mt-2 inline-block hover:underline">Back to Menu</a>
-                </div>`;
-            totalEl.innerText = "Rs. 0";
-            placeOrderBtn.classList.add('hidden');
-            return;
-        }
-
-        placeOrderBtn.classList.remove('hidden');
-        container.innerHTML = '';
-        let grandTotal = 0;
-
-        for (const [id, item] of Object.entries(cart)) {
-            const itemTotal = item.price * item.quantity;
-            grandTotal += itemTotal;
-
-            container.innerHTML += `
-                <div class="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm transition-all hover:shadow-md">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <h3 class="font-bold text-gray-900 text-lg">${item.name}</h3>
-                            <p class="text-orange-600 font-medium">Rs. ${item.price}</p>
-                        </div>
-                        <button onclick="removeFromCart('${id}')" class="p-2 hover:bg-red-50 text-red-400 rounded-lg transition-colors">
-                            <i data-lucide="trash-2" class="w-5 h-5"></i>
-                        </button>
-                    </div>
-
-                    <textarea
-                        onchange="updateNote('${id}', this.value)"
-                        class="w-full mt-3 p-3 text-sm bg-gray-50 border-none rounded-xl focus:ring-1 focus:ring-orange-200 outline-none"
-                        placeholder="Special instructions (no onion, extra spicy...)"
-                    >${item.notes || ''}</textarea>
-
-                    <div class="flex justify-between items-center mt-4 pt-4 border-t border-gray-50">
-                        <div class="flex items-center gap-4 bg-gray-50 rounded-xl p-1 px-2 border border-gray-100">
-                            <button onclick="updateQuantity('${id}', -1)" class="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm font-bold text-gray-600 hover:bg-gray-100">-</button>
-                            <span class="font-bold text-gray-900 w-4 text-center">${item.quantity}</span>
-                            <button onclick="updateQuantity('${id}', 1)" class="w-8 h-8 flex items-center justify-center bg-white rounded-lg shadow-sm font-bold text-gray-600 hover:bg-gray-100">+</button>
-                        </div>
-                        <span class="font-black text-gray-900 text-lg">Rs. ${itemTotal}</span>
-                    </div>
-                </div>
-            `;
-        }
-        totalEl.innerText = `Rs. ${grandTotal}`;
-        lucide.createIcons();
-    }
-
-    // --- THE "PLACE ORDER" CLICK LOGIC ---
-    document.getElementById('place-order-btn').addEventListener('click', async function() {
-        // Change button state to show it's working
-        const originalText = this.innerHTML;
-        this.disabled = true;
-        this.innerHTML = `<i data-lucide="loader" class="w-5 h-5 animate-spin"></i> Processing...`;
-        lucide.createIcons();
-
-        try {
-            const response = await fetch("{% url 'place_order' %}", {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': "{{ csrf_token }}" // Critical for Django
-                },
-                body: JSON.stringify({
-                    cart: cart,
-                    table_number: tableNum
-                })
-            });
-
-            const result = await response.json();
-
-            if (result.status === 'success') {
-                // 1. Clear this specific table's cart
-                localStorage.removeItem(cartKey);
-                // 2. Redirect to success page
-                window.location.href = `/order-success/${result.order_id}/`;
-            } else {
-                alert("Error: " + result.message);
-                this.disabled = false;
-                this.innerHTML = originalText;
-                lucide.createIcons();
-            }
-        } catch (error) {
-            console.error("Fetch Error:", error);
-            alert("Connection error. Is the server running?");
-            this.disabled = false;
-            this.innerHTML = originalText;
-            lucide.createIcons();
-        }
-    });
-
-    document.addEventListener('DOMContentLoaded', renderCart);
-</script>
 {% endblock %}
