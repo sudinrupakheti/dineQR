@@ -97,4 +97,216 @@
     </div>
 
 </div>
+
+<script>
+    // 1. Setup Variables
+    const urlParams = new URLSearchParams(window.location.search);
+    const tableNum = urlParams.get('table') || localStorage.getItem('dineqr_table');
+    const hasPreviousOrders = {% if previous_orders %}true{% else %}false{% endif %};
+    const backendRunningTotal = {{ running_total|default:0 }};
+
+    // 2. Render Cart & Calculate Unified Total
+    function renderCartPage() {
+        const container = document.getElementById('cart-items-container');
+        const checkoutBox = document.getElementById('checkout-box');
+        const header = document.getElementById('new-items-header');
+        const cartTotalEl = document.getElementById('cart-total-price');
+        const unifiedTotalEl = document.getElementById('unified-grand-total');
+
+        if (Object.keys(cart).length === 0) {
+            checkoutBox.classList.add('hidden');
+            header.classList.add('hidden');
+            unifiedTotalEl.innerText = `Rs. ${backendRunningTotal.toLocaleString()}`;
+
+            if (!hasPreviousOrders) {
+                container.innerHTML = `
+                    <div class="text-center py-16 bg-white rounded-[2.5rem] border border-gray-100 shadow-sm">
+                        <div class="bg-gray-50 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <i data-lucide="shopping-bag" class="w-10 h-10 text-gray-300"></i>
+                        </div>
+                        <h3 class="text-gray-900 font-black text-xl mb-1">Your table is empty</h3>
+                        <p class="text-gray-400 text-sm font-medium mb-6">Start by adding some delicious dishes!</p>
+                        <a href="{% url 'menu' %}?table=${tableNum}" class="bg-orange-600 text-white px-8 py-3.5 rounded-xl font-black text-sm shadow-lg shadow-orange-200">Browse Menu</a>
+                    </div>`;
+            }
+            lucide.createIcons();
+            return;
+        }
+
+        checkoutBox.classList.remove('hidden');
+        if (hasPreviousOrders) header.classList.remove('hidden');
+
+        container.innerHTML = '';
+        let jsCartTotal = 0;
+
+        for (const [id, item] of Object.entries(cart)) {
+            const itemTotal = item.price * item.quantity;
+            jsCartTotal += itemTotal;
+
+            const isMinusDisabled = item.quantity <= 1;
+            const minusClass = isMinusDisabled ? "opacity-30 cursor-not-allowed bg-gray-50 text-gray-400" : "bg-white text-gray-600 shadow-sm hover:bg-gray-100 active:scale-95";
+            const minusAction = isMinusDisabled ? "" : `onclick="updateQuantity('${id}', -1); renderCartPage();"`;
+
+            container.innerHTML += `
+                <div class="bg-white rounded-[1.5rem] p-4 border-2 border-orange-100 shadow-sm transition-all transform hover:-translate-y-1 hover:shadow-md">
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <h3 class="font-black text-gray-900 text-base leading-tight">${item.name}</h3>
+                            <p class="text-orange-600 font-bold text-xs mt-0.5">Rs. ${item.price.toLocaleString()}</p>
+                        </div>
+                        <button onclick="removeFromCart('${id}'); renderCartPage();" class="p-2 bg-red-50 text-red-500 rounded-lg hover:bg-red-100 active:scale-95 transition-all">
+                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                        </button>
+                    </div>
+
+                    <textarea
+                        onchange="updateNote('${id}', this.value)"
+                        class="w-full mt-1 mb-3 p-2 text-xs bg-gray-50 border border-gray-100 rounded-xl focus:ring-2 focus:ring-orange-200 focus:bg-white outline-none transition-all placeholder:text-gray-400 font-medium"
+                        placeholder="Add special instructions..."
+                    >${item.notes || ''}</textarea>
+
+                    <div class="flex justify-between items-center border-t border-gray-50 pt-3">
+                        <div class="flex items-center gap-3 bg-gray-100/80 rounded-xl p-1 border border-gray-100">
+                            <button ${minusAction} class="w-7 h-7 flex items-center justify-center rounded-lg font-bold transition-all ${minusClass}">
+                                <i data-lucide="minus" class="w-3 h-3"></i>
+                            </button>
+                            <span class="font-black text-gray-900 w-4 text-center text-xs">${item.quantity}</span>
+                            <button onclick="updateQuantity('${id}', 1); renderCartPage();" class="w-7 h-7 flex items-center justify-center bg-white rounded-lg shadow-sm font-bold text-gray-600 hover:bg-gray-100 active:scale-95 transition-all">
+                                <i data-lucide="plus" class="w-3 h-3"></i>
+                            </button>
+                        </div>
+                        <span class="font-black text-gray-900 text-lg tracking-tight">Rs. ${itemTotal.toLocaleString()}</span>
+                    </div>
+                </div>
+            `;
+        }
+
+        cartTotalEl.innerText = `Rs. ${jsCartTotal.toLocaleString()}`;
+        unifiedTotalEl.innerText = `Rs. ${(backendRunningTotal + jsCartTotal).toLocaleString()}`;
+        lucide.createIcons();
+    }
+
+    // 3. Send Order Logic (No more redirecting away!)
+    document.getElementById('place-order-btn').addEventListener('click', async function() {
+        const originalText = this.innerHTML;
+        this.disabled = true;
+        this.innerHTML = `<i data-lucide="loader-2" class="w-5 h-5 animate-spin"></i> Sending...`;
+        this.classList.add('opacity-80', 'cursor-not-allowed');
+        lucide.createIcons();
+
+        try {
+            const response = await fetch("{% url 'place_order' %}", {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': "{{ csrf_token }}" },
+                body: JSON.stringify({ cart: cart, table_number: tableNum })
+            });
+
+            const result = await response.json();
+
+            if (result.status === 'success') {
+                localStorage.removeItem(cartKey); // Clear local cart
+                window.location.reload(); // Refresh to see it in "Sent to Kitchen"
+            } else {
+                alert("Error: " + result.message);
+                resetButton();
+            }
+        } catch (error) {
+            console.error("Fetch Error:", error);
+            alert("Connection error. Is the server running?");
+            resetButton();
+        }
+
+        function resetButton() {
+            const btn = document.getElementById('place-order-btn');
+            btn.disabled = false;
+            btn.innerHTML = originalText;
+            btn.classList.remove('opacity-80', 'cursor-not-allowed');
+            lucide.createIcons();
+        }
+    });
+
+    // 4. Cancel Individual Item Logic
+    async function cancelKitchenItem(itemId) {
+        if (!confirm("Are you sure you want to cancel this item?")) return;
+
+        try {
+            const response = await fetch(`/api/cancel-item/${itemId}/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': "{{ csrf_token }}" }
+            });
+            const result = await response.json();
+
+            if (result.status === 'success') {
+                window.location.reload(); // Refresh to update totals and remove item
+            } else {
+                alert(result.message || "Cannot cancel this item. The chef might have started cooking!");
+            }
+        } catch (error) {
+            alert("Error cancelling item.");
+        }
+    }
+
+    // 5. Real-Time Status Polling & Badge UI Rendering
+    function getBadgeHTML(status) {
+        status = status.toLowerCase();
+        if (status === 'preparing') {
+            return `<span class="flex items-center gap-1.5 text-[10px] font-black text-blue-600 bg-blue-100 px-2.5 py-1.5 rounded-lg uppercase tracking-wider"><i data-lucide="flame" class="w-3 h-3"></i> Cooking</span>`;
+        } else if (status === 'ready') {
+            return `<span class="flex items-center gap-1.5 text-[10px] font-black text-green-600 bg-green-100 px-2.5 py-1.5 rounded-lg uppercase tracking-wider"><i data-lucide="check-circle" class="w-3 h-3"></i> Served</span>`;
+        } else {
+            return `<span class="flex items-center gap-1.5 text-[10px] font-black text-orange-600 bg-orange-100 px-2.5 py-1.5 rounded-lg uppercase tracking-wider"><i data-lucide="clock" class="w-3 h-3"></i> Sent</span>`;
+        }
+    }
+
+    function initPolling() {
+        const containers = document.querySelectorAll('.status-badge-container');
+        if (containers.length === 0) return;
+
+        // Get unique order IDs currently on the screen
+        const orderIds = new Set();
+        containers.forEach(c => orderIds.add(c.dataset.orderId));
+
+        // Initial render
+        containers.forEach(c => {
+            c.innerHTML = getBadgeHTML(c.dataset.currentStatus);
+        });
+        lucide.createIcons();
+
+        // Poll every 5 seconds
+        setInterval(async () => {
+            for (let id of orderIds) {
+                try {
+                    const res = await fetch(`/api/order-status/${id}/`);
+                    if (!res.ok) continue;
+                    const data = await res.json();
+
+                    // Update badges for this order
+                    const elements = document.querySelectorAll(`.status-badge-container[data-order-id="${id}"]`);
+                    elements.forEach(el => {
+                        if (el.dataset.currentStatus !== data.status) {
+                            el.dataset.currentStatus = data.status;
+                            el.innerHTML = getBadgeHTML(data.status);
+                            if (data.status === 'ready') {
+                                const billSection = document.getElementById('bill-review-section');
+                                if (billSection) billSection.classList.remove('hidden');
+                            }
+                            lucide.createIcons();
+                        }
+                    });
+
+                    // Remove cancel buttons if it moved to cooking!
+                    if (data.status !== 'received') {
+                        document.querySelectorAll(`.cancel-btn-${id}`).forEach(btn => btn.remove());
+                    }
+
+                } catch(e) { console.error("Polling error", e); }
+            }
+        }, 5000);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        renderCartPage();
+        initPolling();
+    });
+</script>
 {% endblock %}

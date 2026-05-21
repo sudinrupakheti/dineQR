@@ -201,4 +201,133 @@
     </div>
 </div>
 
+<script>
+    let currentModalItem = null;
+
+    function openModal(data) {
+        currentModalItem = data;
+
+        document.getElementById('modal-title').innerText = data.name;
+        document.getElementById('modal-price').innerText = `Rs. ${data.price}`;
+        document.getElementById('modal-desc').innerText = data.desc || 'No description available.';
+
+        const imgEl = document.getElementById('modal-img');
+        const noImgEl = document.getElementById('modal-no-img');
+        if (data.image) {
+            imgEl.src = data.image;
+            imgEl.classList.remove('hidden');
+            noImgEl.classList.add('hidden');
+        } else {
+            imgEl.classList.add('hidden');
+            noImgEl.classList.remove('hidden');
+        }
+
+        const dietText = document.getElementById('modal-diet-text');
+        if (data.isVeg) {
+            dietText.innerText = "VEGETARIAN";
+            dietText.className = "text-sm font-black tracking-wide text-green-600";
+        } else {
+            dietText.innerText = "NON-VEGETARIAN";
+            dietText.className = "text-sm font-black tracking-wide text-red-600";
+        }
+
+        const spiceText = document.getElementById('modal-spice-text');
+        spiceText.innerText = data.spice.toUpperCase();
+        if (data.spice === 'hot') {
+            spiceText.className = "text-sm font-black tracking-wide text-red-600";
+        } else if (data.spice === 'medium') {
+            spiceText.className = "text-sm font-black tracking-wide text-orange-500";
+        } else {
+            spiceText.className = "text-sm font-black tracking-wide text-gray-500";
+        }
+
+        document.getElementById('modal-time-text').innerText = `${data.time} MINUTES`;
+
+        const modal = document.getElementById('item-modal');
+        const backdrop = document.getElementById('modal-backdrop');
+        const content = document.getElementById('modal-content');
+
+        modal.classList.remove('hidden');
+
+        setTimeout(() => {
+            backdrop.classList.remove('opacity-0');
+            content.classList.remove('translate-y-full');
+        }, 10);
+    }
+
+    function closeModal() {
+        const backdrop = document.getElementById('modal-backdrop');
+        const content = document.getElementById('modal-content');
+
+        backdrop.classList.add('opacity-0');
+        content.classList.add('translate-y-full');
+
+        setTimeout(() => {
+            document.getElementById('item-modal').classList.add('hidden');
+            currentModalItem = null;
+        }, 300);
+    }
+
+    document.getElementById('modal-add-btn').addEventListener('click', function(e) {
+        if (!currentModalItem) return;
+
+        addToCart(currentModalItem.id, currentModalItem.name, currentModalItem.price);
+
+        const originalText = this.innerHTML;
+        this.classList.replace('bg-gray-900', 'bg-green-600');
+        this.innerHTML = `<i data-lucide="check" class="w-5 h-5"></i> Added`;
+        lucide.createIcons();
+        showToast(`${currentModalItem.name} added to cart`);
+
+        setTimeout(() => {
+            this.classList.replace('bg-green-600', 'bg-gray-900');
+            this.innerHTML = originalText;
+            lucide.createIcons();
+            closeModal();
+        }, 800);
+    });
+
+    // --- REAL-TIME MENU AVAILABILITY POLLING ---
+    async function pollMenuStatus() {
+        try {
+            const response = await fetch('/api/menu-status/');
+            if (!response.ok) return;
+            const data = await response.json();
+            const soldOutIds = data.sold_out; // Array of IDs e.g. [2, 5, 8]
+
+            document.querySelectorAll('.food-card').forEach(card => {
+                const id = parseInt(card.dataset.id);
+                const overlay = document.getElementById(`sold-out-overlay-${id}`);
+                const btn = document.getElementById(`add-btn-${id}`);
+
+                if (soldOutIds.includes(id)) {
+                    card.classList.add('grayscale', 'opacity-60', 'pointer-events-none');
+                    card.classList.remove('hover:shadow-xl', 'hover:scale-[1.01]', 'cursor-pointer');
+
+                    overlay.classList.remove('hidden');
+
+                    btn.disabled = true;
+                    btn.className = "w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 bg-gray-200 text-gray-400 cursor-not-allowed";
+                    btn.innerHTML = "Unavailable";
+                } else {
+                    card.classList.remove('grayscale', 'opacity-60', 'pointer-events-none');
+                    card.classList.add('hover:shadow-xl', 'hover:scale-[1.01]', 'cursor-pointer');
+
+                    overlay.classList.add('hidden');
+
+                    btn.disabled = false;
+                    btn.className = "w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 bg-gray-900 text-white hover:bg-orange-600 group-hover:shadow-lg group-hover:shadow-orange-200";
+                    btn.innerHTML = `<i data-lucide="plus" class="w-4 h-4 icon-normal"></i><i data-lucide="check" class="w-4 h-4 icon-success hidden"></i><span class="btn-text">Add to Cart</span>`;
+                    lucide.createIcons();
+                }
+            });
+        } catch (error) {
+            console.error("Error polling menu status:", error);
+        }
+    }
+
+    // Poll every 10 seconds
+    setInterval(pollMenuStatus, 10000);
+</script>
+
 {% endblock %}

@@ -108,5 +108,123 @@
             </div>
         </div>
     </div>
+    
+    <script>
+        lucide.createIcons();
+
+        document.addEventListener("DOMContentLoaded", () => {
+            // 1. Get Table from URL or LocalStorage
+            const params = new URLSearchParams(window.location.search);
+            const table = params.get('table') || localStorage.getItem('dineqr_table');
+
+            // 2. If we have a table, update the UI and Links
+            if (table) {
+                localStorage.setItem('dineqr_table', table);
+
+                // Show Badge
+                const badge = document.getElementById('nav-table-badge');
+                const num = document.getElementById('nav-table-num');
+                if (badge && num) {
+                    badge.classList.remove('hidden');
+                    num.innerText = table;
+                }
+
+                // Update URLs for Bottom Nav
+                const appendTable = (id) => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        const url = new URL(el.href, window.location.origin);
+                        url.searchParams.set('table', table);
+                        el.href = url.toString();
+                    }
+                }
+
+                appendTable('nav-menu');
+                appendTable('nav-cart');
+                // We'll skip nav-waiter for now since it's just "#"
+            }
+
+            // 3. Logo Scroll-to-Top Logic
+            const logo = document.getElementById('logo-link');
+            if (logo) {
+                logo.addEventListener('click', (e) => {
+                    const currentPath = window.location.pathname;
+                    // Check if we are already on the menu page
+                    if (currentPath === '{% url "menu" %}' || currentPath === '/') {
+                        e.preventDefault(); // Stop it from reloading the page
+                        window.scrollTo({ top: 0, behavior: 'smooth' }); // Scroll up!
+                    } else if (table) {
+                        // If we are on the cart page, go back to menu WITH the table number
+                        e.preventDefault();
+                        window.location.href = `{% url 'menu' %}?table=${table}`;
+                    }
+                });
+            }
+
+        });
+        // --- WAITER CALL LOGIC ---
+        function openWaiterModal() {
+            // Check if table is set
+            const table = localStorage.getItem('dineqr_table');
+            if (!table) {
+                alert("Please scan a table QR code or enter a table number first!");
+                return;
+            }
+
+            const modal = document.getElementById('waiter-modal');
+            const backdrop = document.getElementById('waiter-backdrop');
+            const content = document.getElementById('waiter-content');
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                backdrop.classList.remove('opacity-0');
+                content.classList.remove('translate-y-full');
+            }, 10);
+        }
+
+        function closeWaiterModal() {
+            const backdrop = document.getElementById('waiter-backdrop');
+            const content = document.getElementById('waiter-content');
+
+            backdrop.classList.add('opacity-0');
+            content.classList.add('translate-y-full');
+
+            setTimeout(() => {
+                document.getElementById('waiter-modal').classList.add('hidden');
+            }, 300);
+        }
+
+        async function sendWaiterRequest(reason) {
+            const table = localStorage.getItem('dineqr_table');
+
+            try {
+                const response = await fetch('/api/call-waiter/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    },
+                    body: JSON.stringify({ table_number: table, reason: reason })
+                });
+
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    closeWaiterModal();
+                    // Using your existing Toast function!
+                    if (typeof showToast === "function") {
+                        showToast("Waiter is on the way!");
+                    } else {
+                        alert("Waiter is on the way!");
+                    }
+                } else {
+                    alert(data.message); // Will trigger the Anti-Spam message
+                }
+            } catch (error) {
+                console.error("Error:", error);
+                alert("Network error. Please wave to a waiter.");
+            }
+        }
+    </script>    
 </body>
 </html>

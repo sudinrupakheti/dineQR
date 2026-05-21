@@ -109,3 +109,44 @@
     </div>
     {% endfor %}
 </div>
+
+<script>
+    // --- 1. LIVE WAIT TIMERS ---
+    function updateTimers() {
+        document.querySelectorAll('.order-card').forEach(card => {
+            const createdTime = new Date(card.dataset.created);
+            const now = new Date();
+            const diffMs = now - createdTime;
+            const diffMins = Math.floor(diffMs / 60000);
+
+            const timerEl = card.querySelector('.wait-timer');
+            timerEl.innerText = `${diffMins}m`;
+
+            // URGENCY LOGIC: Turn red and pulse if > 15 minutes
+            if (diffMins >= 15) {
+                card.classList.add('urgent-card');
+                timerEl.classList.replace('text-orange-600', 'text-red-600');
+            }
+        });
+    }
+
+    // --- 2. NEW ORDER CHIME LOGIC ---
+    let currentOrderCount = {{ orders|length }};
+
+    function checkNewOrders() {
+        // We compare the current rendered length with the server
+        // This reloads the page to get the new data
+        location.reload();
+    }
+
+    // Refresh every 15 seconds to check for new orders
+    setTimeout(checkNewOrders, 15000);
+
+    // Initial timer run and then every minute
+    updateTimers();
+    setInterval(updateTimers, 60000);
+
+    // Lucide need to be re-run after any DOM changes (though not needed for reload)
+    lucide.createIcons();
+</script>
+{% endblock %}

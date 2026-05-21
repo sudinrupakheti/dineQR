@@ -255,4 +255,112 @@
     </div>
 {% endif %}
 
+<!-- 5. GLOBAL DASHBOARD SCRIPTS -->
+<script>
+    // --- SEARCH LOGIC (Menu Tab) ---
+    const searchInput = document.getElementById('menu-search');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            document.querySelectorAll('.menu-item-card').forEach(card => {
+                const name = card.dataset.name;
+                card.style.display = name.includes(term) ? 'flex' : 'none';
+            });
+            document.querySelectorAll('.category-group').forEach(group => {
+                const hasVisible = Array.from(group.querySelectorAll('.menu-item-card')).some(c => c.style.display !== 'none');
+                group.style.display = hasVisible ? 'block' : 'none';
+            });
+        });
+    }
+
+    // --- WAITER CALL POLLING ---
+    let lastCallCount = 0;
+    async function pollWaiterCalls() {
+        try {
+            const response = await fetch('{% url "get_active_waiter_calls" %}');
+            const data = await response.json();
+            const container = document.getElementById('service-alerts-container');
+            const list = document.getElementById('alerts-list');
+
+            if (data.calls.length > 0) {
+                container.classList.remove('hidden');
+                // Chime sound from base.html
+                if (data.calls.length > lastCallCount) {
+                    const sound = document.getElementById('alert-sound');
+                    if (sound) sound.play().catch(e => console.log("Sound blocked by browser. Click page to enable."));
+                }
+                lastCallCount = data.calls.length;
+
+                list.innerHTML = data.calls.map(call => `
+                    <div class="bg-white border-2 border-red-100 rounded-[2rem] p-5 shadow-lg shadow-red-50 flex items-center justify-between">
+                        <div>
+                            <p class="text-[10px] font-black text-red-500 uppercase tracking-widest mb-1">${call.reason}</p>
+                            <h3 class="text-xl font-black text-gray-900">Table ${call.table}</h3>
+                            <p class="text-[10px] text-gray-400 font-bold">${call.time}</p>
+                        </div>
+                        <button onclick="resolveCall(${call.id})" class="bg-gray-900 text-white p-4 rounded-2xl hover:bg-green-600 transition-all active:scale-95 shadow-lg">
+                            <i data-lucide="check" class="w-6 h-6"></i>
+                        </button>
+                    </div>
+                `).join('');
+                lucide.createIcons();
+            } else {
+                container.classList.add('hidden');
+                lastCallCount = 0;
+            }
+        } catch (e) { console.error("Waiter polling error", e); }
+    }
+
+    async function resolveCall(id) {
+        const res = await fetch(`/api/resolve-waiter-call/${id}/`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+        });
+        if (res.ok) pollWaiterCalls();
+    }
+
+    // --- CHARTS INITIALIZATION (Insights Tab) ---
+    if ("{{ current_tab }}" === "insights") {
+        // Top Items Chart
+        new Chart(document.getElementById('topItemsChart'), {
+            type: 'bar',
+            data: {
+                labels: [{% for item in insights.top_items %} "{{ item.menu_item__name }}", {% endfor %}],
+                datasets: [{
+                    data: [{% for item in insights.top_items %} {{ item.total_sold }}, {% endfor %}],
+                    backgroundColor: '#ea580c',
+                    borderRadius: 10
+                }]
+            },
+            options: { plugins: { legend: { display: false } }, responsive: true }
+        });
+
+        // Hourly Trends Chart
+        new Chart(document.getElementById('hourlyChart'), {
+            type: 'line',
+            data: {
+                labels: [{% for data in insights.hourly_data %} "{{ data.hour }}:00", {% endfor %}],
+                datasets: [{
+                    data: [{% for data in insights.hourly_data %} {{ data.count }}, {% endfor %}],
+                    borderColor: '#ea580c',
+                    tension: 0.4,
+                    fill: true,
+                    backgroundColor: 'rgba(234, 88, 12, 0.05)'
+                }]
+            },
+            options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }, responsive: true }
+        });
+    }
+
+    // --- AUTO-REFRESH LOGIC ---
+    // Only refresh the page to update table statuses if we aren't in Menu or Insights
+    if (!window.location.search.includes('tab=menu') && !window.location.search.includes('tab=insights')) {
+        setInterval(() => { location.reload(); }, 15000);
+    }
+
+    // Poll for waiter calls every 5 seconds globally
+    setInterval(pollWaiterCalls, 5000);
+    pollWaiterCalls();
+</script>
 {% endblock %}
+
