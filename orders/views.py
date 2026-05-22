@@ -226,11 +226,23 @@ def order_review_page(request, order_id):
 
 @user_passes_test(is_staff)
 def kitchen_dashboard(request):
-    # Get all orders that aren't finished yet
+    # Get active orders
     active_orders = Order.objects.filter(status__in=["received", "preparing"]).order_by(
         "created_at"
     )
-    return render(request, "orders/kitchen.html", {"orders": active_orders})
+
+    # This creates the summary: e.g. "Chicken Burger: 5"
+    item_summary = (
+        OrderItem.objects.filter(order__status__in=["received", "preparing"])
+        .values("menu_item__name")
+        .annotate(total_qty=Sum("quantity"))
+    )
+
+    return render(
+        request,
+        "orders/kitchen.html",
+        {"orders": active_orders, "item_summary": item_summary},
+    )
 
 @user_passes_test(is_owner)
 def owner_dashboard(request):
