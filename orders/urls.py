@@ -18,6 +18,11 @@ urlpatterns = [
         name="update_order_status",
     ),
     path(
+        "api/cancel-item/<int:item_id>/",
+        views.cancel_order_item,
+        name="cancel_order_item",
+    ),
+    path(
         "order/review/<int:order_id>/",
         views.order_review_page,
         name="order_review_page",

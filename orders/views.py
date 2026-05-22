@@ -166,6 +166,31 @@ def update_order_status(request, order_id):
             return redirect("kitchen_dashboard")
     return JsonResponse({"status": "error"}, status=400)
 
+def cancel_order_item(request, item_id):
+    """Allows customers to delete an item if the kitchen hasn't started cooking it yet."""
+    if request.method == "POST":
+        try:
+            # Only allow deleting if the order is still "received"
+            item = OrderItem.objects.get(id=item_id, order__status="received")
+            order = item.order
+
+            # Deduct price
+            item_price_total = Decimal(str(item.menu_item.price)) * item.quantity
+            item.delete()
+
+            # Update the parent order
+            order.total_price -= item_price_total
+            if order.total_price <= 0 or order.items.count() == 0:
+                order.delete()  # If order is empty, delete the whole order
+            else:
+                order.save()
+
+            return JsonResponse({"status": "success"})
+        except OrderItem.DoesNotExist:
+            return JsonResponse(
+                {"status": "error", "message": "Item already cooking or not found."},
+                status=400,
+            )
 
 def kitchen_dashboard(request):
     # Get all orders that aren't finished yet
