@@ -88,3 +88,20 @@ class Review(models.Model):
         max_length=20, default="neutral"
     )  # AI result: positive, negative, neutral
     created_at = models.DateTimeField(auto_now_add=True)
+
+
+class WaiterCall(models.Model):
+    REASON_CHOICES = [
+        ("water", "Need Water"),
+        ("bill", "Bring Bill"),
+        ("clean", "Clean Table"),
+        ("help", "Need Assistance"),
+    ]
+
+    table_number = models.CharField(max_length=10)
+    reason = models.CharField(max_length=20, choices=REASON_CHOICES, default="help")
+    is_resolved = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Table {self.table_number} - {self.get_reason_display()}"

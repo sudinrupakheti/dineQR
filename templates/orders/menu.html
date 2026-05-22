@@ -22,10 +22,21 @@
     </form>
 </div>
 
+<!-- Sticky Category Bar -->
+<div class="sticky top-16 z-30 bg-gray-50/95 backdrop-blur-md py-3 -mx-4 px-4 mb-8 border-b border-gray-100">
+    <div class="flex gap-3 overflow-x-auto no-scrollbar scroll-smooth">
+        {% for category in categories %}
+            <a href="#cat-{{ category.id }}" class="px-5 py-2.5 bg-white border border-gray-200 rounded-2xl text-sm font-bold text-gray-600 whitespace-nowrap shadow-sm hover:bg-gray-900 hover:text-white transition-colors">
+                {{ category.name }}
+            </a>
+        {% endfor %}
+    </div>
+</div>
+
 <!-- Menu Sections -->
 <div class="space-y-12">
     {% for category in categories %}
-    <section>
+    <section id="cat-{{ category.id }}" class="scroll-mt-36">
         <h2 class="text-xl font-black text-gray-900 mb-6 uppercase tracking-widest flex items-center gap-3">
             <span class="w-1.5 h-6 bg-orange-600 rounded-full"></span>
             {{ category.name }}
@@ -34,16 +45,29 @@
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {% for item in items %}
                 {% if item.category_id == category.id %}
-                <div class="bg-white rounded-[2.5rem] p-4 shadow-sm border border-gray-100 transition-all flex flex-col group
-                    {% if not item.is_available %} grayscale opacity-60 pointer-events-none {% else %} hover:shadow-xl hover:scale-[1.01] {% endif %}">
+
+                <!-- CARD CONTAINER -->
+                <div id="food-card-{{ item.id }}" data-id="{{ item.id }}"
+                    onclick="openModal({
+                        id: '{{ item.id }}',
+                        name: '{{ item.name|escapejs }}',
+                        price: '{{ item.price }}',
+                        image: '{% if item.image %}{{ item.image.url }}{% endif %}',
+                        desc: '{{ item.description|escapejs }}',
+                        isVeg: {{ item.veg|yesno:"true,false" }},
+                        spice: '{{ item.spice_level }}',
+                        time: '{{ item.preparation_time }}'
+                    })"
+                    class="food-card bg-white rounded-[2.5rem] p-4 shadow-sm border border-gray-100 transition-all flex flex-col group
+                    {% if not item.is_available %} grayscale opacity-60 pointer-events-none {% else %} hover:shadow-xl hover:scale-[1.01] cursor-pointer {% endif %}">
 
                     <!-- Image Container -->
                     <div class="relative h-48 w-full rounded-[2rem] overflow-hidden mb-4 bg-gray-50">
-                        {% if not item.is_available %}
-                            <div class="absolute inset-0 bg-black/40 z-10 flex items-center justify-center">
-                                <span class="bg-white text-black font-black text-xs px-4 py-2 rounded-full uppercase tracking-tighter">Sold Out</span>
-                            </div>
-                        {% endif %}
+
+                        <!-- Sold Out Overlay -->
+                        <div id="sold-out-overlay-{{ item.id }}" class="absolute inset-0 bg-black/40 z-10 flex items-center justify-center {% if item.is_available %}hidden{% endif %}">
+                            <span class="bg-white text-black font-black text-xs px-4 py-2 rounded-full uppercase tracking-tighter">Sold Out</span>
+                        </div>
 
                         {% if item.image %}
                             <img src="{{ item.image.url }}" class="w-full h-full object-cover">
@@ -53,7 +77,7 @@
                             </div>
                         {% endif %}
 
-                        <!-- Veg/Non-Veg Badge -->
+                        <!-- Card Badge -->
                         <div class="absolute top-3 left-3">
                             {% if item.veg %}
                                 <span class="bg-white/90 backdrop-blur-sm text-green-600 border border-green-200 text-[10px] font-black px-2 py-1 rounded-lg flex items-center gap-1 shadow-sm">
@@ -75,13 +99,10 @@
 
                         <p class="text-gray-400 text-xs mb-4 line-clamp-2">{{ item.description }}</p>
 
-                        <!-- Metadata (Spice & Time) -->
+                        <!-- Metadata -->
                         <div class="flex gap-4 mb-6">
                             <div class="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase">
-                                <i data-lucide="flame" class="w-3 h-3
-                                    {% if item.spice_level == 'hot' %}text-red-500
-                                    {% elif item.spice_level == 'medium' %}text-orange-500
-                                    {% else %}text-gray-300{% endif %}"></i>
+                                <i data-lucide="flame" class="w-3 h-3 {% if item.spice_level == 'hot' %}text-red-500{% elif item.spice_level == 'medium' %}text-orange-500{% else %}text-gray-300{% endif %}"></i>
                                 {{ item.spice_level }}
                             </div>
                             <div class="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase">
@@ -92,17 +113,22 @@
                     </div>
 
                     <!-- Add to Cart -->
-                    {% if item.is_available %}
-                        <button onclick="addToCart('{{ item.id }}', '{{ item.name }}', '{{ item.price }}')"
-                                class="w-full bg-gray-900 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-orange-600 transition-all flex items-center justify-center gap-2 group-hover:shadow-lg group-hover:shadow-orange-200">
-                            <i data-lucide="plus" class="w-4 h-4"></i>
-                            Add to Cart
+                    <div class="mt-auto">
+                        <button id="add-btn-{{ item.id }}"
+                            {% if not item.is_available %}disabled{% endif %}
+                            onclick="event.stopPropagation(); handleAddToCart(event, '{{ item.id }}', '{{ item.name|escapejs }}', '{{ item.price }}')"
+                            class="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2
+                            {% if not item.is_available %} bg-gray-200 text-gray-400 cursor-not-allowed {% else %} bg-gray-900 text-white hover:bg-orange-600 group-hover:shadow-lg group-hover:shadow-orange-200 {% endif %}">
+
+                            {% if not item.is_available %}
+                                Unavailable
+                            {% else %}
+                                <i data-lucide="plus" class="w-4 h-4 icon-normal"></i>
+                                <i data-lucide="check" class="w-4 h-4 icon-success hidden"></i>
+                                <span class="btn-text">Add to Cart</span>
+                            {% endif %}
                         </button>
-                    {% else %}
-                        <button disabled class="w-full bg-gray-200 text-gray-400 py-4 rounded-2xl font-black text-xs uppercase tracking-widest cursor-not-allowed">
-                            Unavailable
-                        </button>
-                    {% endif %}
+                    </div>
                 </div>
                 {% endif %}
             {% endfor %}
@@ -117,5 +143,191 @@
     <p class="text-gray-500 font-bold">No dishes match your search.</p>
 </div>
 {% endif %}
+
+<!-- ========================================== -->
+<!-- GLOBAL ITEM MODAL                          -->
+<!-- ========================================== -->
+<div id="item-modal" class="fixed inset-0 z-[60] hidden pointer-events-none">
+    <!-- Dark Backdrop -->
+    <div id="modal-backdrop" onclick="closeModal()" class="absolute inset-0 bg-black/60 opacity-0 transition-opacity duration-300 pointer-events-auto"></div>
+
+    <!-- Modal Content -->
+    <div id="modal-content" class="absolute bottom-0 w-full bg-white rounded-t-[2.5rem] md:rounded-[2.5rem] md:relative md:w-full md:max-w-md md:mx-auto md:top-1/2 md:-translate-y-1/2 transform translate-y-full transition-transform duration-300 shadow-2xl overflow-hidden flex flex-col max-h-[90vh] pointer-events-auto pb-safe">
+
+        <!-- Image Area -->
+        <div class="relative h-64 w-full bg-gray-100">
+            <img id="modal-img" src="" class="w-full h-full object-cover hidden">
+            <div id="modal-no-img" class="w-full h-full flex items-center justify-center text-gray-300 hidden">
+                <i data-lucide="utensils-crosses" class="w-16 h-16"></i>
+            </div>
+
+            <!-- Close Button -->
+            <button onclick="closeModal()" class="absolute top-4 right-4 bg-white/90 backdrop-blur p-2 rounded-full shadow-sm text-gray-900 hover:bg-gray-200 active:scale-95 transition-all">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <!-- Details Area -->
+        <div class="p-6 overflow-y-auto">
+            <div class="flex justify-between items-start mb-2">
+                <h2 id="modal-title" class="text-2xl font-black text-gray-900 leading-tight"></h2>
+                <span id="modal-price" class="text-xl font-black text-orange-600 ml-4"></span>
+            </div>
+
+            <p id="modal-desc" class="text-gray-500 mb-6 leading-relaxed text-sm"></p>
+
+            <!-- Specs Box -->
+            <div class="flex flex-col gap-3 mb-8 bg-gray-50 p-5 rounded-2xl border border-gray-100">
+                <div class="flex justify-between items-center border-b border-gray-200 pb-2">
+                    <span class="text-xs font-bold text-gray-400 uppercase tracking-widest">Dietary</span>
+                    <span id="modal-diet-text" class="text-sm font-black tracking-wide"></span>
+                </div>
+                <div class="flex justify-between items-center border-b border-gray-200 pb-2">
+                    <span class="text-xs font-bold text-gray-400 uppercase tracking-widest">Spice Level</span>
+                    <span id="modal-spice-text" class="text-sm font-black tracking-wide"></span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-xs font-bold text-gray-400 uppercase tracking-widest">Prep Time</span>
+                    <span id="modal-time-text" class="text-sm font-black text-gray-700 tracking-wide"></span>
+                </div>
+            </div>
+
+            <!-- Add to Cart Action -->
+            <button id="modal-add-btn" class="w-full bg-gray-900 text-white py-4 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-orange-600 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-xl shadow-gray-200">
+                <i data-lucide="shopping-bag" class="w-5 h-5"></i>
+                Add to Cart
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentModalItem = null;
+
+    function openModal(data) {
+        currentModalItem = data;
+
+        document.getElementById('modal-title').innerText = data.name;
+        document.getElementById('modal-price').innerText = `Rs. ${data.price}`;
+        document.getElementById('modal-desc').innerText = data.desc || 'No description available.';
+
+        const imgEl = document.getElementById('modal-img');
+        const noImgEl = document.getElementById('modal-no-img');
+        if (data.image) {
+            imgEl.src = data.image;
+            imgEl.classList.remove('hidden');
+            noImgEl.classList.add('hidden');
+        } else {
+            imgEl.classList.add('hidden');
+            noImgEl.classList.remove('hidden');
+        }
+
+        const dietText = document.getElementById('modal-diet-text');
+        if (data.isVeg) {
+            dietText.innerText = "VEGETARIAN";
+            dietText.className = "text-sm font-black tracking-wide text-green-600";
+        } else {
+            dietText.innerText = "NON-VEGETARIAN";
+            dietText.className = "text-sm font-black tracking-wide text-red-600";
+        }
+
+        const spiceText = document.getElementById('modal-spice-text');
+        spiceText.innerText = data.spice.toUpperCase();
+        if (data.spice === 'hot') {
+            spiceText.className = "text-sm font-black tracking-wide text-red-600";
+        } else if (data.spice === 'medium') {
+            spiceText.className = "text-sm font-black tracking-wide text-orange-500";
+        } else {
+            spiceText.className = "text-sm font-black tracking-wide text-gray-500";
+        }
+
+        document.getElementById('modal-time-text').innerText = `${data.time} MINUTES`;
+
+        const modal = document.getElementById('item-modal');
+        const backdrop = document.getElementById('modal-backdrop');
+        const content = document.getElementById('modal-content');
+
+        modal.classList.remove('hidden');
+
+        setTimeout(() => {
+            backdrop.classList.remove('opacity-0');
+            content.classList.remove('translate-y-full');
+        }, 10);
+    }
+
+    function closeModal() {
+        const backdrop = document.getElementById('modal-backdrop');
+        const content = document.getElementById('modal-content');
+
+        backdrop.classList.add('opacity-0');
+        content.classList.add('translate-y-full');
+
+        setTimeout(() => {
+            document.getElementById('item-modal').classList.add('hidden');
+            currentModalItem = null;
+        }, 300);
+    }
+
+    document.getElementById('modal-add-btn').addEventListener('click', function(e) {
+        if (!currentModalItem) return;
+
+        addToCart(currentModalItem.id, currentModalItem.name, currentModalItem.price);
+
+        const originalText = this.innerHTML;
+        this.classList.replace('bg-gray-900', 'bg-green-600');
+        this.innerHTML = `<i data-lucide="check" class="w-5 h-5"></i> Added`;
+        lucide.createIcons();
+        showToast(`${currentModalItem.name} added to cart`);
+
+        setTimeout(() => {
+            this.classList.replace('bg-green-600', 'bg-gray-900');
+            this.innerHTML = originalText;
+            lucide.createIcons();
+            closeModal();
+        }, 800);
+    });
+
+    // --- REAL-TIME MENU AVAILABILITY POLLING ---
+    async function pollMenuStatus() {
+        try {
+            const response = await fetch('/api/menu-status/');
+            if (!response.ok) return;
+            const data = await response.json();
+            const soldOutIds = data.sold_out; // Array of IDs e.g. [2, 5, 8]
+
+            document.querySelectorAll('.food-card').forEach(card => {
+                const id = parseInt(card.dataset.id);
+                const overlay = document.getElementById(`sold-out-overlay-${id}`);
+                const btn = document.getElementById(`add-btn-${id}`);
+
+                if (soldOutIds.includes(id)) {
+                    card.classList.add('grayscale', 'opacity-60', 'pointer-events-none');
+                    card.classList.remove('hover:shadow-xl', 'hover:scale-[1.01]', 'cursor-pointer');
+
+                    overlay.classList.remove('hidden');
+
+                    btn.disabled = true;
+                    btn.className = "w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 bg-gray-200 text-gray-400 cursor-not-allowed";
+                    btn.innerHTML = "Unavailable";
+                } else {
+                    card.classList.remove('grayscale', 'opacity-60', 'pointer-events-none');
+                    card.classList.add('hover:shadow-xl', 'hover:scale-[1.01]', 'cursor-pointer');
+
+                    overlay.classList.add('hidden');
+
+                    btn.disabled = false;
+                    btn.className = "w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 bg-gray-900 text-white hover:bg-orange-600 group-hover:shadow-lg group-hover:shadow-orange-200";
+                    btn.innerHTML = `<i data-lucide="plus" class="w-4 h-4 icon-normal"></i><i data-lucide="check" class="w-4 h-4 icon-success hidden"></i><span class="btn-text">Add to Cart</span>`;
+                    lucide.createIcons();
+                }
+            });
+        } catch (error) {
+            console.error("Error polling menu status:", error);
+        }
+    }
+
+    // Poll every 10 seconds
+    setInterval(pollMenuStatus, 10000);
+</script>
 
 {% endblock %}
