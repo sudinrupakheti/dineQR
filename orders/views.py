@@ -80,17 +80,29 @@ def menu_view(request):
 def cart_detail(request):
     table_num = request.GET.get("table")
     previous_orders = []
+    running_total = Decimal("0.00")
+    any_ready = False  # NEW VARIABLE
 
     if table_num:
-        # Get orders for this table that aren't "completed" yet
         previous_orders = (
             Order.objects.filter(table_number=table_num)
-            .exclude(status="completed")
+            .exclude(status__in=["completed", "cancelled"])
             .order_by("-created_at")
         )
 
+        for order in previous_orders:
+            running_total += order.total_price
+            if order.status == "ready":
+                any_ready = True  # Check if at least one order is served
+
     return render(
-        request, "orders/cart_detail.html", {"previous_orders": previous_orders}
+        request,
+        "orders/cart_detail.html",
+        {
+            "previous_orders": previous_orders,
+            "running_total": running_total,
+            "any_ready": any_ready,  # Pass to template
+        },
     )
 
 
