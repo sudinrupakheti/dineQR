@@ -154,16 +154,22 @@ def get_order_status(request, order_id):
 
 def update_order_status(request, order_id):
     if request.method == "POST":
-        order = Order.objects.get(id=order_id)
-        new_status = request.POST.get("status")
+        try:
+            # TRY to find the order
+            order = Order.objects.get(id=order_id)
+            new_status = request.POST.get("status")
 
-        valid_statuses = ["preparing", "ready", "completed"]
+            valid_statuses = ["preparing", "ready", "completed"]
 
-        if new_status in valid_statuses:
-            order.status = new_status
-            order.save()
+            if new_status in valid_statuses:
+                order.status = new_status
+                order.save()
+        except Order.DoesNotExist:
+            # If the user canceled the order and it was deleted from DB,
+            # just silently catch the error and refresh the kitchen screen!
+            pass
 
-            return redirect("kitchen_dashboard")
+        return redirect("kitchen_dashboard")
     return JsonResponse({"status": "error"}, status=400)
 
 def cancel_order_item(request, item_id):
@@ -201,14 +207,10 @@ def kitchen_dashboard(request):
 
 def order_review_page(request, order_id):
     order = Order.objects.get(id=order_id)
-
     if request.method == "POST":
-        # Loop through the items in the order to get ratings
         for item in order.items.all():
             rating = request.POST.get(f"rating_{item.id}")
             comment = request.POST.get(f"comment_{item.id}", "")
-
-            # RUN AI SENTIMENT ANALYSIS HERE
             ai_result = analyze_note_sentiment(comment)
 
             Review.objects.create(
@@ -218,11 +220,7 @@ def order_review_page(request, order_id):
                 comment=comment,
                 sentiment=ai_result,
             )
-
-        # Mark order as fully closed and send back to menu
-        order.status = "completed"
-        order.save()
-        return redirect("menu")
+        return redirect(f"{reverse('menu')}?table={order.table_number}")
 
     return render(request, "orders/review_form.html", {"order": order})
 
