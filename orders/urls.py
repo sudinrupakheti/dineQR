@@ -23,4 +23,15 @@ urlpatterns = [
         name="order_review_page",
     ),
     path("dashboard/", views.owner_dashboard, name="owner_dashboard"),
+    path("api/call-waiter/", views.call_waiter_api, name="call_waiter_api"),
+    path(
+        "api/active-waiter-calls/",
+        views.get_active_waiter_calls,
+        name="get_active_waiter_calls",
+    ),
+    path(
+        "api/resolve-waiter-call/<int:call_id>/",
+        views.resolve_waiter_call,
+        name="resolve_waiter_call",
+    ),
 ]

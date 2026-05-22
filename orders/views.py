@@ -256,3 +256,64 @@ def owner_dashboard(request):
         "positive_count": positive_count,
         "negative_count": negative_count,
     }
+
+
+def call_waiter_api(request):
+    if request.method == "POST":
+        import json
+
+        try:
+            data = json.loads(request.body)
+            table_num = data.get("table_number")
+            reason = data.get("reason", "help")
+
+            if not table_num:
+                return JsonResponse(
+                    {"status": "error", "message": "Table number missing."}, status=400
+                )
+
+            # Anti-Spam protection: Check if this table already has an active request
+            existing_call = WaiterCall.objects.filter(
+                table_number=table_num, is_resolved=False
+            ).first()
+            if existing_call:
+                return JsonResponse(
+                    {
+                        "status": "error",
+                        "message": f"Our staff is already on the way for: {existing_call.get_reason_display()}!",
+                    },
+                    status=400,
+                )
+
+            # Create the call
+            WaiterCall.objects.create(table_number=table_num, reason=reason)
+            return JsonResponse({"status": "success"})
+
+        except Exception as e:
+            return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+
+@user_passes_test(is_staff)
+def get_active_waiter_calls(request):
+    """API for the dashboard to get all unresolved waiter calls."""
+    calls = WaiterCall.objects.filter(is_resolved=False).order_by("-created_at")
+    data = [
+        {
+            "id": c.id,
+            "table": c.table_number,
+            "reason": c.get_reason_display(),
+            "time": c.created_at.strftime("%H:%M"),
+        }
+        for c in calls
+    ]
+    return JsonResponse({"calls": data})
+
+
+@user_passes_test(is_staff)
+def resolve_waiter_call(request, call_id):  
+    """Mark a service request as resolved."""
+    if request.method == "POST":
+        call = WaiterCall.objects.get(id=call_id)
+        call.is_resolved = True
+        call.save()
+        return JsonResponse({"status": "success"})
