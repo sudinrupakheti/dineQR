@@ -20,6 +20,17 @@ class MenuItem(models.Model):
     image = models.ImageField(upload_to="menu_items/", blank=True, null=True)
     is_available = models.BooleanField(default=True)
 
+    # New operational fields
+    veg = models.BooleanField(default=False)
+    SPICE_CHOICES = [
+        ("mild", "Mild"),
+        ("medium", "Medium"),
+        ("hot", "Hot"),
+    ]
+    spice_level = models.CharField(max_length=10, choices=SPICE_CHOICES, default="mild")
+    preparation_time = models.PositiveIntegerField(default=15)
+    best_seller = models.BooleanField(default=False)
+
     def image_tag(self):
         if self.image:
             return format_html(

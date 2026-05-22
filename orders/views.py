@@ -18,13 +18,53 @@ def is_staff(user):
     return user.groups.filter(name="Staff").exists() or user.is_superuser
 
 def menu_view(request):
-    items = MenuItem.objects.filter(is_available=True)
+    query = request.GET.get("search", "").lower().strip()
+    items = MenuItem.objects.all()
     categories = Category.objects.all()
 
-    context = {
-        "items": items,
-        "categories": categories,
-    }
+    if query:
+        matched_categories = categories.filter(name__icontains=query)
+
+        # Intent detection
+        is_veg = "veg" in query and "non" not in query
+        is_spicy = any(w in query for w in ["spicy", "hot", "chili", "spice"])
+        is_mild = any(w in query for w in ["mild", "not spicy", "not hot"])
+
+        if is_spicy:
+            # Pure intent query — skip text search entirely
+            items = items.filter(spice_level__in=["medium", "hot"])
+        elif is_mild:
+            items = items.filter(spice_level="mild")
+        else:
+            # Strip punctuation for fuzzy matching
+            import re
+
+            clean_names = [
+                re.sub(r"[^a-z0-9 ]", "", item.name.lower()) for item in items
+            ]
+            close_matches = difflib.get_close_matches(
+                query, clean_names, n=5, cutoff=0.5
+            )
+
+            lookup = (
+                Q(name__icontains=query)
+                | Q(description__icontains=query)
+                | Q(category__in=matched_categories)
+            )
+
+            # Add ALL close matches, not just [0]
+            for match in close_matches:
+                lookup |= Q(name__icontains=match.replace(" ", ""))
+
+            items = items.filter(lookup)
+
+        if is_veg:
+            items = items.filter(veg=True)
+
+    category_ids = items.values_list("category_id", flat=True)
+    categories = categories.filter(id__in=category_ids)
+
+    context = {"items": items, "categories": categories, "query": query}
     return render(request, "orders/menu.html", context)
 
 
