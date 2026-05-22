@@ -1,14 +1,23 @@
 import json
 from django.http import JsonResponse
 from django.shortcuts import render, redirect
-from .models import Order, OrderItem, MenuItem, Category, Review
+from .models import (
+    Order,
+    OrderItem,
+    MenuItem,
+    Category,
+    Review,
+    WaiterCall,
+)
 from decimal import Decimal
 from .ai_utils import analyze_note_sentiment
 import pandas as pd
-from django.db.models import Sum
-from datetime import date
+from django.db.models import Count, Count, Sum, Q, Avg
+from datetime import date, timedelta
 from django.utils import timezone
 from django.contrib.auth.decorators import user_passes_test
+import difflib
+from django.urls import reverse
 
 def is_owner(user):
     return user.groups.filter(name="Owner").exists() or user.is_superuser
@@ -198,12 +207,83 @@ def cancel_order_item(request, item_id):
                 status=400,
             )
 
-def kitchen_dashboard(request):
-    # Get all orders that aren't finished yet
-    active_orders = Order.objects.filter(status__in=["received", "preparing"]).order_by(
-        "created_at"
+@user_passes_test(is_staff)
+def management_dashboard(request):
+    current_tab = request.GET.get("tab", "tables")
+
+    # --- 1. GLOBAL STATS (For all tabs) ---
+    all_active_orders = Order.objects.exclude(status="completed")
+    total_live_revenue = (
+        all_active_orders.aggregate(Sum("total_price"))["total_price__sum"] or 0
     )
-    return render(request, "orders/kitchen.html", {"orders": active_orders})
+    busy_tables_count = all_active_orders.values("table_number").distinct().count()
+
+    # --- 2. LOGIC FOR TABLES TAB ---
+    table_data = []
+    if current_tab == "tables":
+        for i in range(1, 11):
+            active_orders = Order.objects.filter(table_number=i).exclude(
+                status="completed"
+            )
+            if active_orders.exists():
+                total_bill = (
+                    active_orders.aggregate(Sum("total_price"))["total_price__sum"] or 0
+                )
+                statuses = [o.status for o in active_orders]
+                display_status = (
+                    "ready"
+                    if "ready" in statuses
+                    else ("preparing" if "preparing" in statuses else "received")
+                )
+                table_data.append(
+                    {
+                        "number": i,
+                        "status": display_status,
+                        "total": total_bill,
+                        "has_orders": True,
+                    }
+                )
+            else:
+                table_data.append(
+                    {"number": i, "status": "empty", "total": 0, "has_orders": False}
+                )
+
+    # --- 3. LOGIC FOR INSIGHTS TAB ---
+    insights_data = {}
+    if current_tab == "insights":
+        today = timezone.now().date()
+        top_items = (
+            OrderItem.objects.filter(order__is_paid=True)
+            .values("menu_item__name")
+            .annotate(total_sold=Sum("quantity"))
+            .order_by("-total_sold")[:5]
+        )
+        avg_rating = Review.objects.aggregate(Avg("rating"))["rating__avg"] or 0
+        hourly_data = (
+            Order.objects.filter(created_at__gte=timezone.now() - timedelta(days=7))
+            .extra(select={"hour": "strftime('%%H', created_at)"})
+            .values("hour")
+            .annotate(count=Count("id"))
+            .order_by("hour")
+        )
+
+        insights_data = {
+            "top_items": list(top_items),
+            "avg_rating": round(avg_rating, 1),
+            "hourly_data": list(hourly_data),
+        }
+
+    categories = Category.objects.prefetch_related("items").all()
+
+    context = {
+        "tables": table_data,
+        "categories": categories,
+        "current_tab": current_tab,
+        "total_live_revenue": total_live_revenue,
+        "busy_tables_count": busy_tables_count,
+        "insights": insights_data,  # Pass insights data here
+    }
+    return render(request, "orders/management_dashboard.html", context)
 
 def order_review_page(request, order_id):
     order = Order.objects.get(id=order_id)
@@ -244,54 +324,61 @@ def kitchen_dashboard(request):
         {"orders": active_orders, "item_summary": item_summary},
     )
 
-@user_passes_test(is_owner)
-def owner_dashboard(request):
-    filter_type = request.GET.get("filter", "all")  # Default to all-time
+@user_passes_test(is_staff)
+def mark_table_paid(request, table_num):
+    if request.method == "POST":
+        # Find all orders for this table that aren't completed
+        active_orders = Order.objects.filter(table_number=table_num).exclude(
+            status="completed"
+        )
 
-    # Base queries
-    completed_orders = Order.objects.filter(status="completed")
-    all_reviews = Review.objects.all()
+        # Mark all of them as paid and completed
+        active_orders.update(
+            is_paid=True, paid_at=timezone.localtime(), status="completed"
+        )
+    return redirect("management_dashboard")
 
-    # Apply 'Today' filter if requested
-    if filter_type == "today":
-        today = timezone.localdate()
-        completed_orders = completed_orders.filter(created_at__date=today)
-        all_reviews = all_reviews.filter(created_at__date=today)
+@user_passes_test(is_staff)
+def toggle_item_availability(request, item_id):
+    if request.method == "POST":
+        item = MenuItem.objects.get(id=item_id)
+        item.is_available = not item.is_available
+        item.save()
+    return redirect(f"{request.META.get('HTTP_REFERER', '/management/')}?tab=menu")
 
-    total_revenue = (
-        completed_orders.aggregate(Sum("total_price"))["total_price__sum"] or 0
+def table_bill(request, table_num):
+    # Get all active (unpaid) orders for this table
+    active_orders = Order.objects.filter(table_number=table_num).exclude(
+        status="completed"
     )
-    positive_count = all_reviews.filter(sentiment="positive").count()
-    negative_count = all_reviews.filter(sentiment="negative").count()
 
-    best_seller = "No sales"
-    items_sold = 0
+    if not active_orders.exists():
+        # If no active orders, maybe they just paid? Show the last completed orders from the last 15 mins
+        active_orders = Order.objects.filter(
+            table_number=table_num,
+            status="completed",
+            paid_at__gte=timezone.localtime() - timezone.timedelta(minutes=15),
+        )
 
-    if completed_orders.exists():
-        all_items = OrderItem.objects.filter(order__in=completed_orders)
-        if all_items.exists():
-            data = list(all_items.values("menu_item__name", "quantity"))
-            df = pd.DataFrame(data)
-            if not df.empty:
-                sales_summary = (
-                    df.groupby("menu_item__name")["quantity"].sum().reset_index()
-                )
-                top_item_row = sales_summary.sort_values(
-                    by="quantity", ascending=False
-                ).iloc[0]
-                best_seller = top_item_row["menu_item__name"]
-                items_sold = top_item_row["quantity"]
+    # Collect all items across these orders
+    items = OrderItem.objects.filter(order__in=active_orders)
+    total = active_orders.aggregate(Sum("total_price"))["total_price__sum"] or 0
 
     context = {
-        "filter_type": filter_type,
-        "total_revenue": total_revenue,
-        "order_count": completed_orders.count(),
-        "best_seller": best_seller,
-        "items_sold": items_sold,
-        "positive_count": positive_count,
-        "negative_count": negative_count,
+        "table_num": table_num,
+        "items": items,
+        "total": total,
+        "date": timezone.localtime(),
+        "bill_id": active_orders.first().id if active_orders.exists() else "000",
     }
+    return render(request, "orders/bill_print.html", context)
 
+def menu_status_api(request):
+    """Returns a list of IDs for items that are currently unavailable."""
+    sold_out_ids = list(
+        MenuItem.objects.filter(is_available=False).values_list("id", flat=True)
+    )
+    return JsonResponse({"sold_out": sold_out_ids})
 
 def call_waiter_api(request):
     if request.method == "POST":
@@ -327,7 +414,6 @@ def call_waiter_api(request):
         except Exception as e:
             return JsonResponse({"status": "error", "message": str(e)}, status=500)
 
-
 @user_passes_test(is_staff)
 def get_active_waiter_calls(request):
     """API for the dashboard to get all unresolved waiter calls."""
@@ -343,7 +429,6 @@ def get_active_waiter_calls(request):
     ]
     return JsonResponse({"calls": data})
 
-
 @user_passes_test(is_staff)
 def resolve_waiter_call(request, call_id):  
     """Mark a service request as resolved."""
@@ -352,3 +437,29 @@ def resolve_waiter_call(request, call_id):
         call.is_resolved = True
         call.save()
         return JsonResponse({"status": "success"})
+
+def verify_table_session(request):
+    """
+    Checks if the user has a valid token for the table they are trying to access.
+    If they are new, it gives them a token.
+    """
+    table_num = request.GET.get("table")
+    client_token = request.headers.get("X-Session-Token")
+
+    if not table_num:
+        return JsonResponse(
+            {"status": "error", "message": "No table specified"}, status=400
+        )
+
+    # 1. If client sent a token, verify it matches the table
+    if client_token:
+        session = TableSession.objects.filter(
+            table_number=table_num, session_token=client_token, is_active=True
+        ).first()
+        if session:
+            return JsonResponse(
+                {"status": "success", "token": str(session.session_token)}
+            )
+
+    new_session = TableSession.objects.create(table_number=table_num)
+    return JsonResponse({"status": "success", "token": str(new_session.session_token)})
