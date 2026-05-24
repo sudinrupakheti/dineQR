@@ -103,8 +103,8 @@ JAZZMIN_SETTINGS = {
     "topmenu_links": [
         {"name": "Home", "url": "admin:index", "permissions": ["auth.view_user"]},
         {
-            "name": "Owner Dashboard",
-            "url": "/dashboard/",
+            "name": "Management Dashboard",
+            "url": "/management/",
         },  # Link to your Pandas dashboard
         {"name": "Kitchen View", "url": "/kitchen/"},  # Link to Kitchen
     ],

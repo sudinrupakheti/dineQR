@@ -1,152 +1,198 @@
-{% extends 'orders/kitchen_base.html' %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KDS | DineQR</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @keyframes pulse-red {
+            0%, 100% { background-color: rgba(254, 226, 226, 1); }
+            50% { background-color: rgba(254, 202, 202, 1); }
+        }
+        .urgent-card { animation: pulse-red 2s infinite; border-color: #ef4444 !important; }
+    </style>
+</head>
+<body class="bg-gray-100 text-gray-900 font-sans antialiased">
 
-{% block content %}
-
-<!-- 1. KITCHEN SUMMARY (Aggregated Totals) -->
-<div class="mb-10 bg-white rounded-[2.5rem] p-8 shadow-sm border border-orange-100 relative overflow-hidden">
-    <!-- Decorative subtle background icon -->
-    <div class="absolute -right-4 -top-4 text-orange-50/50 -rotate-12">
-        <i data-lucide="chef-hat" class="w-32 h-32"></i>
-    </div>
-
-    <div class="relative z-10">
-        <div class="flex items-center gap-3 mb-6">
-            <div class="bg-orange-600 p-1.5 rounded-lg">
-                <i data-lucide="list-checks" class="text-white w-4 h-4"></i>
+    <nav class="bg-white shadow-md sticky top-0 z-50 border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <div class="bg-orange-600 text-white p-2 rounded-xl">
+                    <i data-lucide="chef-hat" class="w-8 h-8"></i>
+                </div>
+                <span class="text-3xl font-black text-gray-900 tracking-tighter uppercase">
+                    Kitchen <span class="text-orange-600">Display</span>
+                </span>
             </div>
-            <h2 class="text-xs font-black text-gray-900 uppercase tracking-[0.2em]">Total Items to Prepare</h2>
+
+            <div class="flex items-center gap-6">
+                <div class="hidden md:flex flex-col items-end">
+                    <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">System Time</span>
+                    <span id="system-clock" class="text-2xl font-mono font-black text-gray-700"></span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Audio for new orders -->
+    <audio id="order-chime" src="https://assets.mixkit.co/active_storage/sfx/1390/1390-preview.mp3" preload="auto"></audio>
+
+    <main class="max-w-[1600px] mx-auto p-6">
+        <!-- 1. KITCHEN SUMMARY (Aggregated Totals) -->
+        <div class="mb-10 bg-white rounded-[2.5rem] p-8 shadow-sm border border-orange-100 relative overflow-hidden">
+            <!-- Decorative subtle background icon -->
+            <div class="absolute -right-4 -top-4 text-orange-50/50 -rotate-12">
+                <i data-lucide="chef-hat" class="w-32 h-32"></i>
+            </div>
+
+            <div class="relative z-10">
+                <div class="flex items-center gap-3 mb-6">
+                    <div class="bg-orange-600 p-1.5 rounded-lg">
+                        <i data-lucide="list-checks" class="text-white w-4 h-4"></i>
+                    </div>
+                    <h2 class="text-xs font-black text-gray-900 uppercase tracking-[0.2em]">Total Items to Prepare</h2>
+                </div>
+
+                <div class="flex flex-wrap gap-3">
+                    {% for summary in item_summary %}
+                    <div class="bg-white border-2 border-gray-100 px-6 py-4 rounded-[1.5rem] flex items-center gap-4 shadow-sm">
+                        <span class="text-3xl font-black text-orange-600">{{ summary.total_qty }}</span>
+                        <span class="text-gray-900 font-black uppercase text-xs tracking-wider">{{ summary.menu_item__name }}</span>
+                    </div>
+                    {% empty %}
+                    <div class="flex items-center gap-2 text-gray-400 italic text-sm">
+                        <i data-lucide="check-circle-2" class="w-4 h-4"></i>
+                        No active items to cook
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
         </div>
 
-        <div class="flex flex-wrap gap-3">
-            {% for summary in item_summary %}
-            <div class="bg-white border-2 border-gray-100 px-6 py-4 rounded-[1.5rem] flex items-center gap-4 shadow-sm">
-                <span class="text-3xl font-black text-orange-600">{{ summary.total_qty }}</span>
-                <span class="text-gray-900 font-black uppercase text-xs tracking-wider">{{ summary.menu_item__name }}</span>
+        <div class="flex items-center gap-4 mb-8">
+            <h1 class="text-4xl font-black text-gray-900 tracking-tight">Live Orders</h1>
+            <span class="bg-orange-100 text-orange-600 px-4 py-1 rounded-full text-sm font-black">{{ orders|length }} ACTIVE</span>
+        </div>
+
+        <!-- 2. LIVE ORDERS GRID -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+            {% for order in orders %}
+            <div class="order-card bg-white rounded-[2.5rem] shadow-xl border-2 flex flex-col h-full transition-all duration-500
+                {% if order.status == 'received' %} border-orange-200 {% else %} border-blue-200 {% endif %}"
+                data-order-id="{{ order.id }}"
+                data-created="{{ order.created_at|date:'c' }}">
+
+                <!-- Card Header -->
+                <div class="p-6 border-b border-gray-50 flex justify-between items-start">
+                    <div>
+                        <h3 class="text-3xl font-black text-gray-900 leading-none">Table {{ order.table_number }}</h3>
+                        <p class="text-[10px] font-black text-gray-400 uppercase mt-2 tracking-widest italic">#{{ order.id }}</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="wait-timer text-2xl font-black text-orange-600 font-mono">0m</span>
+                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Wait Time</p>
+                    </div>
+                </div>
+
+                <!-- Items List -->
+                <ul class="p-6 space-y-5 flex-grow">
+                    {% for item in order.items.all %}
+                    <li class="flex items-start gap-4">
+                        <div class="bg-gray-900 text-white font-black w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0">
+                            {{ item.quantity }}
+                        </div>
+                        <div class="flex-grow">
+                            <p class="font-black text-xl text-gray-800 leading-tight uppercase">{{ item.menu_item.name }}</p>
+                            {% if item.notes %}
+                            <div class="mt-2 p-3 bg-yellow-50 border border-yellow-100 rounded-2xl">
+                                <p class="text-xs font-black text-yellow-700 uppercase flex items-center gap-2">
+                                    <i data-lucide="message-square" class="w-4 h-4"></i>
+                                    {{ item.notes }}
+                                </p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+
+                <!-- Action Footer -->
+                <div class="p-6 bg-gray-50 rounded-b-[2.5rem] border-t border-gray-100">
+                    <form method="POST" action="{% url 'update_order_status' order.id %}">
+                        {% csrf_token %}
+                        {% if order.status == 'received' %}
+                            <input type="hidden" name="status" value="preparing">
+                            <button class="w-full bg-blue-600 text-white py-5 rounded-[1.5rem] font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 active:scale-95 flex items-center justify-center gap-3">
+                                <i data-lucide="play" class="w-6 h-6"></i>
+                                Start Cooking
+                            </button>
+                        {% elif order.status == 'preparing' %}
+                            <input type="hidden" name="status" value="ready">
+                            <button class="w-full bg-green-600 text-white py-5 rounded-[1.5rem] font-black uppercase tracking-widest hover:bg-green-700 transition-all shadow-lg shadow-green-100 active:scale-95 flex items-center justify-center gap-3">
+                                <i data-lucide="check-circle" class="w-6 h-6"></i>
+                                Mark Ready
+                            </button>
+                        {% endif %}
+                    </form>
+                </div>
             </div>
             {% empty %}
-            <div class="flex items-center gap-2 text-gray-400 italic text-sm">
-                <i data-lucide="check-circle-2" class="w-4 h-4"></i>
-                No active items to cook
+            <div class="col-span-full py-32 text-center">
+                <div class="bg-white w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-gray-100">
+                    <i data-lucide="coffee" class="w-12 h-12 text-gray-200"></i>
+                </div>
+                <h3 class="text-gray-400 font-black text-2xl uppercase tracking-widest">Kitchen is currently clear</h3>
             </div>
             {% endfor %}
         </div>
-    </div>
-</div>
 
-<div class="flex items-center gap-4 mb-8">
-    <h1 class="text-4xl font-black text-gray-900 tracking-tight">Live Orders</h1>
-    <span class="bg-orange-100 text-orange-600 px-4 py-1 rounded-full text-sm font-black">{{ orders|length }} ACTIVE</span>
-</div>
+        <script>
+            // --- 1. LIVE WAIT TIMERS ---
+            function updateTimers() {
+                document.querySelectorAll('.order-card').forEach(card => {
+                    const createdTime = new Date(card.dataset.created);
+                    const now = new Date();
+                    const diffMs = now - createdTime;
+                    const diffMins = Math.floor(diffMs / 60000);
 
-<!-- 2. LIVE ORDERS GRID -->
-<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-    {% for order in orders %}
-    <div class="order-card bg-white rounded-[2.5rem] shadow-xl border-2 flex flex-col h-full transition-all duration-500
-        {% if order.status == 'received' %} border-orange-200 {% else %} border-blue-200 {% endif %}"
-        data-order-id="{{ order.id }}"
-        data-created="{{ order.created_at|date:'c' }}">
+                    const timerEl = card.querySelector('.wait-timer');
+                    timerEl.innerText = `${diffMins}m`;
 
-        <!-- Card Header -->
-        <div class="p-6 border-b border-gray-50 flex justify-between items-start">
-            <div>
-                <h3 class="text-3xl font-black text-gray-900 leading-none">Table {{ order.table_number }}</h3>
-                <p class="text-[10px] font-black text-gray-400 uppercase mt-2 tracking-widest italic">#{{ order.id }}</p>
-            </div>
-            <div class="text-right">
-                <span class="wait-timer text-2xl font-black text-orange-600 font-mono">0m</span>
-                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Wait Time</p>
-            </div>
-        </div>
-
-        <!-- Items List -->
-        <ul class="p-6 space-y-5 flex-grow">
-            {% for item in order.items.all %}
-            <li class="flex items-start gap-4">
-                <div class="bg-gray-900 text-white font-black w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0">
-                    {{ item.quantity }}
-                </div>
-                <div class="flex-grow">
-                    <p class="font-black text-xl text-gray-800 leading-tight uppercase">{{ item.menu_item.name }}</p>
-                    {% if item.notes %}
-                    <div class="mt-2 p-3 bg-yellow-50 border border-yellow-100 rounded-2xl">
-                        <p class="text-xs font-black text-yellow-700 uppercase flex items-center gap-2">
-                            <i data-lucide="message-square" class="w-4 h-4"></i>
-                            {{ item.notes }}
-                        </p>
-                    </div>
-                    {% endif %}
-                </div>
-            </li>
-            {% endfor %}
-        </ul>
-
-        <!-- Action Footer -->
-        <div class="p-6 bg-gray-50 rounded-b-[2.5rem] border-t border-gray-100">
-            <form method="POST" action="{% url 'update_order_status' order.id %}">
-                {% csrf_token %}
-                {% if order.status == 'received' %}
-                    <input type="hidden" name="status" value="preparing">
-                    <button class="w-full bg-blue-600 text-white py-5 rounded-[1.5rem] font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 active:scale-95 flex items-center justify-center gap-3">
-                        <i data-lucide="play" class="w-6 h-6"></i>
-                        Start Cooking
-                    </button>
-                {% elif order.status == 'preparing' %}
-                    <input type="hidden" name="status" value="ready">
-                    <button class="w-full bg-green-600 text-white py-5 rounded-[1.5rem] font-black uppercase tracking-widest hover:bg-green-700 transition-all shadow-lg shadow-green-100 active:scale-95 flex items-center justify-center gap-3">
-                        <i data-lucide="check-circle" class="w-6 h-6"></i>
-                        Mark Ready
-                    </button>
-                {% endif %}
-            </form>
-        </div>
-    </div>
-    {% empty %}
-    <div class="col-span-full py-32 text-center">
-        <div class="bg-white w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-gray-100">
-            <i data-lucide="coffee" class="w-12 h-12 text-gray-200"></i>
-        </div>
-        <h3 class="text-gray-400 font-black text-2xl uppercase tracking-widest">Kitchen is currently clear</h3>
-    </div>
-    {% endfor %}
-</div>
-
-<script>
-    // --- 1. LIVE WAIT TIMERS ---
-    function updateTimers() {
-        document.querySelectorAll('.order-card').forEach(card => {
-            const createdTime = new Date(card.dataset.created);
-            const now = new Date();
-            const diffMs = now - createdTime;
-            const diffMins = Math.floor(diffMs / 60000);
-
-            const timerEl = card.querySelector('.wait-timer');
-            timerEl.innerText = `${diffMins}m`;
-
-            // URGENCY LOGIC: Turn red and pulse if > 15 minutes
-            if (diffMins >= 15) {
-                card.classList.add('urgent-card');
-                timerEl.classList.replace('text-orange-600', 'text-red-600');
+                    // URGENCY LOGIC: Turn red and pulse if > 15 minutes
+                    if (diffMins >= 15) {
+                        card.classList.add('urgent-card');
+                        timerEl.classList.replace('text-orange-600', 'text-red-600');
+                    }
+                });
             }
-        });
-    }
 
-    // --- 2. NEW ORDER CHIME LOGIC ---
-    let currentOrderCount = {{ orders|length }};
+            // --- 2. NEW ORDER CHIME LOGIC ---
+            let currentOrderCount = {{ orders|length }};
 
-    function checkNewOrders() {
-        // We compare the current rendered length with the server
-        // This reloads the page to get the new data
-        location.reload();
-    }
+            function checkNewOrders() {
+                // We compare the current rendered length with the server
+                // This reloads the page to get the new data
+                location.reload();
+            }
 
-    // Refresh every 15 seconds to check for new orders
-    setTimeout(checkNewOrders, 15000);
+            // Refresh every 15 seconds to check for new orders
+            setTimeout(checkNewOrders, 15000);
 
-    // Initial timer run and then every minute
-    updateTimers();
-    setInterval(updateTimers, 60000);
+            // Initial timer run and then every minute
+            updateTimers();
+            setInterval(updateTimers, 60000);
 
-    // Lucide need to be re-run after any DOM changes (though not needed for reload)
-    lucide.createIcons();
-</script>
-{% endblock %}
+            // Lucide need to be re-run after any DOM changes (though not needed for reload)
+            lucide.createIcons();
+
+            // System clock
+            setInterval(() => {
+                document.getElementById('system-clock').innerText = new Date().toLocaleTimeString('en-GB');
+            }, 1000);
+        </script>
+    </main>
+
+</body>
+</html>
