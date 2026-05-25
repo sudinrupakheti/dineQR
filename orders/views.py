@@ -571,16 +571,67 @@ def generate_bill_qr(data):
 
 
 def confirm_payment_request(request, table_num):
+    """Handles equal split, item-based split, and full payment."""
     active_orders = Order.objects.filter(table_number=table_num).exclude(
         status="completed"
     )
 
-    if active_orders.exists():
-        active_orders.update(status="completed", is_paid=True, paid_at=timezone.now())
-
-        WaiterCall.objects.create(
-            table_number=table_num, reason="paid", is_resolved=False
+    if not active_orders.exists():
+        return JsonResponse(
+            {"status": "error", "message": "No active orders"}, status=400
         )
 
-        return JsonResponse({"status": "success"})
-    return JsonResponse({"status": "error", "message": "No active orders"}, status=400)
+    try:
+        if request.method == "POST":
+            data = json.loads(request.body)
+        else:
+            data = request.GET.dict()
+
+        items_to_pay = data.get("items", [])
+        manual_amount = Decimal(str(data.get("amount", 0)))
+    except:
+        manual_amount = Decimal("0")
+        items_to_pay = []
+
+    # MODE 1: ITEM-BASED PAY
+    if items_to_pay:
+        for entry in items_to_pay:
+            try:
+                order_item = OrderItem.objects.get(id=entry["id"])
+                qty = int(entry.get("qty", 1))
+                order_item.paid_quantity = (order_item.paid_quantity or 0) + qty
+                order_item.save()
+
+                order = order_item.order
+                order.paid_amount = (order.paid_amount or Decimal("0")) + (
+                    Decimal(str(order_item.menu_item.price)) * qty
+                )
+                order.save()
+            except OrderItem.DoesNotExist:
+                pass
+
+    # MODE 2: EQUAL/MANUAL AMOUNT
+    elif manual_amount > 0:
+        remaining = manual_amount
+        for order in active_orders:
+            if remaining <= Decimal("0"):
+                break
+            to_pay = min(remaining, order.remaining_balance)
+            order.paid_amount = (order.paid_amount or Decimal("0")) + to_pay
+            remaining -= to_pay
+            order.save()
+
+    # FINAL CHECK: IS TABLE FULLY PAID?
+    all_done = True
+    for order in active_orders:
+        if order.remaining_balance > Decimal("0.01"):
+            all_done = False
+        else:
+            order.status = "completed"
+            order.is_paid = True
+            order.paid_at = timezone.now()
+            order.save()
+
+    WaiterCall.objects.create(table_number=table_num, reason="paid", is_resolved=False)
+
+    return JsonResponse({"status": "success", "table_cleared": all_done})

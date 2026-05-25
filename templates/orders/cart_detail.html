@@ -85,31 +85,105 @@
 
         <!-- 2. PAYMENT METHODS -->
         <div class="grid grid-cols-1 gap-2">
+            <!-- SMART SPLIT BUTTON -->
+            <button onclick="openSplitModal()" class="w-full bg-blue-600 text-white font-black py-4 rounded-2xl flex items-center justify-center gap-3 shadow-lg active:scale-95 transition-all">
+                <i data-lucide="split-square-horizontal" class="w-5 h-5"></i> Smart Split Bill
+            </button>
+
             <!-- QR BUTTON -->
             <button onclick="document.getElementById('qr-modal').classList.remove('hidden')" class="w-full bg-orange-600 text-white font-black py-4 rounded-2xl flex items-center justify-center gap-3 shadow-lg active:scale-95 transition-all">
                 <i data-lucide="qr-code" class="w-5 h-5"></i> Scan to Pay (QR)
             </button>
 
             <!-- CASH BUTTON -->
-            <button onclick="handlePaymentConfirm()" class="w-full bg-gray-100 text-gray-600 font-bold py-3 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all">
+            <!-- FIX 4: Pass 'cash' as source so handlePaymentConfirm knows to always use totalBill -->
+            <button onclick="handlePaymentConfirm('cash')" class="w-full bg-gray-100 text-gray-600 font-bold py-3 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all">
                 <i data-lucide="banknote" class="w-5 h-5"></i> Pay with Cash
             </button>
         </div>
     </div>
 
+    <!-- SMART SPLIT MODAL -->
+    <div id="split-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/90 backdrop-blur-md" onclick="closeSplitModal()"></div>
+
+        <div class="bg-white rounded-[2.5rem] w-full max-w-lg max-h-[90vh] overflow-hidden relative z-10 flex flex-col shadow-2xl">
+            <!-- Header -->
+            <div class="p-6 border-b border-gray-100 flex justify-between items-center">
+                <h2 class="text-xl font-black">Smart Bill Split</h2>
+                <button onclick="closeSplitModal()" class="p-2 bg-gray-50 rounded-full text-gray-400"><i data-lucide="x"></i></button>
+            </div>
+
+            <!-- Mode Toggle -->
+            <div class="p-4 bg-gray-50 flex gap-2">
+                <button onclick="switchSplitMode('equal')" id="tab-equal" class="flex-1 py-3 rounded-2xl font-black text-xs uppercase tracking-widest bg-gray-900 text-white transition-all">Equal Split</button>
+                <button onclick="switchSplitMode('items')" id="tab-items" class="flex-1 py-3 rounded-2xl font-black text-xs uppercase tracking-widest text-gray-400 transition-all">By Items</button>
+            </div>
+
+            <!-- Tab 1: Equal Split Content -->
+            <div id="split-equal-content" class="p-8 flex flex-col items-center gap-6">
+                <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">How many people?</span>
+                <div class="flex items-center gap-8">
+                    <button onclick="adjustPeople(-1)" class="w-12 h-12 rounded-full border-2 border-gray-100 flex items-center justify-center text-2xl font-bold">-</button>
+                    <span id="people-count" class="text-6xl font-black text-gray-900">2</span>
+                    <button onclick="adjustPeople(1)" class="w-12 h-12 rounded-full border-2 border-gray-100 flex items-center justify-center text-2xl font-bold">+</button>
+                </div>
+                <p class="text-gray-400 font-bold">Each person pays: <span id="equal-share-text" class="text-orange-600">Rs. 0</span></p>
+            </div>
+
+            <!-- Tab 2: Item Split Content -->
+            <div id="split-items-content" class="hidden flex-grow overflow-y-auto p-4 space-y-4">
+                <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest px-2">Assign items to people (P1, P2...)</p>
+                {% for order in previous_orders %}
+                    {% for item in order.items.all %}
+                    <div class="bg-gray-50 p-4 rounded-3xl border border-gray-100 flex justify-between items-center">
+                        <div class="max-w-[50%]">
+                            <p class="font-bold text-sm leading-tight">{{ item.menu_item.name }}</p>
+                            <p class="text-[10px] text-gray-400">Rs. {{ item.menu_item.price }}</p>
+                        </div>
+                        <div class="flex gap-1" id="assign-btns-{{ item.id }}">
+                            <!-- JS will inject Person buttons here -->
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% endfor %}
+            </div>
+
+            <!-- Shared Payment Summary -->
+            <div class="p-6 bg-gray-900 rounded-t-[2.5rem] mt-auto">
+                <div id="person-pager" class="flex justify-between items-center mb-4">
+                    <button onclick="changePerson(-1)" class="text-white/40 hover:text-white"><i data-lucide="chevron-left"></i></button>
+                    <div class="text-center">
+                        <h3 id="current-person-label" class="text-white font-black text-lg">Person 1</h3>
+                        <p id="current-person-total" class="text-orange-400 font-black text-2xl">Rs. 0</p>
+                    </div>
+                    <button onclick="changePerson(1)" class="text-white/40 hover:text-white"><i data-lucide="chevron-right"></i></button>
+                </div>
+
+                <button onclick="showPersonQR()" class="w-full bg-orange-600 text-white py-4 rounded-2xl font-black shadow-xl active:scale-95 flex items-center justify-center gap-2">
+                    <i data-lucide="qr-code" class="w-5 h-5"></i>
+                    Show QR for This Person
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- QR MODAL -->
     <div id="qr-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-6">
-        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="this.parentElement.classList.add('hidden')"></div>
+        <!-- FIX 3: backdrop click now calls resetAndCloseQR() to restore original amount -->
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="resetAndCloseQR()"></div>
         <div class="bg-white rounded-[2.5rem] w-full max-w-sm p-8 relative z-10 text-center">
             <h2 class="text-xl font-black mb-1">Scan to Pay</h2>
-            <p class="text-orange-600 font-black text-2xl mb-6">Rs. {{ running_total }}</p>
+            <!-- This element holds the display amount; we store the original in a data attribute -->
+            <p id="qr-modal-amount" data-original="Rs. {{ running_total }}" class="text-orange-600 font-black text-2xl mb-6">Rs. {{ running_total }}</p>
 
             <div class="bg-gray-50 p-4 rounded-3xl border-2 border-dashed border-gray-200 mb-6">
                 <img src="{{ qr_code }}" class="w-full aspect-square">
             </div>
 
-            <button id="verify-payment-btn" onclick="handlePaymentConfirm()"
-        class="w-full bg-gray-900 text-white py-4 rounded-2xl font-black shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2">
+            <!-- FIX 4: Pass 'qr' as source -->
+            <button id="verify-payment-btn" onclick="handlePaymentConfirm('qr')"
+                class="w-full bg-gray-900 text-white py-4 rounded-2xl font-black shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2">
                 Verify Payment
             </button>
         </div>
@@ -169,6 +243,12 @@
     const hasPreviousOrders = ("{{ previous_orders|yesno:'true,false' }}" === "true");
     const backendRunningTotal = parseFloat("{{ running_total|default:0 }}");
 
+    // SMART SPLIT STATE
+    let splitMode = 'equal';
+    let numPeople = 2;
+    let currentPersonIdx = 1;
+    let itemAssignments = {}; // { item_id: [person_numbers] }
+    const totalBill = backendRunningTotal;
 
     // 2. Render Cart & Calculate Unified Total
     function renderCartPage() {
@@ -251,7 +331,7 @@
         lucide.createIcons();
     }
 
-    // 3. Send Order Logic (No more redirecting away!)
+    // 3. Send Order Logic
     document.getElementById('place-order-btn').addEventListener('click', async function() {
         const originalText = this.innerHTML;
         this.disabled = true;
@@ -269,8 +349,8 @@
             const result = await response.json();
 
             if (result.status === 'success') {
-                localStorage.removeItem(cartKey); // Clear local cart
-                window.location.reload(); // Refresh to see it in "Sent to Kitchen"
+                localStorage.removeItem(cartKey);
+                window.location.reload();
             } else {
                 alert("Error: " + result.message);
                 resetButton();
@@ -302,7 +382,7 @@
             const result = await response.json();
 
             if (result.status === 'success') {
-                window.location.reload(); // Refresh to update totals and remove item
+                window.location.reload();
             } else {
                 alert(result.message || "Cannot cancel this item. The chef might have started cooking!");
             }
@@ -339,13 +419,24 @@
         lucide.createIcons();
 
         window.pollingInterval = setInterval(async () => {
-             if (document.activeElement.tagName === 'A') return;
+            if (document.activeElement.tagName === 'A') return;
 
             for (let id of orderIds) {
                 try {
                     const res = await fetch(`/api/order-status/${id}/`);
                     if (!res.ok) continue;
                     const data = await res.json();
+
+                    // FIX 2: Check for 'completed' OUTSIDE the forEach so clearInterval + break work correctly
+                    if (data.status === 'completed') {
+                        clearInterval(window.pollingInterval);
+                        document.getElementById('cart-main-content').classList.add('hidden');
+                        const backBtn = document.getElementById('final-back-to-menu');
+                        backBtn.href = `{% url 'menu' %}?table=${tableNum}`;
+                        document.getElementById('settled-thanks-section').classList.remove('hidden');
+                        lucide.createIcons();
+                        break; // Stop processing other order IDs too
+                    }
 
                     // Find all badges for this specific order
                     const badgeElements = document.querySelectorAll(`.status-badge-container[data-order-id="${id}"]`);
@@ -354,27 +445,12 @@
                         // Only update if the status has actually changed
                         if (badgeEl.dataset.currentStatus !== data.status) {
                             badgeEl.dataset.currentStatus = data.status;
-
-                            // 1. If order completed
-                            if (data.status === 'completed') {
-                                document.getElementById('cart-main-content').classList.add('hidden');
-                                const backBtn = document.getElementById('final-back-to-menu');
-                                backBtn.href = `{% url 'menu' %}?table=${tableNum}`;
-                                document.getElementById('settled-thanks-section').classList.remove('hidden');
-                                clearInterval(window.pollingInterval);
-                                lucide.createIcons();
-                                return;
-                            }
-
-                            // 2. Update badge UI
                             badgeEl.innerHTML = getBadgeHTML(data.status);
 
-                            // 3. If food is ready, make sure the Bill/Review section is visible
+                            // If food is ready, make sure the Bill/Review section is visible
                             if (data.status === 'ready') {
                                 const billSection = document.getElementById('bill-review-section');
-                                if (billSection) {
-                                    billSection.classList.remove('hidden');
-                                }
+                                if (billSection) billSection.classList.remove('hidden');
                             }
                             lucide.createIcons();
                         }
@@ -390,26 +466,166 @@
         }, 5000);
     }
 
+    // ===== SMART SPLIT MODAL LOGIC =====
+    function openSplitModal() {
+        document.getElementById('split-modal').classList.remove('hidden');
+        calculateSplit();
+    }
+
+    function closeSplitModal() {
+        document.getElementById('split-modal').classList.add('hidden');
+    }
+
+    function switchSplitMode(mode) {
+        splitMode = mode;
+        document.getElementById('split-equal-content').classList.toggle('hidden', mode !== 'equal');
+        document.getElementById('split-items-content').classList.toggle('hidden', mode !== 'items');
+
+        const btnEq = document.getElementById('tab-equal');
+        const btnIt = document.getElementById('tab-items');
+
+        if (mode === 'equal') {
+            btnEq.className = "flex-1 py-3 rounded-2xl font-black text-xs uppercase tracking-widest bg-gray-900 text-white";
+            btnIt.className = "flex-1 py-3 rounded-2xl font-black text-xs uppercase tracking-widest text-gray-400";
+        } else {
+            btnIt.className = "flex-1 py-3 rounded-2xl font-black text-xs uppercase tracking-widest bg-gray-900 text-white";
+            btnEq.className = "flex-1 py-3 rounded-2xl font-black text-xs uppercase tracking-widest text-gray-400";
+            renderItemAssignmentButtons();
+        }
+        calculateSplit();
+    }
+
+    function adjustPeople(delta) {
+        numPeople = Math.max(1, Math.min(10, numPeople + delta));
+        document.getElementById('people-count').innerText = numPeople;
+        if (splitMode === 'items') renderItemAssignmentButtons();
+        calculateSplit();
+    }
+
+    function calculateSplit() {
+        let shares = new Array(numPeople).fill(0);
+
+        if (splitMode === 'equal') {
+            let perPerson = totalBill / numPeople;
+            shares = shares.fill(perPerson);
+            document.getElementById('equal-share-text').innerText = `Rs. ${perPerson.toFixed(2)}`;
+        } else {
+            {% for order in previous_orders %}
+                {% for item in order.items.all %}
+                    const id_{{ item.id }} = '{{ item.id }}';
+                    const price_{{ item.id }} = parseFloat('{{ item.menu_item.price }}');
+                    const assignedPeople_{{ item.id }} = itemAssignments[id_{{ item.id }}] || [];
+                    if (assignedPeople_{{ item.id }}.length > 0) {
+                        const splitPrice_{{ item.id }} = price_{{ item.id }} / assignedPeople_{{ item.id }}.length;
+                        assignedPeople_{{ item.id }}.forEach(pIdx => shares[pIdx - 1] += splitPrice_{{ item.id }});
+                    }
+                {% endfor %}
+            {% endfor %}
+        }
+
+        if (currentPersonIdx > numPeople) currentPersonIdx = 1;
+        document.getElementById('current-person-label').innerText = `Person ${currentPersonIdx}`;
+        document.getElementById('current-person-total').innerText = `Rs. ${shares[currentPersonIdx - 1].toFixed(2)}`;
+    }
+
+    function toggleItemToPerson(itemId, personIdx) {
+        if (!itemAssignments[itemId]) itemAssignments[itemId] = [];
+
+        const idx = itemAssignments[itemId].indexOf(personIdx);
+        if (idx > -1) {
+            itemAssignments[itemId].splice(idx, 1);
+        } else {
+            itemAssignments[itemId].push(personIdx);
+        }
+
+        renderItemAssignmentButtons();
+        calculateSplit();
+    }
+
+    function renderItemAssignmentButtons() {
+        {% for order in previous_orders %}{% for item in order.items.all %}
+            const container_{{ item.id }} = document.getElementById('assign-btns-{{ item.id }}');
+            if (container_{{ item.id }}) {
+                let html = '';
+                for (let i = 1; i <= numPeople; i++) {
+                    const isActive = (itemAssignments['{{ item.id }}'] || []).includes(i);
+                    const activeClass = isActive ? 'bg-orange-600 text-white' : 'bg-gray-200 text-gray-400';
+                    html += `<button onclick="toggleItemToPerson('{{ item.id }}', ${i})" class="w-7 h-7 rounded-full text-[9px] font-black ${activeClass}">${i}</button>`;
+                }
+                container_{{ item.id }}.innerHTML = html;
+            }
+        {% endfor %}{% endfor %}
+    }
+
+    function changePerson(delta) {
+        currentPersonIdx += delta;
+        if (currentPersonIdx > numPeople) currentPersonIdx = 1;
+        if (currentPersonIdx < 1) currentPersonIdx = numPeople;
+        calculateSplit();
+    }
+
+    // FIX 3: showPersonQR saves and restores the original QR modal amount
+    function showPersonQR() {
+        const amountStr = document.getElementById('current-person-total').innerText.replace('Rs. ', '');
+        const amount = parseFloat(amountStr);
+
+        if (amount <= 0) {
+            alert("This person has nothing to pay!");
+            return;
+        }
+
+        closeSplitModal();
+
+        // Update QR modal amount temporarily (original stored in data-original attribute)
+        const modalAmountEl = document.getElementById('qr-modal-amount');
+        if (modalAmountEl) modalAmountEl.innerText = `Rs. ${amount.toFixed(2)}`;
+
+        document.getElementById('qr-modal').classList.remove('hidden');
+    }
+
+    // FIX 3: Restores original amount when QR modal is closed
+    function resetAndCloseQR() {
+        const modalAmountEl = document.getElementById('qr-modal-amount');
+        if (modalAmountEl) {
+            // Restore original full-bill amount from data attribute
+            modalAmountEl.innerText = modalAmountEl.dataset.original;
+        }
+        document.getElementById('qr-modal').classList.add('hidden');
+    }
+
     // 6. Payment Confirmation
-    async function handlePaymentConfirm() {
-        // 1. Ask for confirmation
+    // FIX 4: Accept a 'source' param ('cash' | 'qr') to always send the correct amount
+    async function handlePaymentConfirm(source = 'cash') {
         if (!confirm("Confirm payment? Our staff will be notified to verify.")) return;
 
         try {
-            // 2. Call the backend
-            const response = await fetch(`/payment/confirm/${tableNumber}/`);
+            let payload = {};
+
+            if (source === 'cash') {
+                // Cash always pays the full bill — never affected by splitMode state
+                payload = { amount: totalBill, items: [] };
+            } else {
+                // QR: read the amount currently displayed in the modal (could be split or full)
+                const modalAmountEl = document.getElementById('qr-modal-amount');
+                const amountStr = modalAmountEl ? modalAmountEl.innerText.replace('Rs. ', '') : String(totalBill);
+                payload = { amount: parseFloat(amountStr) || totalBill, items: [] };
+            }
+
+            const response = await fetch(`/payment/confirm/${tableNum}/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': "{{ csrf_token }}"
+                },
+                body: JSON.stringify(payload)
+            });
+
             const data = await response.json();
 
             if (data.status === 'success') {
-                // 3. Hide the QR modal if it was open
-                const modal = document.getElementById('qr-modal');
-                if (modal) modal.classList.add('hidden');
-
-                // 4. Show a success toast
+                // Close whichever modal is open
+                resetAndCloseQR();
                 showToast("Payment request sent!");
-
-                // Note: The "Thank You" screen will show automatically in 5 seconds
-                // because the polling script will see the status is 'completed'.
             } else {
                 alert("Error: " + data.message);
             }

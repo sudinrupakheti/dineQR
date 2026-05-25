@@ -63,12 +63,17 @@ class Order(models.Model):
     # Billing fields
     is_paid = models.BooleanField(default=False)
     paid_at = models.DateTimeField(null=True, blank=True)
+    paid_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
 
     created_at = models.DateTimeField(auto_now_add=True)
 
     @property
+    def remaining_balance(self):
+        return self.total_price - self.paid_amount
+
+    @property
     def has_review(self):
-        return self.reviews.exists()
+        return self.reviews.exists()  # type: ignore
 
     def __str__(self):
         return f"Order {self.id} - Table {self.table_number}"
@@ -79,6 +84,15 @@ class OrderItem(models.Model):
     menu_item = models.ForeignKey(MenuItem, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1)
     notes = models.TextField(blank=True, null=True)
+    paid_quantity = models.PositiveIntegerField(default=0)
+
+    @property
+    def remaining_quantity(self):
+        return self.quantity - self.paid_quantity
+
+    @property
+    def is_fully_paid(self):
+        return self.paid_quantity >= self.quantity
 
     def __str__(self):
         return f"{self.quantity} x {self.menu_item.name}"
