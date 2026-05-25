@@ -47,4 +47,14 @@ urlpatterns = [
         views.resolve_waiter_call,
         name="resolve_waiter_call",
     ),
+    path(
+        "management/toggle-featured/<int:item_id>/",
+        views.toggle_item_featured,
+        name="toggle_item_featured",
+    ),
+    path(
+        "payment/confirm/<int:table_num>/",
+        views.confirm_payment_request,
+        name="confirm_payment",
+    ),
 ]

@@ -21,7 +21,7 @@ class OrderAdmin(admin.ModelAdmin):
     inlines = [OrderItemInline]
 
     def total_price(self, obj):
-        return f"Rs. {obj.price}"
+        return f"Rs. {obj.total_price}"
 
     total_price.short_description = "Price"
 

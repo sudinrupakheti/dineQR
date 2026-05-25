@@ -108,7 +108,7 @@
             </div>
         </div>
     </div>
-    
+
     <script>
         lucide.createIcons();
 
@@ -162,6 +162,33 @@
             }
 
         });
+
+        function showToast(message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+
+            // Styling the toast to look nice (Orange/Dark theme)
+            toast.className = `bg-gray-900 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 transform transition-all duration-300 translate-y-10 opacity-0 font-bold text-sm border border-gray-800`;
+            toast.innerHTML = `
+                <i data-lucide="check-circle" class="w-4 h-4 text-orange-500"></i>
+                ${message}
+            `;
+
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            // Animate In
+            setTimeout(() => {
+                toast.classList.remove('translate-y-10', 'opacity-0');
+            }, 10);
+
+            // Animate Out and Remove
+            setTimeout(() => {
+                toast.classList.add('translate-y-10', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
         // --- WAITER CALL LOGIC ---
         function openWaiterModal() {
             // Check if table is set
@@ -225,6 +252,6 @@
                 alert("Network error. Please wave to a waiter.");
             }
         }
-    </script>    
+    </script>
 </body>
 </html>

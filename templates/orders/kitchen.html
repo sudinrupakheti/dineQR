@@ -82,7 +82,7 @@
             <div class="order-card bg-white rounded-[2.5rem] shadow-xl border-2 flex flex-col h-full transition-all duration-500
                 {% if order.status == 'received' %} border-orange-200 {% else %} border-blue-200 {% endif %}"
                 data-order-id="{{ order.id }}"
-                data-created="{{ order.created_at|date:'c' }}">
+                data-created="{{ order.created_at|localtime|date:'c' }}">
 
                 <!-- Card Header -->
                 <div class="p-6 border-b border-gray-50 flex justify-between items-start">
@@ -169,7 +169,7 @@
             }
 
             // --- 2. NEW ORDER CHIME LOGIC ---
-            let currentOrderCount = {{ orders|length }};
+            let currentOrderCount = parseInt("{{ orders|length|default:0 }}");
 
             function checkNewOrders() {
                 // We compare the current rendered length with the server

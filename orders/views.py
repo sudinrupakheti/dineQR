@@ -1,6 +1,19 @@
 import json
+import difflib
+from decimal import Decimal
+from datetime import timedelta
+from django.utils import timezone
 from django.http import JsonResponse
 from django.shortcuts import render, redirect
+from django.urls import reverse
+from django.db.models import Sum, Q, Avg, Count
+from django.contrib.auth.decorators import user_passes_test
+from django.conf import settings
+import qrcode
+import io
+import base64
+
+
 from .models import (
     Order,
     OrderItem,
@@ -8,16 +21,10 @@ from .models import (
     Category,
     Review,
     WaiterCall,
+    TableSession,
 )
-from decimal import Decimal
 from .ai_utils import analyze_note_sentiment
-import pandas as pd
-from django.db.models import Count, Count, Sum, Q, Avg
-from datetime import date, timedelta
-from django.utils import timezone
-from django.contrib.auth.decorators import user_passes_test
-import difflib
-from django.urls import reverse
+
 
 def is_owner(user):
     return user.groups.filter(name="Owner").exists() or user.is_superuser
@@ -25,6 +32,7 @@ def is_owner(user):
 
 def is_staff(user):
     return user.groups.filter(name="Staff").exists() or user.is_superuser
+
 
 def menu_view(request):
     query = request.GET.get("search", "").lower().strip()
@@ -44,6 +52,8 @@ def menu_view(request):
             items = items.filter(spice_level__in=["medium", "hot"])
         elif is_mild:
             items = items.filter(spice_level="mild")
+        elif "featured" in query or "special" in query:
+            items = items.filter(is_featured=True)
         else:
             # Strip punctuation for fuzzy matching
             import re
@@ -81,7 +91,8 @@ def cart_detail(request):
     table_num = request.GET.get("table")
     previous_orders = []
     running_total = Decimal("0.00")
-    any_ready = False  # NEW VARIABLE
+    any_ready = False
+    show_thanks = False
 
     if table_num:
         previous_orders = (
@@ -90,10 +101,34 @@ def cart_detail(request):
             .order_by("-created_at")
         )
 
+        recently_settled = Order.objects.filter(
+            table_number=table_num,
+            status="completed",
+            paid_at__gte=timezone.now() - timedelta(minutes=10),
+        ).exists()
+
+        if not previous_orders.exists() and recently_settled:
+            show_thanks = True
+
+        # 3. CALCULATE TOTAL FIRST
         for order in previous_orders:
             running_total += order.total_price
             if order.status == "ready":
-                any_ready = True  # Check if at least one order is served
+                any_ready = True
+
+    qr_code = None
+    if previous_orders.exists():
+        first_order = previous_orders.first()
+        local_time = timezone.localtime(timezone.now()).strftime("%Y-%m-%d %I:%M %p")
+
+        qr_code = generate_bill_qr(
+            {
+                "amount": f"{running_total:,.2f}",
+                "order_id": first_order.id,
+                "table_number": table_num,
+                "timestamp": local_time,
+            }
+        )
 
     return render(
         request,
@@ -101,7 +136,9 @@ def cart_detail(request):
         {
             "previous_orders": previous_orders,
             "running_total": running_total,
-            "any_ready": any_ready,  # Pass to template
+            "any_ready": any_ready,
+            "show_thanks": show_thanks,
+            "qr_code": qr_code,
         },
     )
 
@@ -157,7 +194,9 @@ def place_order(request):
 
         except Exception as e:
             print(f"Order Error: {e}")
-            return JsonResponse({"status": "error", "message": str(e)}, status=500)
+            return JsonResponse(
+                {"status": "error", "message": "Invalid request method"}, status=405
+            )
 
 
 def order_success(request, order_id):
@@ -193,6 +232,7 @@ def update_order_status(request, order_id):
         return redirect("kitchen_dashboard")
     return JsonResponse({"status": "error"}, status=400)
 
+
 def cancel_order_item(request, item_id):
     """Allows customers to delete an item if the kitchen hasn't started cooking it yet."""
     if request.method == "POST":
@@ -215,9 +255,9 @@ def cancel_order_item(request, item_id):
             return JsonResponse({"status": "success"})
         except OrderItem.DoesNotExist:
             return JsonResponse(
-                {"status": "error", "message": "Item already cooking or not found."},
-                status=400,
+                {"status": "error", "message": "Invalid request method"}, status=405
             )
+
 
 @user_passes_test(is_staff)
 def management_dashboard(request):
@@ -263,7 +303,6 @@ def management_dashboard(request):
     # --- 3. LOGIC FOR INSIGHTS TAB ---
     insights_data = {}
     if current_tab == "insights":
-        today = timezone.now().date()
         top_items = (
             OrderItem.objects.filter(order__is_paid=True)
             .values("menu_item__name")
@@ -297,8 +336,14 @@ def management_dashboard(request):
     }
     return render(request, "orders/management_dashboard.html", context)
 
+
 def order_review_page(request, order_id):
-    order = Order.objects.get(id=order_id)
+    try:
+        order = Order.objects.get(id=order_id)
+    except Order.DoesNotExist:
+        # If the order is missing, go back to menu
+        return redirect("menu")
+
     if request.method == "POST":
         for item in order.items.all():
             rating = request.POST.get(f"rating_{item.id}")
@@ -312,9 +357,12 @@ def order_review_page(request, order_id):
                 comment=comment,
                 sentiment=ai_result,
             )
-        return redirect(f"{reverse('menu')}?table={order.table_number}")
+        # Redirect back to cart with the table number in the URL
+        return redirect(f"{reverse('cart_detail')}?table={order.table_number}")
 
+    # For a normal click (GET request), just show the form
     return render(request, "orders/review_form.html", {"order": order})
+
 
 @user_passes_test(is_staff)
 def kitchen_dashboard(request):
@@ -336,6 +384,7 @@ def kitchen_dashboard(request):
         {"orders": active_orders, "item_summary": item_summary},
     )
 
+
 @user_passes_test(is_staff)
 def mark_table_paid(request, table_num):
     if request.method == "POST":
@@ -350,6 +399,7 @@ def mark_table_paid(request, table_num):
         )
     return redirect("management_dashboard")
 
+
 @user_passes_test(is_staff)
 def toggle_item_availability(request, item_id):
     if request.method == "POST":
@@ -358,32 +408,38 @@ def toggle_item_availability(request, item_id):
         item.save()
     return redirect(f"{request.META.get('HTTP_REFERER', '/management/')}?tab=menu")
 
+
 def table_bill(request, table_num):
-    # Get all active (unpaid) orders for this table
     active_orders = Order.objects.filter(table_number=table_num).exclude(
         status="completed"
     )
 
-    if not active_orders.exists():
-        # If no active orders, maybe they just paid? Show the last completed orders from the last 15 mins
-        active_orders = Order.objects.filter(
-            table_number=table_num,
-            status="completed",
-            paid_at__gte=timezone.localtime() - timezone.timedelta(minutes=15),
-        )
-
-    # Collect all items across these orders
     items = OrderItem.objects.filter(order__in=active_orders)
     total = active_orders.aggregate(Sum("total_price"))["total_price__sum"] or 0
+    first_order = active_orders.first()
+
+    qr_code = None
+    if first_order:
+        local_time = timezone.localtime(timezone.now()).strftime("%Y-%m-%d %I:%M %p")
+        qr_code = generate_bill_qr(
+            {
+                "amount": f"{total:,.2f}",
+                "order_id": first_order.id,
+                "table_number": table_num,
+                "timestamp": local_time,
+            }
+        )
 
     context = {
         "table_num": table_num,
         "items": items,
         "total": total,
-        "date": timezone.localtime(),
-        "bill_id": active_orders.first().id if active_orders.exists() else "000",
+        "date": timezone.localtime(timezone.now()),
+        "bill_id": first_order.id if first_order else "000",
+        "qr_code": qr_code,
     }
     return render(request, "orders/bill_print.html", context)
+
 
 def menu_status_api(request):
     """Returns a list of IDs for items that are currently unavailable."""
@@ -391,6 +447,7 @@ def menu_status_api(request):
         MenuItem.objects.filter(is_available=False).values_list("id", flat=True)
     )
     return JsonResponse({"sold_out": sold_out_ids})
+
 
 def call_waiter_api(request):
     if request.method == "POST":
@@ -426,6 +483,7 @@ def call_waiter_api(request):
         except Exception as e:
             return JsonResponse({"status": "error", "message": str(e)}, status=500)
 
+
 @user_passes_test(is_staff)
 def get_active_waiter_calls(request):
     """API for the dashboard to get all unresolved waiter calls."""
@@ -435,20 +493,30 @@ def get_active_waiter_calls(request):
             "id": c.id,
             "table": c.table_number,
             "reason": c.get_reason_display(),
-            "time": c.created_at.strftime("%H:%M"),
+            "time": timezone.localtime(c.created_at).strftime("%H:%M"),
         }
         for c in calls
     ]
     return JsonResponse({"calls": data})
 
+
 @user_passes_test(is_staff)
-def resolve_waiter_call(request, call_id):  
-    """Mark a service request as resolved."""
+def resolve_waiter_call(request, call_id):
     if request.method == "POST":
-        call = WaiterCall.objects.get(id=call_id)
-        call.is_resolved = True
-        call.save()
-        return JsonResponse({"status": "success"})
+        try:
+            call = WaiterCall.objects.get(id=call_id)
+            call.is_resolved = True
+            call.save()
+            return JsonResponse({"status": "success"})
+        except WaiterCall.DoesNotExist:
+            return JsonResponse(
+                {"status": "error", "message": "Invalid request method"}, status=405
+            )
+
+    return JsonResponse(
+        {"status": "error", "message": "Invalid request method"}, status=405
+    )
+
 
 def verify_table_session(request):
     """
@@ -475,3 +543,44 @@ def verify_table_session(request):
 
     new_session = TableSession.objects.create(table_number=table_num)
     return JsonResponse({"status": "success", "token": str(new_session.session_token)})
+
+
+@user_passes_test(is_staff)
+def toggle_item_featured(request, item_id):
+    if request.method == "POST":
+        item = MenuItem.objects.get(id=item_id)
+        item.is_featured = not item.is_featured
+        item.save()
+    # Redirect back to the Menu tab on the dashboard
+    return redirect(f"{request.META.get('HTTP_REFERER', '/management/')}")
+
+
+def generate_bill_qr(data):
+    payload = (
+        f"Merchant: {settings.MERCHANT_NAME}\n"
+        f"Account: {settings.MERCHANT_ACCOUNT}\n"
+        f"Amount: Rs.{data['amount']}\n"
+        f"Order_ID: {data['order_id']}\n"
+        f"Table: {data['table_number']}\n"
+        f"Time: {data['timestamp']}"
+    )
+    qr = qrcode.make(payload)
+    buf = io.BytesIO()
+    qr.save(buf, format="PNG")
+    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+
+
+def confirm_payment_request(request, table_num):
+    active_orders = Order.objects.filter(table_number=table_num).exclude(
+        status="completed"
+    )
+
+    if active_orders.exists():
+        active_orders.update(status="completed", is_paid=True, paid_at=timezone.now())
+
+        WaiterCall.objects.create(
+            table_number=table_num, reason="paid", is_resolved=False
+        )
+
+        return JsonResponse({"status": "success"})
+    return JsonResponse({"status": "error", "message": "No active orders"}, status=400)

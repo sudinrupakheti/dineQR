@@ -47,22 +47,36 @@
                 {% if item.category_id == category.id %}
 
                 <!-- CARD CONTAINER -->
-                <div id="food-card-{{ item.id }}" data-id="{{ item.id }}"
-                    onclick="openModal({
-                        id: '{{ item.id }}',
-                        name: '{{ item.name|escapejs }}',
-                        price: '{{ item.price }}',
-                        image: '{% if item.image %}{{ item.image.url }}{% endif %}',
-                        desc: '{{ item.description|escapejs }}',
-                        isVeg: {{ item.veg|yesno:"true,false" }},
-                        spice: '{{ item.spice_level }}',
-                        time: '{{ item.preparation_time }}'
-                    })"
+                <div id="food-card-{{ item.id }}"
+                    data-id="{{ item.id }}"
+                    data-name="{{ item.name|escapejs }}"
+                    data-price="{{ item.price }}"
+                    data-image="{% if item.image %}{{ item.image.url }}{% endif %}"
+                    data-desc="{{ item.description|escapejs }}"
+                    data-veg="{{ item.veg|yesno:'true,false' }}"
+                    data-spice="{{ item.spice_level }}"
+                    data-time="{{ item.preparation_time }}"
+                    onclick="openItemModal(this)"
                     class="food-card bg-white rounded-[2.5rem] p-4 shadow-sm border border-gray-100 transition-all flex flex-col group
                     {% if not item.is_available %} grayscale opacity-60 pointer-events-none {% else %} hover:shadow-xl hover:scale-[1.01] cursor-pointer {% endif %}">
 
                     <!-- Image Container -->
                     <div class="relative h-48 w-full rounded-[2rem] overflow-hidden mb-4 bg-gray-50">
+
+                        <!-- TOP RIGHT BADGES -->
+                        <div class="absolute top-3 right-3 z-20 flex flex-col gap-2 items-end">
+                            {% if item.is_featured %}
+                            <span class="bg-orange-500 text-white text-[9px] font-black px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 shadow-lg border border-orange-400">
+                                <i data-lucide="award" class="w-3 h-3 fill-current"></i> CHEF'S CHOICE
+                            </span>
+                            {% endif %}
+
+                            {% if item.id in popular_ids %}
+                            <span class="bg-blue-600 text-white text-[9px] font-black px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 shadow-lg">
+                                <i data-lucide="trending-up" class="w-3 h-3"></i> TRENDING
+                            </span>
+                            {% endif %}
+                        </div>
 
                         <!-- Sold Out Overlay -->
                         <div id="sold-out-overlay-{{ item.id }}" class="absolute inset-0 bg-black/40 z-10 flex items-center justify-center {% if item.is_available %}hidden{% endif %}">
@@ -169,12 +183,16 @@
 
         <!-- Details Area -->
         <div class="p-6 overflow-y-auto">
-            <div class="flex justify-between items-start mb-2">
+            <div class="flex justify-between items-start mb-4">
                 <h2 id="modal-title" class="text-2xl font-black text-gray-900 leading-tight"></h2>
                 <span id="modal-price" class="text-xl font-black text-orange-600 ml-4"></span>
             </div>
 
-            <p id="modal-desc" class="text-gray-500 mb-6 leading-relaxed text-sm"></p>
+            <!-- Scrollable full description -->
+            <div class="mb-8">
+                <h4 class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Description</h4>
+                <p id="modal-desc" class="text-gray-600 leading-relaxed text-sm font-medium italic"></p>
+            </div>
 
             <!-- Specs Box -->
             <div class="flex flex-col gap-3 mb-8 bg-gray-50 p-5 rounded-2xl border border-gray-100">
@@ -204,15 +222,50 @@
 <script>
     let currentModalItem = null;
 
-    function openModal(data) {
+    function openItemModal(element) {
+        const data = {
+            id: element.getAttribute('data-id'),
+            name: element.getAttribute('data-name'),
+            price: element.getAttribute('data-price'),
+            image: element.getAttribute('data-image'),
+            desc: element.getAttribute('data-desc'),
+            isVeg: element.getAttribute('data-veg') === 'true',
+            spice: element.getAttribute('data-spice'),
+            time: element.getAttribute('data-time')
+        };
+
         currentModalItem = data;
 
         document.getElementById('modal-title').innerText = data.name;
         document.getElementById('modal-price').innerText = `Rs. ${data.price}`;
         document.getElementById('modal-desc').innerText = data.desc || 'No description available.';
+        document.getElementById('modal-add-btn').addEventListener('click', function(e) {
+            if (!currentModalItem) return;
+
+                // 1. Add to the actual cart
+                addToCart(currentModalItem.id, currentModalItem.name, currentModalItem.price);
+
+                // 2. Visual feedback on the button
+                const originalContent = this.innerHTML;
+                this.classList.replace('bg-gray-900', 'bg-green-600');
+                this.innerHTML = `<i data-lucide="check" class="w-5 h-5"></i> Added!`;
+                lucide.createIcons();
+
+                // 3. Show the toast message
+                showToast(`${currentModalItem.name} added to cart`);
+
+                // 4. Reset button and close modal after a short delay
+                setTimeout(() => {
+                    this.classList.replace('bg-green-600', 'bg-gray-900');
+                    this.innerHTML = originalContent;
+                    lucide.createIcons();
+                    closeModal();
+                }, 600);
+            });
 
         const imgEl = document.getElementById('modal-img');
         const noImgEl = document.getElementById('modal-no-img');
+
         if (data.image) {
             imgEl.src = data.image;
             imgEl.classList.remove('hidden');
@@ -233,13 +286,6 @@
 
         const spiceText = document.getElementById('modal-spice-text');
         spiceText.innerText = data.spice.toUpperCase();
-        if (data.spice === 'hot') {
-            spiceText.className = "text-sm font-black tracking-wide text-red-600";
-        } else if (data.spice === 'medium') {
-            spiceText.className = "text-sm font-black tracking-wide text-orange-500";
-        } else {
-            spiceText.className = "text-sm font-black tracking-wide text-gray-500";
-        }
 
         document.getElementById('modal-time-text').innerText = `${data.time} MINUTES`;
 
@@ -248,7 +294,6 @@
         const content = document.getElementById('modal-content');
 
         modal.classList.remove('hidden');
-
         setTimeout(() => {
             backdrop.classList.remove('opacity-0');
             content.classList.remove('translate-y-full');
@@ -268,24 +313,18 @@
         }, 300);
     }
 
-    document.getElementById('modal-add-btn').addEventListener('click', function(e) {
-        if (!currentModalItem) return;
+    function handleAddToCart(event, id, name, price) {
+        event.stopPropagation(); // Prevents opening the modal when clicking the button
 
-        addToCart(currentModalItem.id, currentModalItem.name, currentModalItem.price);
+        if (typeof addToCart === "function") {
+            addToCart(id, name, price);
 
-        const originalText = this.innerHTML;
-        this.classList.replace('bg-gray-900', 'bg-green-600');
-        this.innerHTML = `<i data-lucide="check" class="w-5 h-5"></i> Added`;
-        lucide.createIcons();
-        showToast(`${currentModalItem.name} added to cart`);
-
-        setTimeout(() => {
-            this.classList.replace('bg-green-600', 'bg-gray-900');
-            this.innerHTML = originalText;
-            lucide.createIcons();
-            closeModal();
-        }, 800);
-    });
+            // Show the toast we just created!
+            if (typeof showToast === "function") {
+                showToast(`${name} added to cart`);
+            }
+        }
+    }
 
     // --- REAL-TIME MENU AVAILABILITY POLLING ---
     async function pollMenuStatus() {

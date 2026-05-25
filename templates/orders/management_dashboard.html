@@ -169,6 +169,12 @@
                             {% for item in category.items.all %}
                             <div class="menu-item-card bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between group transition-all" data-name="{{ item.name|lower }}">
                                 <div class="flex items-center gap-4">
+                                    <form action="{% url 'toggle_item_featured' item.id %}" method="POST" class="flex-shrink-0">
+                                        {% csrf_token %}
+                                        <button type="submit" class="p-2 rounded-xl transition-all hover:scale-110 active:scale-95">
+                                            <i data-lucide="star" class="w-5 h-5 {% if item.is_featured %}text-orange-500 fill-orange-500{% else %}text-gray-200{% endif %}"></i>
+                                        </button>
+                                    </form>
                                     <div class="relative w-12 h-12 rounded-xl overflow-hidden bg-gray-50 flex-shrink-0">
                                         {% if item.image %}
                                             <img src="{{ item.image.url }}" class="w-full h-full object-cover {% if not item.is_available %}grayscale{% endif %}">
@@ -239,6 +245,8 @@
 
     </main>
 
+    {{ insights.top_items|json_script:"top-items-data" }}
+    {{ insights.hourly_data|json_script:"hourly-data" }}
     <script>
         lucide.createIcons();
         function updateClock() {
@@ -267,6 +275,8 @@
 
         // --- WAITER CALL POLLING ---
         let lastCallCount = 0;
+        let autoResolvingIds = new Set();
+
         async function pollWaiterCalls() {
             try {
                 const response = await fetch('{% url "get_active_waiter_calls" %}');
@@ -276,68 +286,121 @@
 
                 if (data.calls.length > 0) {
                     container.classList.remove('hidden');
+
+                    // Play sound only if new calls arrive
                     if (data.calls.length > lastCallCount) {
                         const sound = document.getElementById('alert-sound');
-                        if (sound) sound.play().catch(e => console.log("Sound blocked by browser. Click page to enable."));
+                        if (sound) sound.play().catch(e => console.log("Sound blocked"));
                     }
                     lastCallCount = data.calls.length;
 
-                    list.innerHTML = data.calls.map(call => `
-                        <div class="bg-white border-2 border-red-100 rounded-[2rem] p-5 shadow-lg shadow-red-50 flex items-center justify-between">
-                            <div>
-                                <p class="text-[10px] font-black text-red-500 uppercase tracking-widest mb-1">${call.reason}</p>
-                                <h3 class="text-xl font-black text-gray-900">Table ${call.table}</h3>
-                                <p class="text-[10px] text-gray-400 font-bold">${call.time}</p>
+                    // Generate the HTML for the alerts
+                    list.innerHTML = data.calls.map(call => {
+                        const isPayment = (call.reason === "Payment Done");
+
+                        // --- AUTO-DISAPPEAR LOGIC ---
+                        // If it's a payment and we haven't started a timer yet
+                        if (isPayment && !autoResolvingIds.has(call.id)) {
+                            autoResolvingIds.add(call.id);
+
+                            // Automatically resolve after 15 seconds
+                            setTimeout(() => {
+                                resolveCall(call.id);
+                            }, 15000);
+                        }
+
+                        const borderColor = isPayment ? "border-green-200" : "border-red-100";
+                        const badgeColor = isPayment ? "text-green-500" : "text-red-500";
+                        const icon = isPayment ? "check-circle" : "bell";
+
+                        return `
+                            <div class="bg-white border-2 ${borderColor} rounded-[2rem] p-5 shadow-lg flex items-center justify-between animate-in fade-in slide-in-from-top-2">
+                                <div>
+                                    <p class="text-[10px] font-black ${badgeColor} uppercase tracking-widest mb-1">
+                                        <i data-lucide="${icon}" class="w-3 h-3 inline mb-0.5"></i> ${call.reason}
+                                    </p>
+                                    <h3 class="text-xl font-black text-gray-900">Table ${call.table}</h3>
+                                    <p class="text-[10px] text-gray-400 font-bold">${call.time}</p>
+                                </div>
+                                <button onclick="resolveCall(${call.id})" class="bg-gray-900 text-white p-4 rounded-2xl hover:bg-green-600 transition-all active:scale-95 shadow-lg">
+                                    <i data-lucide="check" class="w-6 h-6"></i>
+                                </button>
                             </div>
-                            <button onclick="resolveCall(${call.id})" class="bg-gray-900 text-white p-4 rounded-2xl hover:bg-green-600 transition-all active:scale-95 shadow-lg">
-                                <i data-lucide="check" class="w-6 h-6"></i>
-                            </button>
-                        </div>
-                    `).join('');
+                        `;
+                    }).join('');
+
                     lucide.createIcons();
                 } else {
                     container.classList.add('hidden');
                     lastCallCount = 0;
+                    autoResolvingIds.clear(); // Reset the tracker when list is empty
                 }
             } catch (e) { console.error("Waiter polling error", e); }
         }
 
         async function resolveCall(id) {
-            const res = await fetch(`/api/resolve-waiter-call/${id}/`, {
-                method: 'POST',
-                headers: { 'X-CSRFToken': '{{ csrf_token }}' }
-            });
-            if (res.ok) pollWaiterCalls();
+            try {
+                const res = await fetch(`/api/resolve-waiter-call/${id}/`, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+                });
+                if (res.ok) {
+                    // Remove from auto-resolving set if it was there
+                    autoResolvingIds.delete(id);
+                    pollWaiterCalls(); // Refresh the list immediately
+                }
+            } catch (e) { console.error("Error resolving call", e); }
         }
 
         // --- CHARTS INITIALIZATION (Insights Tab) ---
         if ("{{ current_tab }}" === "insights") {
+            // 1. Parse the data from the HTML containers we created above
+            const topItemsRaw = JSON.parse(document.getElementById('top-items-data').textContent);
+            const hourlyDataRaw = JSON.parse(document.getElementById('hourly-data').textContent);
+
+            // 2. Format data for Top Items Chart
+            const topLabels = topItemsRaw.map(item => item.menu_item__name);
+            const topValues = topItemsRaw.map(item => item.total_sold);
+
+            // 3. Format data for Hourly Chart
+            const hourlyLabels = hourlyDataRaw.map(data => `${data.hour}:00`);
+            const hourlyValues = hourlyDataRaw.map(data => data.count);
+
+            // 4. Initialize Top Items Chart
             new Chart(document.getElementById('topItemsChart'), {
                 type: 'bar',
                 data: {
-                    labels: [{% for item in insights.top_items %} "{{ item.menu_item__name }}", {% endfor %}],
+                    labels: topLabels,
                     datasets: [{
-                        data: [{% for item in insights.top_items %} {{ item.total_sold }}, {% endfor %}],
+                        data: topValues,
                         backgroundColor: '#ea580c',
                         borderRadius: 10
                     }]
                 },
-                options: { plugins: { legend: { display: false } }, responsive: true }
+                options: {
+                    plugins: { legend: { display: false } },
+                    responsive: true
+                }
             });
 
+            // 5. Initialize Hourly Chart
             new Chart(document.getElementById('hourlyChart'), {
                 type: 'line',
                 data: {
-                    labels: [{% for data in insights.hourly_data %} "{{ data.hour }}:00", {% endfor %}],
+                    labels: hourlyLabels,
                     datasets: [{
-                        data: [{% for data in insights.hourly_data %} {{ data.count }}, {% endfor %}],
+                        data: hourlyValues,
                         borderColor: '#ea580c',
                         tension: 0.4,
                         fill: true,
                         backgroundColor: 'rgba(234, 88, 12, 0.05)'
                     }]
                 },
-                options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }, responsive: true }
+                options: {
+                    plugins: { legend: { display: false } },
+                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+                    responsive: true
+                }
             });
         }
 

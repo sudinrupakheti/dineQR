@@ -67,13 +67,9 @@
 </div>
 
 <script>
-    // Ensure the JS cart is completely wiped so the next customer at this table starts fresh
+    // Just a safety check to make sure icons work
     document.addEventListener("DOMContentLoaded", function () {
-        const tableNum = "{{ order.table_number }}";
-        if (tableNum) {
-            localStorage.removeItem(`cart_table_${tableNum}`);
-            localStorage.removeItem('dineqr_table'); // Optional: clear table memory completely
-        }
+        lucide.createIcons();
     });
 </script>
 

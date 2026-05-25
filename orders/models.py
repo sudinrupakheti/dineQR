@@ -1,6 +1,6 @@
 from django.db import models
 from django.utils.html import format_html
-from django.core.validators import MaxValueValidator, MinValueValidator
+import uuid
 
 
 class Category(models.Model):
@@ -29,7 +29,9 @@ class MenuItem(models.Model):
     ]
     spice_level = models.CharField(max_length=10, choices=SPICE_CHOICES, default="mild")
     preparation_time = models.PositiveIntegerField(default=15)
-    best_seller = models.BooleanField(default=False)
+    is_featured = models.BooleanField(
+        default=False, verbose_name="Featured/Recommended"
+    )
 
     def image_tag(self):
         if self.image:
@@ -46,6 +48,7 @@ class MenuItem(models.Model):
 
 
 class Order(models.Model):
+    id: int
     STATUS_CHOICES = [
         ("received", "Received"),
         ("preparing", "Preparing"),
@@ -55,13 +58,17 @@ class Order(models.Model):
 
     table_number = models.IntegerField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="received")
-    total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)  # type: ignore
 
     # Billing fields
     is_paid = models.BooleanField(default=False)
     paid_at = models.DateTimeField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
+
+    @property
+    def has_review(self):
+        return self.reviews.exists()
 
     def __str__(self):
         return f"Order {self.id} - Table {self.table_number}"
@@ -84,10 +91,9 @@ class Review(models.Model):
     menu_item = models.ForeignKey(MenuItem, on_delete=models.CASCADE)
     rating = models.IntegerField(default=5)
     comment = models.TextField(blank=True)
-    sentiment = models.CharField(
-        max_length=20, default="neutral"
-    )  # AI result: positive, negative, neutral
+    sentiment = models.CharField(max_length=20, default="neutral")
     created_at = models.DateTimeField(auto_now_add=True)
+
 
 class WaiterCall(models.Model):
     REASON_CHOICES = [
@@ -95,6 +101,7 @@ class WaiterCall(models.Model):
         ("bill", "Bring Bill"),
         ("clean", "Clean Table"),
         ("help", "Need Assistance"),
+        ("paid", "Payment Done"),
     ]
 
     table_number = models.CharField(max_length=10)
@@ -103,4 +110,15 @@ class WaiterCall(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
-        return f"Table {self.table_number} - {self.get_reason_display()}"
+        reason_label = getattr(self, "get_reason_display")()
+        return f"Table {self.table_number} - {reason_label}"
+
+
+class TableSession(models.Model):
+    table_number = models.IntegerField()
+    session_token = models.UUIDField(default=uuid.uuid4, editable=False)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Table {self.table_number} - {self.session_token}"

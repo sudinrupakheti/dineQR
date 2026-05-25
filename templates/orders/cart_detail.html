@@ -3,6 +3,9 @@
 
 {% block content %}
 <div class="max-w-2xl mx-auto pb-10">
+
+    <!-- Wrap existing UI -->
+    <div id="cart-main-content">
     <!-- Back to Menu -->
     <a href="{% url 'menu' %}?table={{ request.GET.table }}"
     class="inline-flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-orange-600 transition-colors mt-4 mb-2">
@@ -22,7 +25,7 @@
     {% if previous_orders %}
     <div class="mb-10">
         <div class="flex items-center gap-2 mb-4">
-            <h2 class="text-sm font-black text-gray-400 uppercase tracking-widest">Sent to Kitchen</h2>
+            <h2 class="text-sm font-black text-gray-400 uppercase tracking-widest">Status</h2>
             <div class="flex-grow h-px bg-gray-200"></div>
         </div>
 
@@ -60,14 +63,56 @@
             {% endfor %}
         </div>
     </div>
-    <!-- NEW: Bill & Review Actions -->
-    <div id="bill-review-section" class="mt-4 pt-4 border-t border-gray-200 border-dashed flex gap-3 {% if not any_ready %}hidden{% endif %}">
-        <a href="{% url 'table_bill' request.GET.table %}" target="_blank" class="flex-1 bg-white border-2 border-gray-200 text-gray-800 font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:border-gray-900 transition-colors text-sm">
-            <i data-lucide="receipt" class="w-4 h-4"></i> View Bill
-        </a>
-        <a href="{% url 'order_review' previous_orders.0.id %}" class="flex-1 bg-gray-900 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 hover:bg-orange-600 transition-colors text-sm">
-            <i data-lucide="star" class="w-4 h-4 text-yellow-400"></i> Leave Review
-        </a>
+    {% endif %}
+
+    <!-- BILL & PAYMENT SECTION -->
+    {% if previous_orders and not show_thanks %}
+    <div id="bill-review-section" class="mt-4 pt-4 border-t border-gray-200 border-dashed space-y-4 {% if not any_ready %}hidden{% endif %}">
+
+        <!-- 1. ACTION BUTTONS -->
+        <div class="flex gap-2">
+            <a href="{% url 'table_bill' request.GET.table|default:0 %}" target="_blank" class="flex-1 bg-white border-2 border-gray-200 text-gray-800 font-bold py-3 rounded-xl flex items-center justify-center gap-2 text-xs">
+                <i data-lucide="printer" class="w-4 h-4"></i> Print Bill
+            </a>
+            {% with first_order=previous_orders|first %}
+            {% if not first_order.has_review %}
+            <a href="{% url 'order_review' first_order.id %}" class="flex-1 bg-gray-900 text-white font-bold py-3 rounded-xl flex items-center justify-center gap-2 text-xs">
+                <i data-lucide="star" class="w-4 h-4 text-yellow-400"></i> Review
+            </a>
+            {% endif %}
+            {% endwith %}
+        </div>
+
+        <!-- 2. PAYMENT METHODS -->
+        <div class="grid grid-cols-1 gap-2">
+            <!-- QR BUTTON -->
+            <button onclick="document.getElementById('qr-modal').classList.remove('hidden')" class="w-full bg-orange-600 text-white font-black py-4 rounded-2xl flex items-center justify-center gap-3 shadow-lg active:scale-95 transition-all">
+                <i data-lucide="qr-code" class="w-5 h-5"></i> Scan to Pay (QR)
+            </button>
+
+            <!-- CASH BUTTON -->
+            <button onclick="handlePaymentConfirm()" class="w-full bg-gray-100 text-gray-600 font-bold py-3 rounded-2xl flex items-center justify-center gap-2 active:scale-95 transition-all">
+                <i data-lucide="banknote" class="w-5 h-5"></i> Pay with Cash
+            </button>
+        </div>
+    </div>
+
+    <!-- QR MODAL -->
+    <div id="qr-modal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-6">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="this.parentElement.classList.add('hidden')"></div>
+        <div class="bg-white rounded-[2.5rem] w-full max-w-sm p-8 relative z-10 text-center">
+            <h2 class="text-xl font-black mb-1">Scan to Pay</h2>
+            <p class="text-orange-600 font-black text-2xl mb-6">Rs. {{ running_total }}</p>
+
+            <div class="bg-gray-50 p-4 rounded-3xl border-2 border-dashed border-gray-200 mb-6">
+                <img src="{{ qr_code }}" class="w-full aspect-square">
+            </div>
+
+            <button id="verify-payment-btn" onclick="handlePaymentConfirm()"
+        class="w-full bg-gray-900 text-white py-4 rounded-2xl font-black shadow-xl active:scale-95 transition-all flex items-center justify-center gap-2">
+                Verify Payment
+            </button>
+        </div>
     </div>
     {% endif %}
 
@@ -91,9 +136,28 @@
         </div>
 
         <button id="place-order-btn" class="w-full bg-orange-600 text-white font-black py-4 rounded-2xl shadow-lg shadow-orange-900 transition-all active:scale-95 flex items-center justify-center gap-2 text-lg">
-            Send to Kitchen
+            Place Order
             <i data-lucide="arrow-right" class="w-5 h-5"></i>
         </button>
+    </div>
+
+    </div>
+
+    <!-- Thank You Section (Hidden) -->
+    <div id="settled-thanks-section" class="hidden animate-in fade-in zoom-in duration-500 py-12 text-center">
+        <div class="w-24 h-24 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg">
+            <i data-lucide="check-circle-2" class="w-12 h-12"></i>
+        </div>
+
+        <h1 class="text-4xl font-black text-gray-900 mb-2">Thank You!</h1>
+        <p class="text-gray-500 font-medium mb-10">Your bill has been settled successfully.<br>We hope to see you again soon!</p>
+
+        <a id="final-back-to-menu" href="#"
+           onclick="handleFinalClear()"
+           class="inline-flex items-center gap-3 bg-gray-900 text-white px-10 py-5 rounded-[2rem] font-black text-lg shadow-xl hover:bg-orange-600 transition-all active:scale-95">
+            <i data-lucide="book-open" class="w-6 h-6"></i>
+            Back to Menu
+        </a>
     </div>
 
 </div>
@@ -102,8 +166,9 @@
     // 1. Setup Variables
     const urlParams = new URLSearchParams(window.location.search);
     const tableNum = urlParams.get('table') || localStorage.getItem('dineqr_table');
-    const hasPreviousOrders = {% if previous_orders %}true{% else %}false{% endif %};
-    const backendRunningTotal = {{ running_total|default:0 }};
+    const hasPreviousOrders = ("{{ previous_orders|yesno:'true,false' }}" === "true");
+    const backendRunningTotal = parseFloat("{{ running_total|default:0 }}");
+
 
     // 2. Render Cart & Calculate Unified Total
     function renderCartPage() {
@@ -253,6 +318,8 @@
             return `<span class="flex items-center gap-1.5 text-[10px] font-black text-blue-600 bg-blue-100 px-2.5 py-1.5 rounded-lg uppercase tracking-wider"><i data-lucide="flame" class="w-3 h-3"></i> Cooking</span>`;
         } else if (status === 'ready') {
             return `<span class="flex items-center gap-1.5 text-[10px] font-black text-green-600 bg-green-100 px-2.5 py-1.5 rounded-lg uppercase tracking-wider"><i data-lucide="check-circle" class="w-3 h-3"></i> Served</span>`;
+        } else if (status === 'completed') {
+            return `<span class="flex items-center gap-1.5 text-[10px] font-black text-gray-600 bg-gray-100 px-2.5 py-1.5 rounded-lg uppercase tracking-wider"><i data-lucide="check" class="w-3 h-3"></i> Paid</span>`;
         } else {
             return `<span class="flex items-center gap-1.5 text-[10px] font-black text-orange-600 bg-orange-100 px-2.5 py-1.5 rounded-lg uppercase tracking-wider"><i data-lucide="clock" class="w-3 h-3"></i> Sent</span>`;
         }
@@ -262,39 +329,58 @@
         const containers = document.querySelectorAll('.status-badge-container');
         if (containers.length === 0) return;
 
-        // Get unique order IDs currently on the screen
         const orderIds = new Set();
         containers.forEach(c => orderIds.add(c.dataset.orderId));
 
-        // Initial render
+        // Initial Badge Render
         containers.forEach(c => {
             c.innerHTML = getBadgeHTML(c.dataset.currentStatus);
         });
         lucide.createIcons();
 
-        // Poll every 5 seconds
-        setInterval(async () => {
+        window.pollingInterval = setInterval(async () => {
+             if (document.activeElement.tagName === 'A') return;
+
             for (let id of orderIds) {
                 try {
                     const res = await fetch(`/api/order-status/${id}/`);
                     if (!res.ok) continue;
                     const data = await res.json();
 
-                    // Update badges for this order
-                    const elements = document.querySelectorAll(`.status-badge-container[data-order-id="${id}"]`);
-                    elements.forEach(el => {
-                        if (el.dataset.currentStatus !== data.status) {
-                            el.dataset.currentStatus = data.status;
-                            el.innerHTML = getBadgeHTML(data.status);
+                    // Find all badges for this specific order
+                    const badgeElements = document.querySelectorAll(`.status-badge-container[data-order-id="${id}"]`);
+
+                    badgeElements.forEach(badgeEl => {
+                        // Only update if the status has actually changed
+                        if (badgeEl.dataset.currentStatus !== data.status) {
+                            badgeEl.dataset.currentStatus = data.status;
+
+                            // 1. If order completed
+                            if (data.status === 'completed') {
+                                document.getElementById('cart-main-content').classList.add('hidden');
+                                const backBtn = document.getElementById('final-back-to-menu');
+                                backBtn.href = `{% url 'menu' %}?table=${tableNum}`;
+                                document.getElementById('settled-thanks-section').classList.remove('hidden');
+                                clearInterval(window.pollingInterval);
+                                lucide.createIcons();
+                                return;
+                            }
+
+                            // 2. Update badge UI
+                            badgeEl.innerHTML = getBadgeHTML(data.status);
+
+                            // 3. If food is ready, make sure the Bill/Review section is visible
                             if (data.status === 'ready') {
                                 const billSection = document.getElementById('bill-review-section');
-                                if (billSection) billSection.classList.remove('hidden');
+                                if (billSection) {
+                                    billSection.classList.remove('hidden');
+                                }
                             }
                             lucide.createIcons();
                         }
                     });
 
-                    // Remove cancel buttons if it moved to cooking!
+                    // Remove cancel buttons if the chef started cooking
                     if (data.status !== 'received') {
                         document.querySelectorAll(`.cancel-btn-${id}`).forEach(btn => btn.remove());
                     }
@@ -304,9 +390,44 @@
         }, 5000);
     }
 
+    // 6. Payment Confirmation
+    async function handlePaymentConfirm() {
+        // 1. Ask for confirmation
+        if (!confirm("Confirm payment? Our staff will be notified to verify.")) return;
+
+        try {
+            // 2. Call the backend
+            const response = await fetch(`/payment/confirm/${tableNumber}/`);
+            const data = await response.json();
+
+            if (data.status === 'success') {
+                // 3. Hide the QR modal if it was open
+                const modal = document.getElementById('qr-modal');
+                if (modal) modal.classList.add('hidden');
+
+                // 4. Show a success toast
+                showToast("Payment request sent!");
+
+                // Note: The "Thank You" screen will show automatically in 5 seconds
+                // because the polling script will see the status is 'completed'.
+            } else {
+                alert("Error: " + data.message);
+            }
+        } catch (error) {
+            console.error("Payment Confirmation Error:", error);
+            alert("Could not connect to server. Please pay at the counter.");
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
         renderCartPage();
         initPolling();
     });
+
+    function handleFinalClear() {
+        const tableKey = `cart_table_${tableNum}`;
+        localStorage.removeItem(tableKey);
+    }
+
 </script>
 {% endblock %}
