@@ -142,25 +142,33 @@ def cart_detail(request):
         },
     )
 
+
 def place_order(request):
-    # Guard clause: immediately reject non-POST requests with an accurate 405
     if request.method != "POST":
-        return JsonResponse({"status": "error", "message": "Method not allowed"}, status=405)
-        
+        return JsonResponse(
+            {"status": "error", "message": "Method not allowed"}, status=405
+        )
+
     try:
         data = json.loads(request.body)
         cart = data.get("cart")
         raw_table_number = data.get("table_number")
 
         if not cart or not raw_table_number:
-            return JsonResponse({"status": "error", "message": "Invalid data"}, status=400)
+            return JsonResponse(
+                {"status": "error", "message": "Invalid data"}, status=400
+            )
 
         try:
             table_num = int(raw_table_number)
             if table_num < 1 or table_num > 10:
-                return JsonResponse({"status": "error", "message": "Table must be 1-10"}, status=400)
+                return JsonResponse(
+                    {"status": "error", "message": "Table must be 1-10"}, status=400
+                )
         except ValueError:
-            return JsonResponse({"status": "error", "message": "Invalid table format"}, status=400)
+            return JsonResponse(
+                {"status": "error", "message": "Invalid table format"}, status=400
+            )
 
         new_order = Order.objects.create(
             table_number=table_num,
@@ -188,12 +196,19 @@ def place_order(request):
         return JsonResponse({"status": "success", "order_id": new_order.id})
 
     except MenuItem.DoesNotExist:
-        return JsonResponse({"status": "error", "message": "Menu item not found"}, status=404)
+        return JsonResponse(
+            {"status": "error", "message": "Menu item not found"}, status=404
+        )
     except json.JSONDecodeError:
-        return JsonResponse({"status": "error", "message": "Malformed JSON payload"}, status=400)
+        return JsonResponse(
+            {"status": "error", "message": "Malformed JSON payload"}, status=400
+        )
     except Exception as e:
         print(f"Order Error: {e}")
-        return JsonResponse({"status": "error", "message": "Internal server error"}, status=500)
+        return JsonResponse(
+            {"status": "error", "message": "Internal server error"}, status=500
+        )
+
 
 def order_success(request, order_id):
     order = Order.objects.get(id=order_id)
@@ -228,11 +243,14 @@ def update_order_status(request, order_id):
         return redirect("kitchen_dashboard")
     return JsonResponse({"status": "error"}, status=400)
 
+
 def cancel_order_item(request, item_id):
     """Allows customers to delete an item if the kitchen hasn't started cooking it yet."""
     if request.method != "POST":
-        return JsonResponse({"status": "error", "message": "Method not allowed"}, status=405)
-        
+        return JsonResponse(
+            {"status": "error", "message": "Method not allowed"}, status=405
+        )
+
     try:
         item = OrderItem.objects.get(id=item_id, order__status="received")
         order = item.order
@@ -246,11 +264,13 @@ def cancel_order_item(request, item_id):
         else:
             order.save()
         return JsonResponse({"status": "success"})
-        
+
     except OrderItem.DoesNotExist:
         # FIX: Return a clean 404 instead of a misleading 405 Method Not Allowed
         return JsonResponse(
-            {"status": "error", "message": "Item not found or already being prepared"}, status=404
+            {"status": "error", "message": "Item not found or already being prepared"},
+            status=404,
+        )
 
 
 @user_passes_test(is_staff)
