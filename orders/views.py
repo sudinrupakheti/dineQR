@@ -283,6 +283,7 @@ def management_dashboard(request):
         all_active_orders.aggregate(Sum("total_price"))["total_price__sum"] or 0
     )
     busy_tables_count = all_active_orders.values("table_number").distinct().count()
+    recent_reviews = Review.objects.all().order_by("-created_at")[:20]
 
     # --- 2. LOGIC FOR TABLES TAB ---
     table_data = []
@@ -346,7 +347,9 @@ def management_dashboard(request):
         "current_tab": current_tab,
         "total_live_revenue": total_live_revenue,
         "busy_tables_count": busy_tables_count,
-        "insights": insights_data,  # Pass insights data here
+        "insights": insights_data,
+        "recent_reviews": recent_reviews,
+        "active_tab": request.GET.get("tab", "orders"),
     }
     return render(request, "orders/management_dashboard.html", context)
 

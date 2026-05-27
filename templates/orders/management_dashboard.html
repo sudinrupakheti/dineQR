@@ -97,6 +97,9 @@
             <a href="?tab=insights" class="pb-4 whitespace-nowrap font-black text-xs transition-all border-b-2 tracking-widest {% if current_tab == 'insights' %} border-orange-600 text-orange-600 {% else %} border-transparent text-gray-400 hover:text-gray-600 {% endif %}">
                 BUSINESS INSIGHTS
             </a>
+            <a href="?tab=reviews" class="pb-4 whitespace-nowrap font-black text-xs transition-all border-b-2 tracking-widest {% if current_tab == 'reviews' %} border-orange-600 text-orange-600 {% else %} border-transparent text-gray-400 hover:text-gray-600 {% endif %}">
+                CUSTOMER REVIEWS
+            </a>
         </div>
 
         <!-- 4. CONTENT SECTIONS -->
@@ -239,6 +242,49 @@
                 <div class="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm lg:col-span-2">
                     <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-6">Peak Ordering Hours (Last 7 Days)</h3>
                     <canvas id="hourlyChart" height="150"></canvas>
+                </div>
+            </div>
+        {% elif current_tab == 'reviews' %}
+            <div class="max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div class="flex justify-between items-end mb-6">
+                    <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Recent Feedback</h3>
+                </div>
+
+                <div class="space-y-4">
+                    {% for review in recent_reviews %}
+                    <div class="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col sm:flex-row justify-between gap-4 transition-all hover:shadow-md">
+                        <div class="flex-grow">
+                            <div class="flex items-center gap-3 mb-2">
+                                <h4 class="font-black text-gray-900">{{ review.menu_item.name }}</h4>
+                                <span class="text-[9px] font-black px-2 py-1 rounded-md uppercase tracking-widest
+                                    {% if review.sentiment == 'positive' %} bg-green-50 text-green-600
+                                    {% elif review.sentiment == 'negative' %} bg-red-50 text-red-600
+                                    {% else %} bg-gray-100 text-gray-500 {% endif %}">
+                                    {{ review.sentiment }}
+                                </span>
+                            </div>
+                            {% if review.comment %}
+                                <p class="text-sm font-medium text-gray-600 italic">"{{ review.comment }}"</p>
+                            {% else %}
+                                <p class="text-sm font-medium text-gray-300 italic">No written feedback provided.</p>
+                            {% endif %}
+                        </div>
+
+                        <div class="flex flex-col items-start sm:items-end flex-shrink-0">
+                            <div class="flex gap-0.5 mb-1">
+                                {% for i in "12345"|make_list %}
+                                    <i data-lucide="star" class="w-4 h-4 {% if forloop.counter <= review.rating %} text-yellow-400 fill-yellow-400 {% else %} text-gray-200 {% endif %}"></i>
+                                {% endfor %}
+                            </div>
+                            <span class="text-[10px] font-bold text-gray-400">{{ review.created_at|date:"M d, Y - h:i A" }}</span>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="text-center py-12 bg-white rounded-[2.5rem] border border-gray-100">
+                        <i data-lucide="message-square" class="w-10 h-10 text-gray-200 mx-auto mb-3"></i>
+                        <p class="text-gray-400 font-bold text-sm">No reviews collected yet.</p>
+                    </div>
+                    {% endfor %}
                 </div>
             </div>
         {% endif %}
