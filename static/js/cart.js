@@ -59,19 +59,23 @@ function updateQuantity(id, delta) {
     if (cart[id]) {
         cart[id].quantity += delta;
         if (cart[id].quantity <= 0) {
-            delete cart[id]; // Remove if quantity is 0
+            delete cart[id];
         }
         saveCart();
         updateCartUI();
-        if (typeof renderCart === "function") renderCart(); // Refresh the cart page UI
+        if (typeof renderCart === "function") renderCart();
+        if (typeof renderCartPage === "function") renderCartPage();
     }
 }
 
 function removeFromCart(id) {
-    delete cart[id];
-    saveCart();
-    updateCartUI();
-    if (typeof renderCart === "function") renderCart();
+    if (cart[id]) {
+        delete cart[id];
+        saveCart();
+        updateCartUI();
+        if (typeof renderCart === "function") renderCart();
+        if (typeof renderCartPage === "function") renderCartPage();
+    }
 }
 
 function updateNote(id, note) {
