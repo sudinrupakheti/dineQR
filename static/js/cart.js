@@ -1,13 +1,21 @@
-// static/js/cart.js
-
-// 1. Get table from URL immediately
-function getTableFromURL() {
+// 1. Improved Table Detection: Check URL first, then memory (localStorage)
+function getActiveTable() {
     const urlParams = new URLSearchParams(window.location.search);
-    return urlParams.get('table');
+    let table = urlParams.get('table');
+
+    if (table && table !== "null" && table !== "") {
+        // If found in URL, save it to memory for later
+        localStorage.setItem('dineqr_table', table);
+        return table;
+    }
+
+    // If not in URL, try to get it from memory
+    return localStorage.getItem('dineqr_table');
 }
 
-let tableNumber = getTableFromURL();
-const cartKey = tableNumber ? `cart_table_${tableNumber}` : 'cart_guest';
+let tableNumber = getActiveTable();
+// Use the table number to find the right cart, or 'cart_guest' if truly unknown
+const cartKey = (tableNumber && tableNumber !== "null") ? `cart_table_${tableNumber}` : 'cart_guest';
 let cart = JSON.parse(localStorage.getItem(cartKey)) || {};
 
 function addToCart(id, name, price) {
