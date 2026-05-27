@@ -144,59 +144,70 @@ def cart_detail(request):
 
 
 def place_order(request):
-    if request.method == "POST":
-        try:
-            data = json.loads(request.body)
-            cart = data.get("cart")
-            raw_table_number = data.get("table_number")
+    if request.method != "POST":
+        return JsonResponse(
+            {"status": "error", "message": "Method not allowed"}, status=405
+        )
 
-            if not cart or not raw_table_number:
-                return JsonResponse(
-                    {"status": "error", "message": "Invalid data"}, status=400
-                )
+    try:
+        data = json.loads(request.body)
+        cart = data.get("cart")
+        raw_table_number = data.get("table_number")
 
-            try:
-                table_num = int(raw_table_number)
-                if table_num < 1 or table_num > 10:
-                    return JsonResponse(
-                        {"status": "error", "message": "Table must be 1-10"}, status=400
-                    )
-            except ValueError:
-                return JsonResponse(
-                    {"status": "error", "message": "Invalid table format"}, status=400
-                )
-
-            new_order = Order.objects.create(
-                table_number=table_num,
-                status="received",
-                total_price=Decimal("0.00"),
-            )
-
-            running_total = Decimal("0.00")
-
-            for item_id, item_data in cart.items():
-                menu_item = MenuItem.objects.get(id=item_id)
-                qty = int(item_data["quantity"])
-
-                OrderItem.objects.create(
-                    order=new_order,
-                    menu_item=menu_item,
-                    quantity=qty,
-                    notes=item_data.get("notes", ""),
-                )
-
-                running_total += Decimal(str(menu_item.price)) * qty
-
-            new_order.total_price = running_total
-            new_order.save()
-
-            return JsonResponse({"status": "success", "order_id": new_order.id})
-
-        except Exception as e:
-            print(f"Order Error: {e}")
+        if not cart or not raw_table_number:
             return JsonResponse(
-                {"status": "error", "message": "Invalid request method"}, status=405
+                {"status": "error", "message": "Invalid data"}, status=400
             )
+
+        try:
+            table_num = int(raw_table_number)
+            if table_num < 1 or table_num > 10:
+                return JsonResponse(
+                    {"status": "error", "message": "Table must be 1-10"}, status=400
+                )
+        except ValueError:
+            return JsonResponse(
+                {"status": "error", "message": "Invalid table format"}, status=400
+            )
+
+        new_order = Order.objects.create(
+            table_number=table_num,
+            status="received",
+            total_price=Decimal("0.00"),
+        )
+
+        running_total = Decimal("0.00")
+
+        for item_id, item_data in cart.items():
+            menu_item = MenuItem.objects.get(id=item_id)
+            qty = int(item_data["quantity"])
+
+            OrderItem.objects.create(
+                order=new_order,
+                menu_item=menu_item,
+                quantity=qty,
+                notes=item_data.get("notes", ""),
+            )
+            running_total += Decimal(str(menu_item.price)) * qty
+
+        new_order.total_price = running_total
+        new_order.save()
+
+        return JsonResponse({"status": "success", "order_id": new_order.id})
+
+    except MenuItem.DoesNotExist:
+        return JsonResponse(
+            {"status": "error", "message": "Menu item not found"}, status=404
+        )
+    except json.JSONDecodeError:
+        return JsonResponse(
+            {"status": "error", "message": "Malformed JSON payload"}, status=400
+        )
+    except Exception as e:
+        print(f"Order Error: {e}")
+        return JsonResponse(
+            {"status": "error", "message": "Internal server error"}, status=500
+        )
 
 
 def order_success(request, order_id):
@@ -235,28 +246,31 @@ def update_order_status(request, order_id):
 
 def cancel_order_item(request, item_id):
     """Allows customers to delete an item if the kitchen hasn't started cooking it yet."""
-    if request.method == "POST":
-        try:
-            # Only allow deleting if the order is still "received"
-            item = OrderItem.objects.get(id=item_id, order__status="received")
-            order = item.order
+    if request.method != "POST":
+        return JsonResponse(
+            {"status": "error", "message": "Method not allowed"}, status=405
+        )
 
-            # Deduct price
-            item_price_total = Decimal(str(item.menu_item.price)) * item.quantity
-            item.delete()
+    try:
+        item = OrderItem.objects.get(id=item_id, order__status="received")
+        order = item.order
 
-            # Update the parent order
-            order.total_price -= item_price_total
-            if order.total_price <= 0 or order.items.count() == 0:
-                order.delete()  # If order is empty, delete the whole order
-            else:
-                order.save()
+        item_price_total = Decimal(str(item.menu_item.price)) * item.quantity
+        item.delete()
 
-            return JsonResponse({"status": "success"})
-        except OrderItem.DoesNotExist:
-            return JsonResponse(
-                {"status": "error", "message": "Invalid request method"}, status=405
-            )
+        order.total_price -= item_price_total
+        if order.total_price <= 0 or order.items.count() == 0:
+            order.delete()
+        else:
+            order.save()
+        return JsonResponse({"status": "success"})
+
+    except OrderItem.DoesNotExist:
+        # FIX: Return a clean 404 instead of a misleading 405 Method Not Allowed
+        return JsonResponse(
+            {"status": "error", "message": "Item not found or already being prepared"},
+            status=404,
+        )
 
 
 @user_passes_test(is_staff)
