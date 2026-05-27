@@ -6,12 +6,14 @@ from django.utils import timezone
 from django.http import JsonResponse
 from django.shortcuts import render, redirect
 from django.urls import reverse
-from django.db.models import Sum, Q, Avg, Count
+from django.db.models import Sum, Q, Avg, Count, Case, When, IntegerField
 from django.contrib.auth.decorators import user_passes_test
 from django.conf import settings
 import qrcode
 import io
 import base64
+from collections import defaultdict
+import re
 
 
 from .models import (
@@ -34,54 +36,150 @@ def is_staff(user):
     return user.groups.filter(name="Staff").exists() or user.is_superuser
 
 
+SEARCH_SYNONYMS = {
+    "momo": ["mo:mo", "momos", "dumplings", "dumpling"],
+    "mo:mo": ["momo", "momos", "dumplings", "dumpling"],
+    "sweet": [
+        "dessert",
+        "desserts",
+        "sweets",
+        "pudding",
+        "ice cream",
+        "cake",
+        "pastry",
+    ],
+    "dessert": ["sweet", "sweets", "desserts", "pudding", "ice cream", "cake"],
+    "drink": [
+        "beverage",
+        "beverages",
+        "drinks",
+        "soda",
+        "juice",
+        "coke",
+        "cold drink",
+        "water",
+    ],
+    "beverage": ["drink", "drinks", "beverages", "soda", "juice", "cold drink"],
+    "chowmein": ["chow mein", "noodles", "noodle"],
+    "noodle": ["chowmein", "chow mein", "noodles"],
+    "burger": ["burgers", "hamburger", "buns"],
+}
+
+
+def expand_search_query(raw_query):
+    """Takes a raw query and returns a list of synonymous terms."""
+    expanded_terms = set([raw_query])
+    words = raw_query.split()
+
+    for word in words:
+        # Check if the word is a key or a value in our dictionary
+        for root_term, related_terms in SEARCH_SYNONYMS.items():
+            if word == root_term or word in related_terms:
+                expanded_terms.add(root_term)
+                expanded_terms.update(related_terms)
+
+    return list(expanded_terms)
+
+
 def menu_view(request):
     query = request.GET.get("search", "").lower().strip()
     items = MenuItem.objects.all()
     categories = Category.objects.all()
 
     if query:
-        matched_categories = categories.filter(name__icontains=query)
-
-        # Intent detection
+        # 1. Intent Detection
         is_veg = "veg" in query and "non" not in query
         is_spicy = any(w in query for w in ["spicy", "hot", "chili", "spice"])
         is_mild = any(w in query for w in ["mild", "not spicy", "not hot"])
+        is_featured = "featured" in query or "special" in query
 
-        if is_spicy:
-            # Pure intent query — skip text search entirely
-            items = items.filter(spice_level__in=["medium", "hot"])
-        elif is_mild:
-            items = items.filter(spice_level="mild")
-        elif "featured" in query or "special" in query:
-            items = items.filter(is_featured=True)
-        else:
-            # Strip punctuation for fuzzy matching
-            import re
+        # Extract words for analysis
+        words = re.findall(r"[a-z0-9:]+", query)
 
-            clean_names = [
-                re.sub(r"[^a-z0-9 ]", "", item.name.lower()) for item in items
-            ]
-            close_matches = difflib.get_close_matches(
-                query, clean_names, n=5, cutoff=0.5
-            )
+        # Check if user ONLY typed intent words (e.g., searching just "spicy" or "veg")
+        intent_keywords = {
+            "veg",
+            "spicy",
+            "hot",
+            "chili",
+            "spice",
+            "mild",
+            "not",
+            "featured",
+            "special",
+        }
+        is_pure_intent = (
+            all(word in intent_keywords for word in words) if words else False
+        )
 
-            lookup = (
-                Q(name__icontains=query)
-                | Q(description__icontains=query)
-                | Q(category__in=matched_categories)
-            )
+        if not is_pure_intent:
+            # 2. Synonym & Concept Expansion
+            search_terms = set([query])
+            for word in words:
+                search_terms.add(word)
+                if word in SEARCH_SYNONYMS:
+                    search_terms.update(SEARCH_SYNONYMS[word])
 
-            # Add ALL close matches, not just [0]
-            for match in close_matches:
-                lookup |= Q(name__icontains=match.replace(" ", ""))
+            # 3. Fuzzy Typo Matching (on item and category names)
+            all_item_names = list(MenuItem.objects.values_list("name", flat=True))
+            all_cat_names = list(Category.objects.values_list("name", flat=True))
+
+            fuzzy_matches = []
+            for word in words:
+                # Catch slight misspellings (e.g., "chiken" -> "chicken")
+                fuzzy_matches.extend(
+                    difflib.get_close_matches(word, all_item_names, n=2, cutoff=0.6)
+                )
+                fuzzy_matches.extend(
+                    difflib.get_close_matches(word, all_cat_names, n=2, cutoff=0.6)
+                )
+
+            search_terms.update([match.lower() for match in fuzzy_matches])
+
+            # 4. Apply Text Search Lookup
+            lookup = Q()
+            for term in search_terms:
+                lookup |= Q(name__icontains=term)
+                lookup |= Q(description__icontains=term)
+                lookup |= Q(category__name__icontains=term)
 
             items = items.filter(lookup)
 
+        # 5. Combine and Refine with Intent Filters (Now works fluidly together!)
+        if is_spicy:
+            items = items.filter(spice_level__in=["medium", "hot"])
+        if is_mild:
+            items = items.filter(spice_level="mild")
+        if is_featured or ("featured" in query or "special" in query):
+            items = items.filter(is_featured=True)
         if is_veg:
             items = items.filter(veg=True)
 
-    category_ids = items.values_list("category_id", flat=True)
-    categories = categories.filter(id__in=category_ids)
+        # 6. Advanced Result Relevance Ranking
+        if not is_pure_intent:
+            items = items.annotate(
+                relevance=Case(
+                    When(name__iexact=query, then=1),  # Exact matches first
+                    When(name__icontains=query, then=2),  # Close text matches second
+                    When(
+                        category__name__icontains=query, then=3
+                    ),  # Category match third
+                    default=4,
+                    output_field=IntegerField(),
+                )
+            ).order_by("relevance", "-is_featured", "name")
+        else:
+            # If searching purely for attributes like "spicy", sort by popularity/featured flag
+            items = items.order_by("-is_featured", "name")
+
+    # --- KEEP STICKY BAR ALIVE & ACCURATE ---
+    if query:
+        # Show matching categories with results
+        category_ids = items.values_list("category_id", flat=True).distinct()
+        categories = Category.objects.filter(id__in=category_ids)
+    else:
+        # Full menu state
+        categories = Category.objects.all()
 
     context = {"items": items, "categories": categories, "query": query}
     return render(request, "orders/menu.html", context)
@@ -275,7 +373,9 @@ def cancel_order_item(request, item_id):
 
 @user_passes_test(is_staff)
 def management_dashboard(request):
+
     current_tab = request.GET.get("tab", "tables")
+    sentiment_filter = request.GET.get("sentiment", "all")
 
     # --- 1. GLOBAL STATS (For all tabs) ---
     all_active_orders = Order.objects.exclude(status="completed")
@@ -283,10 +383,13 @@ def management_dashboard(request):
         all_active_orders.aggregate(Sum("total_price"))["total_price__sum"] or 0
     )
     busy_tables_count = all_active_orders.values("table_number").distinct().count()
-    recent_reviews = Review.objects.all().order_by("-created_at")[:20]
+
+    # --- INITIALIZE EMPTY VARIABLES ---
+    table_data = []
+    insights_data = {}
+    recent_reviews = []
 
     # --- 2. LOGIC FOR TABLES TAB ---
-    table_data = []
     if current_tab == "tables":
         for i in range(1, 11):
             active_orders = Order.objects.filter(table_number=i).exclude(
@@ -316,8 +419,7 @@ def management_dashboard(request):
                 )
 
     # --- 3. LOGIC FOR INSIGHTS TAB ---
-    insights_data = {}
-    if current_tab == "insights":
+    elif current_tab == "insights":
         top_items = (
             OrderItem.objects.filter(order__is_paid=True)
             .values("menu_item__name")
@@ -339,6 +441,15 @@ def management_dashboard(request):
             "hourly_data": list(hourly_data),
         }
 
+    # --- 4. LOGIC FOR REVIEWS TAB ---
+    elif current_tab == "reviews":
+        recent_reviews = Review.objects.all().order_by("-created_at")
+
+        if sentiment_filter in ["positive", "neutral", "negative"]:
+            recent_reviews = recent_reviews.filter(sentiment=sentiment_filter)
+
+        recent_reviews = recent_reviews[:20]
+
     categories = Category.objects.prefetch_related("items").all()
 
     context = {
@@ -349,8 +460,9 @@ def management_dashboard(request):
         "busy_tables_count": busy_tables_count,
         "insights": insights_data,
         "recent_reviews": recent_reviews,
-        "active_tab": request.GET.get("tab", "orders"),
+        "current_sentiment": sentiment_filter,
     }
+
     return render(request, "orders/management_dashboard.html", context)
 
 
@@ -634,10 +746,28 @@ def confirm_payment_request(request, table_num):
 
         items_to_pay = data.get("items", [])
         manual_amount = Decimal(str(data.get("amount", 0)))
+        payment_method = data.get("payment_method", "qr")  # Track payment source
     except:
         manual_amount = Decimal("0")
         items_to_pay = []
+        payment_method = "qr"
 
+    # --- CASH MODE FLOW ---
+    if payment_method == "cash":
+        # Create a waiter notification beacon for manual desk clearance
+        WaiterCall.objects.create(
+            table_number=table_num, reason="paid", is_resolved=False
+        )
+        # Keep table_cleared=False so the client stays on screen until staff verifies from dashboard
+        return JsonResponse(
+            {
+                "status": "success",
+                "table_cleared": False,
+                "message": "Waiter is on the way with the bill.",
+            }
+        )
+
+    # --- QR DEMO FLOW (AUTO VERIFY) ---
     # MODE 1: ITEM-BASED PAY
     if items_to_pay:
         for entry in items_to_pay:
@@ -680,3 +810,61 @@ def confirm_payment_request(request, table_num):
     WaiterCall.objects.create(table_number=table_num, reason="paid", is_resolved=False)
 
     return JsonResponse({"status": "success", "table_cleared": all_done})
+
+
+def get_contextual_recommendations(current_cart_item_ids=None):
+    """
+    Returns up to 3 smart item recommendations.
+    If the cart is empty, it serves highly-rated featured dishes.
+    If the cart contains items, it serves popular complements from different categories.
+    """
+    if not current_cart_item_ids:
+        return MenuItem.objects.filter(is_available=True, is_featured=True)[:3]
+
+    # Find matching orders containing these items to track companion selections
+    related_order_ids = (
+        OrderItem.objects.filter(menu_item_id__in=current_cart_item_ids)
+        .values_list("order_id", flat=True)
+        .distinct()
+    )
+
+    # Recommend common accompaniments that aren't already in the current cart
+    recommended_items = (
+        MenuItem.objects.filter(
+            orderitem__order_id__in=related_order_ids, is_available=True
+        )
+        .exclude(id__in=current_cart_item_ids)
+        .annotate(order_count=Count("orderitem"))
+        .order_by("-order_count")[:3]
+    )
+
+    if not recommended_items.exists():
+        # Fallback to general favorites if pairing history is sparse
+        recommended_items = MenuItem.objects.filter(is_available=True).exclude(
+            id__in=current_cart_item_ids
+        )[:3]
+
+    return recommended_items
+
+
+def generate_split_qr_api(request):
+    table_num = request.GET.get("table")
+    amount = request.GET.get("amount", "0.00")
+
+    active_orders = Order.objects.filter(table_number=table_num).exclude(
+        status="completed"
+    )
+    first_order = active_orders.first()
+    order_id = first_order.id if first_order else "000"
+    local_time = timezone.localtime(timezone.now()).strftime("%Y-%m-%d %I:%M %p")
+
+    # Generate QR targeting the specific split portion amount
+    qr_base64 = generate_bill_qr(
+        {
+            "amount": f"{float(amount):,.2f}",
+            "order_id": order_id,
+            "table_number": table_num,
+            "timestamp": local_time,
+        }
+    )
+    return JsonResponse({"qr_code": qr_base64})

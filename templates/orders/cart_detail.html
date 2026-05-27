@@ -178,7 +178,7 @@
             <p id="qr-modal-amount" data-original="Rs. {{ running_total }}" class="text-orange-600 font-black text-2xl mb-6">Rs. {{ running_total }}</p>
 
             <div class="bg-gray-50 p-4 rounded-3xl border-2 border-dashed border-gray-200 mb-6">
-                <img src="{{ qr_code }}" class="w-full aspect-square">
+                <img id="main-qr-image" src="{{ qr_code }}" data-original-qr="{{ qr_code }}" class="w-full aspect-square">
             </div>
 
             <!-- FIX 4: Pass 'qr' as source -->
@@ -583,9 +583,18 @@
 
         closeSplitModal();
 
-        // Update QR modal amount temporarily (original stored in data-original attribute)
+        // Update QR modal amount text temporarily
         const modalAmountEl = document.getElementById('qr-modal-amount');
         if (modalAmountEl) modalAmountEl.innerText = `Rs. ${amount.toFixed(2)}`;
+
+        // Dynamic API Request to fetch the accurate QR representation
+        fetch(`/api/generate-split-qr/?table=${tableNum}&amount=${amount.toFixed(2)}`)
+            .then(res => res.json())
+            .then(data => {
+                const qrImg = document.getElementById('main-qr-image');
+                if (qrImg) qrImg.src = data.qr_code;
+            })
+            .catch(err => console.error("Error updating QR payload:", err));
 
         document.getElementById('qr-modal').classList.remove('hidden');
     }
@@ -594,28 +603,33 @@
     function resetAndCloseQR() {
         const modalAmountEl = document.getElementById('qr-modal-amount');
         if (modalAmountEl) {
-            // Restore original full-bill amount from data attribute
             modalAmountEl.innerText = modalAmountEl.dataset.original;
+        }
+        const qrImg = document.getElementById('main-qr-image');
+        if (qrImg && qrImg.dataset.originalQr) {
+            qrImg.src = qrImg.dataset.originalQr;
         }
         document.getElementById('qr-modal').classList.add('hidden');
     }
 
     // 6. Payment Confirmation
-    // FIX 4: Accept a 'source' param ('cash' | 'qr') to always send the correct amount
     async function handlePaymentConfirm(source = 'cash') {
-        if (!confirm("Confirm payment? Our staff will be notified to verify.")) return;
+        let confirmMsg = source === 'cash'
+            ? "Request cash payment? A waiter will bring the bill to your table."
+            : "Confirm payment? Click OK to simulate automatic transaction check.";
+        if (!confirm(confirmMsg)) return;
 
         try {
-            let payload = {};
+            let payload = { payment_method: source };
 
             if (source === 'cash') {
-                // Cash always pays the full bill — never affected by splitMode state
-                payload = { amount: totalBill, items: [] };
+                payload.amount = totalBill;
+                payload.items = [];
             } else {
-                // QR: read the amount currently displayed in the modal (could be split or full)
                 const modalAmountEl = document.getElementById('qr-modal-amount');
                 const amountStr = modalAmountEl ? modalAmountEl.innerText.replace('Rs. ', '') : String(totalBill);
-                payload = { amount: parseFloat(amountStr) || totalBill, items: [] };
+                payload.amount = parseFloat(amountStr) || totalBill;
+                payload.items = [];
             }
 
             const response = await fetch(`/payment/confirm/${tableNum}/`, {
@@ -630,15 +644,25 @@
             const data = await response.json();
 
             if (data.status === 'success') {
-                // Close whichever modal is open
-                resetAndCloseQR();
-                showToast("Payment request sent!");
+                if (source === 'cash') {
+                    // Cash path: keep user on page, show custom instruction alert
+                    alert("A waiter is on the way with your bill! Staff will confirm payment via the dashboard.");
+                } else {
+                    // QR path: close modal instantly
+                    resetAndCloseQR();
+                    if (data.table_cleared) {
+                        // The background polling interval will immediately detect 'completed'
+                        // status and safely forward the client to the success screen!
+                    } else {
+                        alert("Split QR payment verified! Remaining splits can now be processed.");
+                    }
+                }
             } else {
                 alert("Error: " + data.message);
             }
         } catch (error) {
             console.error("Payment Confirmation Error:", error);
-            alert("Could not connect to server. Please pay at the counter.");
+            alert("Could not connect to server. Please complete payment at the counter.");
         }
     }
 

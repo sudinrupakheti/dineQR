@@ -57,4 +57,9 @@ urlpatterns = [
         views.confirm_payment_request,
         name="confirm_payment",
     ),
+    path(
+        "api/generate-split-qr/",
+        views.generate_split_qr_api,
+        name="generate_split_qr_api",
+    ),
 ]
