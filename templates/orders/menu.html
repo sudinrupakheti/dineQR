@@ -294,6 +294,7 @@
         const content = document.getElementById('modal-content');
 
         modal.classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
         setTimeout(() => {
             backdrop.classList.remove('opacity-0');
             content.classList.remove('translate-y-full');
@@ -310,6 +311,7 @@
         setTimeout(() => {
             document.getElementById('item-modal').classList.add('hidden');
             currentModalItem = null;
+            document.body.classList.remove('overflow-hidden');
         }, 300);
     }
 

@@ -461,6 +461,13 @@
                         document.querySelectorAll(`.cancel-btn-${id}`).forEach(btn => btn.remove());
                     }
 
+                    if (order.status === "ready" && Notification.permission === "granted") {
+                        new Notification("Order Update! 🍽️", {
+                            body: `Your order from Table ${tableNum} is ready to be served!`,
+                            icon: "/static/images/logo-icon.png"
+                        });
+                    }
+
                 } catch(e) { console.error("Polling error", e); }
             }
         }, 5000);
@@ -643,6 +650,18 @@
     function handleFinalClear() {
         const tableKey = `cart_table_${tableNum}`;
         localStorage.removeItem(tableKey);
+    }
+
+    function requestNotificationPermission() {
+        if ("Notification" in window) {
+            if (Notification.permission === "default") {
+                Notification.requestPermission().then(permission => {
+                    if (permission === "granted") {
+                        console.log("Notification tracking authorized.");
+                    }
+                });
+            }
+        }
     }
 
 </script>

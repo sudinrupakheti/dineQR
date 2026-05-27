@@ -353,29 +353,50 @@ def management_dashboard(request):
 
 def order_review_page(request, order_id):
     try:
-        order = Order.objects.get(id=order_id)
+        current_order = Order.objects.get(id=order_id)
+        # Fetch all orders for this specific table that are active or recently filled
+        orders_to_review = Order.objects.filter(
+            table_number=current_order.table_number,
+            status__in=["received", "cooking", "ready", "completed"],
+        ).prefetch_related("items__menu_item")
+
     except Order.DoesNotExist:
-        # If the order is missing, go back to menu
         return redirect("menu")
 
     if request.method == "POST":
-        for item in order.items.all():
-            rating = request.POST.get(f"rating_{item.id}")
-            comment = request.POST.get(f"comment_{item.id}", "")
-            ai_result = analyze_note_sentiment(comment)
+        # Process reviews inside a loop for items across all retrieved orders
+        for order in orders_to_review:
+            for item in order.items.all():
+                rating_val = request.POST.get(f"rating_{item.menu_item.id}")
+                comment_val = request.POST.get(
+                    f"comment_{item.menu_item.id}", ""
+                ).strip()
+                if rating_val:
+                    Review.objects.create(
+                        order=order,
+                        menu_item=item.menu_item,
+                        rating=int(rating_val),
+                        comment=comment_val,
+                        sentiment=analyze_note_sentiment(comment_val)
+                        if comment_val
+                        else "neutral",
+                    )
+        return redirect(f"{reverse('menu')}?table={current_order.table_number}")
 
-            Review.objects.create(
-                order=order,
-                menu_item=item.menu_item,
-                rating=rating,
-                comment=comment,
-                sentiment=ai_result,
-            )
-        # Redirect back to cart with the table number in the URL
-        return redirect(f"{reverse('cart_detail')}?table={order.table_number}")
+    # Gather unique menu items from all current session orders to present in template
+    items_to_review = []
+    seen_items = set()
+    for o in orders_to_review:
+        for i in o.items.all():
+            if i.menu_item.id not in seen_items:
+                items_to_review.append(i.menu_item)
+                seen_items.add(i.menu_item.id)
 
-    # For a normal click (GET request), just show the form
-    return render(request, "orders/review_form.html", {"order": order})
+    return render(
+        request,
+        "orders/order_review.html",
+        {"order": current_order, "items_to_review": items_to_review},
+    )
 
 
 @user_passes_test(is_staff)
@@ -416,11 +437,18 @@ def mark_table_paid(request, table_num):
 
 @user_passes_test(is_staff)
 def toggle_item_availability(request, item_id):
-    if request.method == "POST":
+    if not (is_owner(request.user) or is_staff(request.user)):
+        return redirect("menu")
+
+    try:
         item = MenuItem.objects.get(id=item_id)
         item.is_available = not item.is_available
         item.save()
-    return redirect(f"{request.META.get('HTTP_REFERER', '/management/')}?tab=menu")
+    except MenuItem.DoesNotExist:
+        pass
+
+    # FIX: Clean parameter mapping prevents duplicate "?tab=menu?tab=menu" strings
+    return redirect(f"{reverse('management_dashboard')}?tab=menu")
 
 
 def table_bill(request, table_num):
