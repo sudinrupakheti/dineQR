@@ -62,4 +62,9 @@ urlpatterns = [
         views.generate_split_qr_api,
         name="generate_split_qr_api",
     ),
+    path(
+        "management/table/<int:table_num>/qr/",
+        views.serve_table_qr,
+        name="serve_table_qr",
+    ),
 ]

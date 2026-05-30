@@ -100,6 +100,9 @@
             <a href="?tab=reviews" class="pb-4 whitespace-nowrap font-black text-xs transition-all border-b-2 tracking-widest {% if current_tab == 'reviews' %} border-orange-600 text-orange-600 {% else %} border-transparent text-gray-400 hover:text-gray-600 {% endif %}">
                 CUSTOMER REVIEWS
             </a>
+            <a href="?tab=qr" class="pb-4 whitespace-nowrap font-black text-xs transition-all border-b-2 tracking-widest {% if current_tab == 'qr' %} border-orange-600 text-orange-600 {% else %} border-transparent text-gray-400 hover:text-gray-600 {% endif %}">
+                TABLES QR
+            </a>
         </div>
 
         <!-- 4. CONTENT SECTIONS -->
@@ -395,6 +398,46 @@
                     {% endfor %}
                 </div>
             </div>
+
+        {% elif current_tab == 'qr' %}
+        <div class="max-w-xl mx-auto bg-white rounded-3xl border border-gray-100 p-6 shadow-sm animate-in fade-in duration-300">
+            <div class="mb-4">
+                <h3 class="text-sm font-black text-gray-900 uppercase tracking-wider">QR Code Station</h3>
+                <p class="text-xs text-gray-400 mt-0.5">Select a table below to copy links or open printable layout codes.</p>
+            </div>
+
+            <div class="divide-y divide-gray-100 border-t border-gray-100">
+                {% for table in tables %}
+                <div class="flex justify-between items-center py-3.5">
+
+                    <div class="flex items-center gap-2.5">
+                        <span class="text-sm font-bold text-gray-900">Table {{ table.number }}</span>
+                        {% if table.status != 'empty' %}
+                            <span class="text-[9px] font-black bg-orange-50 text-orange-600 px-2 py-0.5 rounded-md uppercase tracking-wide flex items-center gap-1">
+                                <span class="w-1 h-1 rounded-full bg-orange-500 animate-pulse"></span> Occupied
+                            </span>
+                        {% else %}
+                            <span class="text-[9px] font-black bg-gray-50 text-gray-400 px-2 py-0.5 rounded-md uppercase tracking-wide">Empty</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <button onclick="copyTableUrl(this, '{{ table.number }}')"
+                                data-base-url="{{ request.scheme }}://{{ request.get_host }}"
+                                class="p-2 text-gray-400 hover:text-gray-900 rounded-xl hover:bg-gray-50 transition-all flex items-center justify-center"
+                                title="Copy Table URL Link">
+                            <i data-lucide="copy" class="w-4 h-4"></i>
+                        </button>
+
+                        <a href="{% url 'serve_table_qr' table.number %}" target="_blank"
+                           class="px-4 py-2 bg-gray-900 text-white text-[11px] font-black uppercase tracking-wider rounded-xl hover:bg-orange-600 transition-all flex items-center gap-1.5 shadow-sm">
+                            <i data-lucide="external-link" class="w-3.5 h-3.5"></i> View QR
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
         {% endif %}
 
     </main>
@@ -593,8 +636,27 @@
                 }
             });
         }
+        // --- CLIPBOARD QR LINK SHORTCUT ---
+        function copyTableUrl(button, tableNum) {
+            const baseUrl = button.getAttribute('data-base-url');
+            const targetUrl = `${baseUrl}/?table=${tableNum}`;
+
+            navigator.clipboard.writeText(targetUrl).then(() => {
+                // Instantly swap icon to checkmark for real-time validation response
+                const originalHTML = button.innerHTML;
+                button.innerHTML = `<i data-lucide="check" class="w-4 h-4 text-green-600"></i>`;
+                lucide.createIcons();
+
+                setTimeout(() => {
+                    button.innerHTML = originalHTML;
+                    lucide.createIcons();
+                }, 2000);
+            });
+        }
         // --- AUTO-REFRESH LOGIC ---
-        if (!window.location.search.includes('tab=menu') && !window.location.search.includes('tab=insights')) {
+       if (!window.location.search.includes('tab=menu') &&
+            !window.location.search.includes('tab=insights') &&
+            !window.location.search.includes('tab=qr')) {
             setInterval(() => { location.reload(); }, 15000);
         }
 

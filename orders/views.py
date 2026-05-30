@@ -7,7 +7,7 @@ import base64
 from decimal import Decimal
 from datetime import timedelta
 from django.utils import timezone
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.shortcuts import render, redirect
 from django.urls import reverse
 from django.db.models import Sum, Q, Avg, Count, Case, When, IntegerField, Prefetch
@@ -482,7 +482,7 @@ def management_dashboard(request):
     recent_reviews = []
 
     # --- 2. LOGIC FOR TABLES TAB ---
-    if current_tab == "tables":
+    if current_tab in ["tables", "qr"]:
         for i in range(1, 11):
             active_orders = Order.objects.filter(table_number=i).exclude(
                 status="completed"
@@ -1044,3 +1044,29 @@ def generate_split_qr_api(request):
         }
     )
     return JsonResponse({"qr_code": qr_base64})
+
+
+@user_passes_test(is_staff)
+def serve_table_qr(request, table_num):
+    # 1. Dynamic Local IP detection matching your root domain routing path
+    host_address = request.build_absolute_uri("/")
+    target_url = f"{host_address}?table={table_num}"
+
+    # 2. Configure High Error Correction (Handles restaurant wear-and-tear)
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_H,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(target_url)
+    qr.make(fit=True)
+
+    # 3. Draw image and stream directly from RAM memory
+    img = qr.make_image(fill_color="#000000", back_color="#ffffff")
+
+    buffer = io.BytesIO()
+    img.save(buffer, format="PNG")
+    buffer.seek(0)
+
+    return HttpResponse(buffer.getvalue(), content_type="image/png")
