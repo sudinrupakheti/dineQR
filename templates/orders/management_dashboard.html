@@ -211,37 +211,121 @@
             </div>
 
         {% elif current_tab == 'insights' %}
-            <!-- BUSINESS INSIGHTS -->
             <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div class="space-y-8 animate-in fade-in duration-500">
 
-                <!-- Top Items Bar Chart -->
-                <div class="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+                <div class="bg-white p-6 md:p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
                     <div class="flex justify-between items-center mb-6">
-                        <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Best Selling Items</h3>
-                        <div class="bg-orange-100 text-orange-600 p-2 rounded-lg"><i data-lucide="bar-chart-2" class="w-4 h-4"></i></div>
+                        <div>
+                            <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Time-Series Density</h3>
+                            <p class="text-lg font-black text-gray-900">Peak Ordering Hours (Last 7 Days)</p>
+                        </div>
+                        <div class="bg-orange-100 text-orange-600 p-2 rounded-lg"><i data-lucide="clock" class="w-4 h-4"></i></div>
                     </div>
-                    <canvas id="topItemsChart" height="250"></canvas>
+                    <canvas id="hourlyChart" height="100"></canvas>
                 </div>
 
-                <!-- Rating / Satisfaction Card -->
-                <div class="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm flex flex-col justify-center items-center text-center">
-                     <p class="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Customer Satisfaction</p>
-                     <h2 class="text-6xl font-black text-gray-900 mb-2">{{ insights.avg_rating }}</h2>
-                     <div class="flex gap-1 mb-4">
-                         <i data-lucide="star" class="w-6 h-6 text-yellow-400 fill-yellow-400"></i>
-                         <i data-lucide="star" class="w-6 h-6 text-yellow-400 fill-yellow-400"></i>
-                         <i data-lucide="star" class="w-6 h-6 text-yellow-400 fill-yellow-400"></i>
-                         <i data-lucide="star" class="w-6 h-6 text-yellow-400 fill-yellow-400"></i>
-                         <i data-lucide="star" class="w-6 h-6 text-gray-200"></i>
-                     </div>
-                     <p class="text-sm font-bold text-gray-500">Average based on all customer reviews</p>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                    <div class="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex flex-col justify-between">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Product Performance</h3>
+                            <div class="bg-orange-100 text-orange-600 p-2 rounded-lg"><i data-lucide="bar-chart-2" class="w-4 h-4"></i></div>
+                        </div>
+                        <canvas id="topItemsChart" height="200"></canvas>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex flex-col justify-between">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Dietary Shares</h3>
+                            <div class="bg-green-100 text-green-600 p-2 rounded-lg"><i data-lucide="leaf" class="w-4 h-4"></i></div>
+                        </div>
+                        <div class="max-w-[180px] mx-auto w-full">
+                            <canvas id="dietShareChart" height="180"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex flex-col justify-between">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">NLP Sentiment Distribution</h3>
+                            <div class="bg-blue-100 text-blue-600 p-2 rounded-lg"><i data-lucide="smile" class="w-4 h-4"></i></div>
+                        </div>
+
+                        <div class="space-y-3 my-auto">
+                            <div>
+                                <div class="flex justify-between text-xs font-bold mb-1">
+                                    <span class="text-green-600 uppercase">Positive Sentiment</span>
+                                    <span>{{ insights.sentiment_ratios.positive }}%</span>
+                                </div>
+                                <div class="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                                    <div class="bg-green-500 h-full" style="width: {{ insights.sentiment_ratios.positive }}%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-xs font-bold mb-1">
+                                    <span class="text-gray-500 uppercase">Neutral Sentiment</span>
+                                    <span>{{ insights.sentiment_ratios.neutral }}%</span>
+                                </div>
+                                <div class="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                                    <div class="bg-gray-400 h-full" style="width: {{ insights.sentiment_ratios.neutral }}%"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div class="flex justify-between text-xs font-bold mb-1">
+                                    <span class="text-red-600 uppercase">Negative Sentiment</span>
+                                    <span>{{ insights.sentiment_ratios.negative }}%</span>
+                                </div>
+                                <div class="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                                    <div class="bg-red-500 h-full" style="width: {{ insights.sentiment_ratios.negative }}%"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <p class="text-[10px] text-gray-400 text-center font-bold mt-2">Real-time inference classification totals</p>
+                    </div>
                 </div>
 
-                <!-- Hourly Ordering Line Chart -->
-                <div class="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm lg:col-span-2">
-                    <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-6">Peak Ordering Hours (Last 7 Days)</h3>
-                    <canvas id="hourlyChart" height="150"></canvas>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                    <div class="bg-white p-6 md:p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+                        <div class="flex justify-between items-center mb-4">
+                            <div>
+                                <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Association Mining</h3>
+                                <p class="text-md font-black text-gray-900">Market Basket Companion Items</p>
+                            </div>
+                            <div class="bg-purple-100 text-purple-600 p-2 rounded-lg"><i data-lucide="blocks" class="w-4 h-4"></i></div>
+                        </div>
+                        <div class="divide-y divide-gray-50">
+                            {% for cluster in insights.frequent_pairs %}
+                            <div class="py-3 flex items-center justify-between">
+                                <div class="flex items-center gap-2 text-sm font-bold text-gray-800">
+                                    <span class="bg-gray-100 px-2 py-1 rounded-lg text-gray-700 text-xs">{{ cluster.item_a }}</span>
+                                    <span class="text-gray-400">&</span>
+                                    <span class="bg-gray-100 px-2 py-1 rounded-lg text-gray-700 text-xs">{{ cluster.item_b }}</span>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-xs font-black text-purple-600 bg-purple-50 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                                        Support Count: {{ cluster.support_count }}
+                                    </span>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <p class="text-sm text-gray-400 font-bold py-4">Awaiting transaction co-occurrence intersections...</p>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="bg-white p-6 md:p-8 rounded-[2.5rem] border border-gray-100 shadow-sm flex flex-col justify-between">
+                        <div class="flex justify-between items-center mb-4">
+                            <div>
+                                <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Operational Latency</h3>
+                                <p class="text-md font-black text-gray-900">Waiter Call Hot-Spots & Alerts</p>
+                            </div>
+                            <div class="bg-rose-100 text-rose-600 p-2 rounded-lg"><i data-lucide="alert-triangle" class="w-4 h-4"></i></div>
+                        </div>
+                        <canvas id="waiterTelemetryChart" height="140"></canvas>
+                    </div>
+
                 </div>
             </div>
         {% elif current_tab == 'reviews' %}
@@ -317,6 +401,8 @@
 
     {{ insights.top_items|json_script:"top-items-data" }}
     {{ insights.hourly_data|json_script:"hourly-data" }}
+    {{ insights.diet_shares|json_script:"diet-shares-data" }}
+    {{ insights.waiter_telemetry|json_script:"waiter-telemetry-data" }}
     <script>
         lucide.createIcons();
         function updateClock() {
@@ -424,25 +510,19 @@
 
         // --- CHARTS INITIALIZATION (Insights Tab) ---
         if ("{{ current_tab }}" === "insights") {
-            // 1. Parse the data from the HTML containers we created above
+            // 1. Parse all data payloads from the template script elements
             const topItemsRaw = JSON.parse(document.getElementById('top-items-data').textContent);
             const hourlyDataRaw = JSON.parse(document.getElementById('hourly-data').textContent);
+            const dietSharesRaw = JSON.parse(document.getElementById('diet-shares-data').textContent);
+            const waiterCallsRaw = JSON.parse(document.getElementById('waiter-telemetry-data').textContent);
 
-            // 2. Format data for Top Items Chart
-            const topLabels = topItemsRaw.map(item => item.menu_item__name);
-            const topValues = topItemsRaw.map(item => item.total_sold);
-
-            // 3. Format data for Hourly Chart
-            const hourlyLabels = hourlyDataRaw.map(data => `${data.hour}:00`);
-            const hourlyValues = hourlyDataRaw.map(data => data.count);
-
-            // 4. Initialize Top Items Chart
+            // 2. Initialize Top Items Chart
             new Chart(document.getElementById('topItemsChart'), {
                 type: 'bar',
                 data: {
-                    labels: topLabels,
+                    labels: topItemsRaw.map(item => item.menu_item__name),
                     datasets: [{
-                        data: topValues,
+                        data: topItemsRaw.map(item => item.total_sold),
                         backgroundColor: '#ea580c',
                         borderRadius: 10
                     }]
@@ -453,13 +533,13 @@
                 }
             });
 
-            // 5. Initialize Hourly Chart
+            // 3. Initialize Hourly Chart
             new Chart(document.getElementById('hourlyChart'), {
                 type: 'line',
                 data: {
-                    labels: hourlyLabels,
+                    labels: hourlyDataRaw.map(data => `${data.hour}:00`),
                     datasets: [{
-                        data: hourlyValues,
+                        data: hourlyDataRaw.map(data => data.count),
                         borderColor: '#ea580c',
                         tension: 0.4,
                         fill: true,
@@ -472,8 +552,47 @@
                     responsive: true
                 }
             });
-        }
 
+            // 4. Initialize Dietary Preferences Doughnut Chart
+            new Chart(document.getElementById('dietShareChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: dietSharesRaw.map(d => d.label),
+                    datasets: [{
+                        data: dietSharesRaw.map(d => d.value),
+                        backgroundColor: ['#16a34a', '#dc2626'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { boxWidth: 12, font: { weight: 'bold', size: 10 } }
+                        }
+                    },
+                    responsive: true
+                }
+            });
+
+            // 5. Initialize Operational Waiter Telemetry Horizontal Bar Chart
+            new Chart(document.getElementById('waiterTelemetryChart'), {
+                type: 'bar',
+                data: {
+                    labels: waiterCallsRaw.map(c => c.reason),
+                    datasets: [{
+                        data: waiterCallsRaw.map(c => c.count),
+                        backgroundColor: '#e11d48',
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    plugins: { legend: { display: false } },
+                    responsive: true
+                }
+            });
+        }
         // --- AUTO-REFRESH LOGIC ---
         if (!window.location.search.includes('tab=menu') && !window.location.search.includes('tab=insights')) {
             setInterval(() => { location.reload(); }, 15000);

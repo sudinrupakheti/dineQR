@@ -512,6 +512,10 @@ def management_dashboard(request):
 
     # --- 3. LOGIC FOR INSIGHTS TAB ---
     elif current_tab == "insights":
+        from collections import Counter
+        from itertools import combinations
+
+        # A. Core Metrics (Existing)
         top_items = (
             OrderItem.objects.filter(order__is_paid=True)
             .values("menu_item__name")
@@ -527,10 +531,90 @@ def management_dashboard(request):
             .order_by("hour")
         )
 
+        # B. Dietary Segmentation Share (Veg vs Non-Veg Distribution)
+        diet_shares = (
+            OrderItem.objects.filter(order__is_paid=True)
+            .values("menu_item__veg")
+            .annotate(total_qty=Sum("quantity"))
+        )
+        # Format labels nicely for chart presentation
+        formatted_diet_shares = [
+            {
+                "label": "Vegetarian" if item["menu_item__veg"] else "Non-Vegetarian",
+                "value": item["total_qty"],
+            }
+            for item in diet_shares
+        ]
+
+        # C. Flavor Profile Analysis (Spice Preferences)
+        spice_distribution = (
+            OrderItem.objects.filter(order__is_paid=True)
+            .values("menu_item__spice_level")
+            .annotate(total_sold=Sum("quantity"))
+            .order_by("-total_sold")
+        )
+
+        # D. Sentiment Index Metrics (AI Review Distributions)
+        sentiment_counts = Review.objects.values("sentiment").annotate(
+            count=Count("id")
+        )
+        sentiment_dict = {item["sentiment"]: item["count"] for item in sentiment_counts}
+        total_reviews = sum(sentiment_dict.values()) or 1
+        sentiment_ratios = {
+            "positive": round(
+                (sentiment_dict.get("positive", 0) / total_reviews) * 100, 1
+            ),
+            "neutral": round(
+                (sentiment_dict.get("neutral", 0) / total_reviews) * 100, 1
+            ),
+            "negative": round(
+                (sentiment_dict.get("negative", 0) / total_reviews) * 100, 1
+            ),
+        }
+
+        # E. Operational Waiter Assist Telemetry
+        waiter_telemetry = (
+            WaiterCall.objects.values("reason")
+            .annotate(total_calls=Count("id"))
+            .order_by("-total_calls")
+        )
+        formatted_waiter_calls = [
+            {
+                "reason": dict(WaiterCall.REASON_CHOICES).get(
+                    item["reason"], item["reason"]
+                ),
+                "count": item["total_calls"],
+            }
+            for item in waiter_telemetry
+        ]
+
+        # F. Market Basket Analysis / Product Co-occurrence Affinity Matrix
+        order_item_groups = OrderItem.objects.values("order_id", "menu_item__name")
+        orders_map = defaultdict(list)
+        for entry in order_item_groups:
+            orders_map[entry["order_id"]].append(entry["menu_item__name"])
+
+        pair_counter = Counter()
+        for items_list in orders_map.values():
+            # Remove duplicate item appearances in a single order to focus on item pairings
+            unique_items = sorted(list(set(items_list)))
+            for pair in combinations(unique_items, 2):
+                pair_counter[pair] += 1
+
+        frequent_pairs = [
+            {"item_a": p[0], "item_b": p[1], "support_count": c}
+            for p, c in pair_counter.most_common(4)
+        ]
+
         insights_data = {
             "top_items": list(top_items),
             "avg_rating": round(avg_rating, 1),
             "hourly_data": list(hourly_data),
+            "diet_shares": formatted_diet_shares,
+            "spice_distribution": list(spice_distribution),
+            "sentiment_ratios": sentiment_ratios,
+            "waiter_telemetry": formatted_waiter_calls,
+            "frequent_pairs": frequent_pairs,
         }
 
     # --- 4. LOGIC FOR REVIEWS TAB ---
