@@ -1,19 +1,19 @@
 import json
 import difflib
+import re
+import qrcode
+import io
+import base64
 from decimal import Decimal
 from datetime import timedelta
 from django.utils import timezone
 from django.http import JsonResponse
 from django.shortcuts import render, redirect
 from django.urls import reverse
-from django.db.models import Sum, Q, Avg, Count, Case, When, IntegerField
+from django.db.models import Sum, Q, Avg, Count, Case, When, IntegerField, Prefetch
 from django.contrib.auth.decorators import user_passes_test
 from django.conf import settings
-import qrcode
-import io
-import base64
 from collections import defaultdict
-import re
 
 
 from .models import (
@@ -83,8 +83,12 @@ def expand_search_query(raw_query):
 
 def menu_view(request):
     query = request.GET.get("search", "").lower().strip()
-    items = MenuItem.objects.all()
+
+    # Base querysets - default to only showing available items to customers
+    items = MenuItem.objects.filter(is_available=True)
     categories = Category.objects.all()
+    recommended_items = None  # Explicit container for fallback recommendations
+    zero_results = False
 
     if query:
         # 1. Intent Detection
@@ -93,10 +97,9 @@ def menu_view(request):
         is_mild = any(w in query for w in ["mild", "not spicy", "not hot"])
         is_featured = "featured" in query or "special" in query
 
-        # Extract words for analysis
+        # Tokenize query string into clean alphanumeric lowercase words
         words = re.findall(r"[a-z0-9:]+", query)
 
-        # Check if user ONLY typed intent words (e.g., searching just "spicy" or "veg")
         intent_keywords = {
             "veg",
             "spicy",
@@ -113,30 +116,40 @@ def menu_view(request):
         )
 
         if not is_pure_intent:
-            # 2. Synonym & Concept Expansion
+            # 2. Synonym Expansion
             search_terms = set([query])
             for word in words:
                 search_terms.add(word)
                 if word in SEARCH_SYNONYMS:
                     search_terms.update(SEARCH_SYNONYMS[word])
 
-            # 3. Fuzzy Typo Matching (on item and category names)
-            all_item_names = list(MenuItem.objects.values_list("name", flat=True))
-            all_cat_names = list(Category.objects.values_list("name", flat=True))
+            # 3. Optimized Fuzzy Word Matching
+            all_item_words = set()
+            for name in MenuItem.objects.filter(is_available=True).values_list(
+                "name", flat=True
+            ):
+                all_item_words.update(re.findall(r"[a-z0-9:]+", name.lower()))
+
+            all_cat_words = set()
+            for name in Category.objects.values_list("name", flat=True):
+                all_cat_words.update(re.findall(r"[a-z0-9:]+", name.lower()))
 
             fuzzy_matches = []
             for word in words:
-                # Catch slight misspellings (e.g., "chiken" -> "chicken")
                 fuzzy_matches.extend(
-                    difflib.get_close_matches(word, all_item_names, n=2, cutoff=0.6)
+                    difflib.get_close_matches(
+                        word, list(all_item_words), n=2, cutoff=0.6
+                    )
                 )
                 fuzzy_matches.extend(
-                    difflib.get_close_matches(word, all_cat_names, n=2, cutoff=0.6)
+                    difflib.get_close_matches(
+                        word, list(all_cat_words), n=2, cutoff=0.6
+                    )
                 )
 
             search_terms.update([match.lower() for match in fuzzy_matches])
 
-            # 4. Apply Text Search Lookup
+            # 4. Text Index Lookup Execution
             lookup = Q()
             for term in search_terms:
                 lookup |= Q(name__icontains=term)
@@ -145,43 +158,107 @@ def menu_view(request):
 
             items = items.filter(lookup)
 
-        # 5. Combine and Refine with Intent Filters (Now works fluidly together!)
+        # 5. Intent Intersecting Filters
         if is_spicy:
             items = items.filter(spice_level__in=["medium", "hot"])
         if is_mild:
             items = items.filter(spice_level="mild")
-        if is_featured or ("featured" in query or "special" in query):
+        if is_featured:
             items = items.filter(is_featured=True)
         if is_veg:
             items = items.filter(veg=True)
 
-        # 6. Advanced Result Relevance Ranking
-        if not is_pure_intent:
-            items = items.annotate(
-                relevance=Case(
-                    When(name__iexact=query, then=1),  # Exact matches first
-                    When(name__icontains=query, then=2),  # Close text matches second
-                    When(
-                        category__name__icontains=query, then=3
-                    ),  # Category match third
-                    default=4,
-                    output_field=IntegerField(),
-                )
-            ).order_by("relevance", "-is_featured", "name")
+        # 6. Check if search found nothing
+        if not items.exists():
+            zero_results = True
+            # Safely build recommendation slices completely separate from standard items
+            recommended_items = MenuItem.objects.filter(
+                is_available=True, is_featured=True
+            )[:6]
+            items = MenuItem.objects.none()
+            categories = (
+                Category.objects.none()
+            )  # Hides sticky category headers when empty
         else:
-            # If searching purely for attributes like "spicy", sort by popularity/featured flag
-            items = items.order_by("-is_featured", "name")
+            # Advanced Scoring Metric Sorting
+            if not is_pure_intent:
+                items = items.annotate(
+                    relevance=Case(
+                        When(name__iexact=query, then=1),
+                        When(name__icontains=query, then=2),
+                        When(category__name__icontains=query, then=3),
+                        default=4,
+                        output_field=IntegerField(),
+                    )
+                ).order_by("relevance", "-is_featured", "name")
+            else:
+                items = items.order_by("-is_featured", "name")
 
-    # --- KEEP STICKY BAR ALIVE & ACCURATE ---
-    if query:
-        # Show matching categories with results
-        category_ids = items.values_list("category_id", flat=True).distinct()
-        categories = Category.objects.filter(id__in=category_ids)
-    else:
-        # Full menu state
-        categories = Category.objects.all()
+    # 7. Safe Category Sticky-Bar Prefetch (Only runs when results exist)
+    if not zero_results:
+        if query:
+            category_ids = items.values_list("category_id", flat=True).distinct()
+            categories = Category.objects.filter(id__in=category_ids).prefetch_related(
+                Prefetch("items", queryset=items)
+            )
+        else:
+            categories = Category.objects.all().prefetch_related(
+                Prefetch("items", queryset=items)
+            )
 
-    context = {"items": items, "categories": categories, "query": query}
+    # Feature 1: Get the top 5 highest-selling item IDs to light up the "TRENDING" UI badge
+    popular_ids = list(
+        OrderItem.objects.filter(order__is_paid=True)
+        .values("menu_item_id")
+        .annotate(total_sold=Sum("quantity"))
+        .order_by("-total_sold")
+        .values_list("menu_item_id", flat=True)[:5]
+    )
+
+    # Feature 2: Market Basket Analysis (Frequent Companions)
+    historical_orders = OrderItem.objects.filter(order__is_paid=True).values(
+        "order_id", "menu_item_id"
+    )
+    order_baskets = defaultdict(list)
+    for row in historical_orders:
+        order_baskets[row["order_id"]].append(row["menu_item_id"])
+
+    pairing_matrix = defaultdict(lambda: defaultdict(int))
+    for basket in order_baskets.values():
+        for item_a in basket:
+            for item_b in basket:
+                if item_a != item_b:
+                    pairing_matrix[item_a][item_b] += 1
+
+    top_companion_map = {}
+    for item_id, companions in pairing_matrix.items():
+        if companions:
+            top_companion_map[item_id] = max(companions, key=companions.get)
+
+    # Convert queryset to a list so we can dynamically attach the companion object
+    items_list = list(items)
+    for item in items_list:
+        comp_id = top_companion_map.get(item.id)
+        if comp_id:
+            try:
+                item.frequent_companion = MenuItem.objects.get(
+                    id=comp_id, is_available=True
+                )
+            except MenuItem.DoesNotExist:
+                item.frequent_companion = None
+        else:
+            item.frequent_companion = None
+
+    items = items_list
+
+    context = {
+        "items": items,
+        "categories": categories,
+        "query": query,
+        "zero_results": zero_results,
+        "recommended_items": recommended_items,
+        "popular_ids": popular_ids,
+    }
     return render(request, "orders/menu.html", context)
 
 

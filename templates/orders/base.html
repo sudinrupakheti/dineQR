@@ -149,12 +149,17 @@
             if (logo) {
                 logo.addEventListener('click', (e) => {
                     const currentPath = window.location.pathname;
-                    // Check if we are already on the menu page
-                    if (currentPath === '{% url "menu" %}' || currentPath === '/') {
+
+                    // Check if there is an active search query parameter in the URL
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const hasSearch = urlParams.has('search');
+
+                    // Smooth scroll ONLY if on the menu page AND not looking at search results
+                    if ((currentPath === '{% url "menu" %}' || currentPath === '/') && !hasSearch) {
                         e.preventDefault(); // Stop it from reloading the page
                         window.scrollTo({ top: 0, behavior: 'smooth' }); // Scroll up!
                     } else if (table) {
-                        // If we are on the cart page, go back to menu WITH the table number
+                        // If on the cart page OR actively searching, break out and clear filters while keeping the table
                         e.preventDefault();
                         window.location.href = `{% url 'menu' %}?table=${table}`;
                     }

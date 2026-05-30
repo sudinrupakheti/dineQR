@@ -4,7 +4,7 @@
 
 {% block content %}
 
-<!-- AI Search Bar -->
+<!-- Search Bar -->
 <div class="mb-10 max-w-2xl mx-auto px-2">
     <form action="." method="GET" class="relative group">
         {% if request.GET.table %}
@@ -21,6 +21,16 @@
         {% endif %}
     </form>
 </div>
+{% if zero_results %}
+    <div class="text-center py-12 max-w-md mx-auto px-4 bg-orange-50/50 rounded-3xl border border-dashed border-orange-200 my-6">
+        <div class="bg-orange-100 text-orange-600 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i data-lucide="search-code" class="w-6 h-6"></i>
+        </div>
+        <h3 class="text-lg font-black text-gray-900 mb-1">No exact matches found</h3>
+        <p class="text-sm text-gray-500 mb-4">We couldn't quite find "{{ query }}", but check out these popular choices!</p>
+    </div>
+{% endif %}
+
 
 <!-- Sticky Category Bar -->
 <div class="sticky top-16 z-30 bg-gray-50/95 backdrop-blur-md py-3 -mx-4 px-4 mb-8 border-b border-gray-100">
@@ -37,7 +47,7 @@
 <div class="mb-10 animate-in fade-in duration-500">
     <div class="flex justify-between items-end mb-4">
         <h2 class="text-lg font-black text-gray-900 uppercase tracking-widest flex items-center gap-2">
-            <i data-lucide="sparkles" class="w-5 h-5 text-orange-500"></i> Smart Pairings
+            <i data-lucide="sparkles" class="w-5 h-5 text-orange-500"></i> Recommended for You
         </h2>
         <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Based on your table</span>
     </div>
