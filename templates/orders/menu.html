@@ -5,7 +5,12 @@
 {% block content %}
 
 <!-- Search Bar -->
-<div class="mb-10 max-w-2xl mx-auto px-2">
+<div class="max-w-2xl mx-auto px-4 mb-4 mt-2">
+    <h1 class="text-2xl font-black text-gray-900 tracking-tight">{{ greeting }}</h1>
+    <p class="text-xs text-gray-500 font-medium">Welcome to Table {{ request.GET.table|default:"Ready" }} • Scan, Order & Enjoy</p>
+</div>
+
+<div class="mb-6 max-w-2xl mx-auto px-2">
     <form action="." method="GET" class="relative group">
         {% if request.GET.table %}
             <input type="hidden" name="table" value="{{ request.GET.table }}">
@@ -20,6 +25,24 @@
             <a href="?table={{ request.GET.table }}" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs font-bold bg-gray-100 px-2 py-1 rounded-lg uppercase">Clear</a>
         {% endif %}
     </form>
+</div>
+
+<div class="flex gap-2 overflow-x-auto no-scrollbar pb-4 max-w-2xl mx-auto px-2 mb-4">
+    <a href="?search=veg{% if request.GET.table %}&table={{ request.GET.table }}{% endif %}"
+       class="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-xs font-black border transition-all whitespace-nowrap {% if query == 'veg' %}bg-green-600 border-green-600 text-white shadow-md shadow-green-200{% else %}bg-white border-gray-200 text-gray-700 hover:bg-gray-50 shadow-sm{% endif %}">
+        🥬 Pure Veg
+    </a>
+
+    <a href="?search=spicy{% if request.GET.table %}&table={{ request.GET.table }}{% endif %}"
+       class="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-xs font-black border transition-all whitespace-nowrap {% if query == 'spicy' %}bg-red-600 border-red-600 text-white shadow-md shadow-red-200{% else %}bg-white border-gray-200 text-gray-700 hover:bg-gray-50 shadow-sm{% endif %}">
+        🔥 Spicy Hits
+    </a>
+
+    <a href="?search=quick{% if request.GET.table %}&table={{ request.GET.table }}{% endif %}"
+       class="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-xs font-black border transition-all whitespace-nowrap {% if query == 'quick' %}bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-200{% else %}bg-white border-gray-200 text-gray-700 hover:bg-gray-50 shadow-sm{% endif %}">
+        ⚡ Express Menu
+    </a>
+
 </div>
 {% if zero_results %}
     <div class="text-center py-12 max-w-md mx-auto px-4 bg-orange-50/50 rounded-3xl border border-dashed border-orange-200 my-6">

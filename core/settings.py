@@ -99,19 +99,34 @@ JAZZMIN_SETTINGS = {
     "site_brand": "DineQR Management",
     "welcome_sign": "Welcome to DineQR Restaurant Manager",
     "search_model": ["orders.Order", "orders.MenuItem"],
-    "show_ui_builder": False,  # Set to True if you want to visually change colors!
+    "show_ui_builder": False,  # Hide builder in production for a cleaner look
     "topmenu_links": [
         {"name": "Home", "url": "admin:index", "permissions": ["auth.view_user"]},
-        {
-            "name": "Management Dashboard",
-            "url": "/management/",
-        },  # Link to your Pandas dashboard
-        {"name": "Kitchen View", "url": "/kitchen/"},  # Link to Kitchen
+        {"name": "Management Dashboard", "url": "/management/"},
+        {"name": "Kitchen View", "url": "/kitchen/"},
     ],
-}
-
-JAZZMIN_UI_TWEAKS = {
-    "theme": "lumen",  # A clean, modern white/orange theme
+    # Define Icons for your Models (Uses FontAwesome)
+    "icons": {
+        "auth": "fas fa-users-cog",
+        "auth.user": "fas fa-user",
+        "auth.group": "fas fa-users",
+        "orders.Order": "fas fa-shopping-bag",
+        "orders.OrderItem": "fas fa-receipt",
+        "orders.MenuItem": "fas fa-utensils",
+        "orders.Category": "fas fa-list",
+        "orders.Review": "fas fa-star",
+        "orders.WaiterCall": "fas fa-bell",
+        "orders.TableSession": "fas fa-key",
+    },
+    # Order your models logically inside the side menu
+    "order_with_respect_to": [
+        "orders.Order",
+        "orders.WaiterCall",
+        "orders.MenuItem",
+        "orders.Category",
+        "orders.Review",
+        "orders.TableSession",
+    ],
 }
 
 # Internationalization

@@ -251,6 +251,20 @@ def menu_view(request):
 
     items = items_list
 
+    # ==========================================================
+    # 9. CONTEXT-AWARE GREETING ENGINE
+    # ==========================================================
+    current_hour = timezone.localtime(timezone.now()).hour
+    if 5 <= current_hour < 12:
+        greeting = "Good Morning ☕"
+    elif 12 <= current_hour < 17:
+        greeting = "Good Afternoon 🍛"
+    elif 17 <= current_hour < 22:
+        greeting = "Good Evening 🍽️"
+    else:
+        greeting = "Late Night Cravings? 🌙"
+    # ==========================================================
+
     context = {
         "items": items,
         "categories": categories,
@@ -258,6 +272,7 @@ def menu_view(request):
         "zero_results": zero_results,
         "recommended_items": recommended_items,
         "popular_ids": popular_ids,
+        "greeting": greeting,
     }
     return render(request, "orders/menu.html", context)
 
