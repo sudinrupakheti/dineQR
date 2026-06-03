@@ -110,7 +110,6 @@ def cart_detail(request):
         if not previous_orders.exists() and recently_settled:
             show_thanks = True
 
-        # 3. CALCULATE TOTAL FIRST
         for order in previous_orders:
             running_total += order.total_price
             if order.status == "ready":
@@ -130,6 +129,19 @@ def cart_detail(request):
             }
         )
 
+    # ADDED: Get popular item recommendations for the Cart page
+    popular_item_ids = (
+        OrderItem.objects.filter(order__is_paid=True)
+        .values("menu_item_id")
+        .annotate(total_sold=Sum("quantity"))
+        .order_by("-total_sold")
+        .values_list("menu_item_id", flat=True)[:4]
+    )
+
+    popular_items = MenuItem.objects.filter(id__in=popular_item_ids, is_available=True)
+    if not popular_items.exists():
+        popular_items = MenuItem.objects.filter(is_available=True, is_featured=True)[:4]
+
     return render(
         request,
         "orders/cart_detail.html",
@@ -139,8 +151,10 @@ def cart_detail(request):
             "any_ready": any_ready,
             "show_thanks": show_thanks,
             "qr_code": qr_code,
+            "popular_items": popular_items,  # Sent to template context
         },
     )
+
 
 
 def place_order(request):
@@ -275,7 +289,9 @@ def cancel_order_item(request, item_id):
 
 @user_passes_test(is_staff)
 def management_dashboard(request):
+
     current_tab = request.GET.get("tab", "tables")
+    sentiment_filter = request.GET.get("sentiment", "all")
 
     # --- 1. GLOBAL STATS (For all tabs) ---
     all_active_orders = Order.objects.exclude(status="completed")
@@ -284,9 +300,14 @@ def management_dashboard(request):
     )
     busy_tables_count = all_active_orders.values("table_number").distinct().count()
 
-    # --- 2. LOGIC FOR TABLES TAB ---
+    # --- INITIALIZE EMPTY VARIABLES ---
     table_data = []
-    if current_tab == "tables":
+    insights_data = {}
+    recent_reviews = []
+    context = {}
+
+    # --- 2. LOGIC FOR TABLES TAB ---
+    if current_tab in ["tables", "qr"]:
         for i in range(1, 11):
             active_orders = Order.objects.filter(table_number=i).exclude(
                 status="completed"
@@ -314,9 +335,9 @@ def management_dashboard(request):
                     {"number": i, "status": "empty", "total": 0, "has_orders": False}
                 )
 
-    # --- 3. LOGIC FOR INSIGHTS TAB ---
-    insights_data = {}
-    if current_tab == "insights":
+    # --- 3. LOGIC FOR INSIGHTS TAB (REAL-TIME TODAY ONLY) ---
+    elif current_tab == "insights":
+        # A. Core Metrics & Inventory Performance
         top_items = (
             OrderItem.objects.filter(order__is_paid=True)
             .values("menu_item__name")
@@ -332,11 +353,202 @@ def management_dashboard(request):
             .order_by("hour")
         )
 
+        # B. Dietary Segmentation Share
+        diet_shares = (
+            OrderItem.objects.filter(order__is_paid=True)
+            .values("menu_item__veg")
+            .annotate(total_qty=Sum("quantity"))
+        )
+        formatted_diet_shares = [
+            {
+                "label": "Vegetarian" if item["menu_item__veg"] else "Non-Vegetarian",
+                "value": item["total_qty"],
+            }
+            for item in diet_shares
+        ]
+
+        # C. Category Performance Pillars
+        category_shares = (
+            OrderItem.objects.filter(order__status="completed")
+            .values("menu_item__category__name")
+            .annotate(total_qty=Sum("quantity"))
+            .order_by("-total_qty")
+        )
+
+        # D. Sentiment Index Metrics
+        sentiment_counts = Review.objects.values("sentiment").annotate(
+            count=Count("id")
+        )
+        sentiment_dict = {item["sentiment"]: item["count"] for item in sentiment_counts}
+        total_reviews = sum(sentiment_dict.values()) or 1
+        sentiment_ratios = {
+            "positive": round(
+                (sentiment_dict.get("positive", 0) / total_reviews) * 100, 1
+            ),
+            "neutral": round(
+                (sentiment_dict.get("neutral", 0) / total_reviews) * 100, 1
+            ),
+            "negative": round(
+                (sentiment_dict.get("negative", 0) / total_reviews) * 100, 1
+            ),
+        }
+
+        # E. Operational Waiter Assist Telemetry
+        waiter_telemetry = (
+            WaiterCall.objects.values("reason")
+            .annotate(total_calls=Count("id"))
+            .order_by("-total_calls")
+        )
+        formatted_waiter_calls = [
+            {
+                "reason": dict(WaiterCall.REASON_CHOICES).get(
+                    item["reason"], item["reason"]
+                ),
+                "count": item["total_calls"],
+            }
+            for item in waiter_telemetry
+        ]
+
+        # F. Market Basket Analysis
+        order_item_groups = OrderItem.objects.values("order_id", "menu_item__name")
+        orders_map = defaultdict(list)
+        for entry in order_item_groups:
+            orders_map[entry["order_id"]].append(entry["menu_item__name"])
+
+        pair_counter = Counter()
+        for items_list in orders_map.values():
+            unique_items = sorted(list(set(items_list)))
+            for pair in combinations(unique_items, 2):
+                pair_counter[pair] += 1
+
+        frequent_pairs = [
+            {"item_a": p[0], "item_b": p[1], "support_count": c}
+            for p, c in pair_counter.most_common(4)
+        ]
+
+        # G. Table Load Performance
+        table_revenue = (
+            Order.objects.filter(status="completed")
+            .values("table_number")
+            .annotate(total_earned=Sum("total_price"), total_tickets=Count("id"))
+            .order_by("-total_earned")[:5]
+        )
+
+        # H. Busiest Days Matrix (Trailing 30 Days)
+        days_map = {
+            1: "Sun",
+            2: "Mon",
+            3: "Tue",
+            4: "Wed",
+            5: "Thu",
+            6: "Fri",
+            7: "Sat",
+        }
+        weekly_traffic = (
+            Order.objects.filter(created_at__gte=timezone.now() - timedelta(days=30))
+            .annotate(weekday=ExtractWeekDay("created_at"))
+            .values("weekday")
+            .annotate(volume=Count("id"))
+            .order_by("weekday")
+        )
+        formatted_weekly_traffic = [
+            {"day_name": days_map.get(item["weekday"], "Unk"), "volume": item["volume"]}
+            for item in weekly_traffic
+        ]
+
+        # I. Operational Bill Settlement Ratio
+        payment_audit = Order.objects.aggregate(
+            collected=Count("id", filter=Q(is_paid=True)),
+            unsettled=Count("id", filter=Q(is_paid=False)),
+        )
+
+        # Service Latency Vector (Table Turnaround Velocity)
+        timed_orders = (
+            Order.objects.filter(
+                status="completed", is_paid=True, paid_at__isnull=False
+            )
+            .annotate(
+                duration=ExpressionWrapper(
+                    F("paid_at") - F("created_at"), output_field=DurationField()
+                )
+            )
+            .aggregate(avg_time=Avg("duration"))
+        )
+
+        avg_turnaround_mins = 0
+        if timed_orders["avg_time"]:
+            avg_turnaround_mins = round(
+                timed_orders["avg_time"].total_seconds() / 60, 1
+            )
+
+        # Financial Leakage Metrics (Revenue Bleed)
+        financial_bleed = Order.objects.filter(status="canceled").aggregate(
+            lost_cash=Sum("total_price"), lost_count=Count("id")
+        )
+
+        # Recipe Quality Risk Index (Toxic Items causing negative sentiment reviews)
+        negative_review_order_ids = Review.objects.filter(
+            sentiment="negative"
+        ).values_list("order_id", flat=True)
+        toxic_dishes = (
+            OrderItem.objects.filter(order_id__in=negative_review_order_ids)
+            .values("menu_item__name")
+            .annotate(complaint_weight=Count("id"))
+            .order_by("-complaint_weight")[:3]
+        )
+
         insights_data = {
             "top_items": list(top_items),
             "avg_rating": round(avg_rating, 1),
             "hourly_data": list(hourly_data),
+            "diet_shares": formatted_diet_shares,
+            "category_shares": list(category_shares),
+            "sentiment_ratios": sentiment_ratios,
+            "waiter_telemetry": formatted_waiter_calls,
+            "frequent_pairs": frequent_pairs,
+            "table_revenue": list(table_revenue),
+            "weekly_traffic": formatted_weekly_traffic,
+            "payment_audit": payment_audit,
+            "avg_turnaround_mins": avg_turnaround_mins,
+            "lost_revenue": financial_bleed["lost_cash"] or 0,
+            "lost_tickets_count": financial_bleed["lost_count"] or 0,
+            "toxic_dishes": list(toxic_dishes),
         }
+
+        # 🌟 NEW FORCED TIME WINDOW: From midnight local time to exactly right now
+        now_local = timezone.localtime(timezone.now())
+        start_of_day = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+
+        shift_orders = Order.objects.filter(
+            status="completed", created_at__range=(start_of_day, timezone.now())
+        )
+        z_metrics = shift_orders.aggregate(
+            gross=Sum("total_price"), count=Count("id"), avg_spend=Avg("total_price")
+        )
+        canceled_count = Order.objects.filter(
+            status="canceled", created_at__range=(start_of_day, timezone.now())
+        ).count()
+
+        context.update(
+            {
+                "insights": insights_data,
+                "z_gross_sales": z_metrics["gross"] or 0,
+                "z_ticket_count": z_metrics["count"] or 0,
+                "z_avg_ticket": round(z_metrics["avg_spend"] or 0, 2)
+                if z_metrics["avg_spend"]
+                else 0,
+                "z_canceled_count": canceled_count,
+            }
+        )
+
+    # --- 4. LOGIC FOR REVIEWS TAB ---
+    elif current_tab == "reviews":
+        recent_reviews = Review.objects.all().order_by("-created_at")
+
+        if sentiment_filter in ["positive", "neutral", "negative"]:
+            recent_reviews = recent_reviews.filter(sentiment=sentiment_filter)
+
+        recent_reviews = recent_reviews[:20]
 
     categories = Category.objects.prefetch_related("items").all()
 
@@ -346,9 +558,13 @@ def management_dashboard(request):
         "current_tab": current_tab,
         "total_live_revenue": total_live_revenue,
         "busy_tables_count": busy_tables_count,
-        "insights": insights_data,  # Pass insights data here
+        "insights": insights_data,
+        "recent_reviews": recent_reviews,
+        "current_sentiment": sentiment_filter,
     }
+
     return render(request, "orders/management_dashboard.html", context)
+
 
 
 def order_review_page(request, order_id):
@@ -649,3 +865,17 @@ def confirm_payment_request(request, table_num):
     WaiterCall.objects.create(table_number=table_num, reason="paid", is_resolved=False)
 
     return JsonResponse({"status": "success", "table_cleared": all_done})
+
+
+@user_passes_test(is_staff)
+def update_kitchen_broadcast(request):
+    if request.method == "POST":
+        new_message = request.POST.get("message", "").strip()
+
+        # Clear out any old broadcast messages so the kitchen only sees the newest one
+        KitchenBroadcast.objects.all().delete()
+
+        if new_message:
+            KitchenBroadcast.objects.create(message=new_message)
+
+    return redirect(request.META.get("HTTP_REFERER", "management_dashboard"))
