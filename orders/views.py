@@ -7,8 +7,8 @@ import base64
 from decimal import Decimal
 from datetime import datetime, timedelta
 from django.utils import timezone
-from django.http import JsonResponse, HttpResponse
-from django.shortcuts import render, redirect
+from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
+from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.db.models import (
     Sum,
@@ -1233,3 +1233,73 @@ def update_kitchen_broadcast(request):
             KitchenBroadcast.objects.create(message=new_message)
 
     return redirect(request.META.get("HTTP_REFERER", "management_dashboard"))
+
+
+@user_passes_test(is_staff)
+def save_menu_item(request, item_id=None):
+    """Handles adding new dishes and editing existing ones."""
+    if request.method == "POST":
+        category_id = request.POST.get("category")
+        category = get_object_or_404(Category, id=category_id)
+
+        if item_id:
+            item = get_object_or_404(MenuItem, id=item_id)
+        else:
+            item = MenuItem()
+
+        item.name = request.POST.get("name")
+        item.category = category
+        item.price = request.POST.get("price")
+        item.description = request.POST.get("description", "")
+        item.preparation_time = request.POST.get("preparation_time", 15)
+        item.spice_level = request.POST.get("spice_level", "neutral")
+        item.veg = request.POST.get("veg") == "true"
+
+        if "image" in request.FILES:
+            item.image = request.FILES["image"]
+
+        item.save()
+    return redirect(f"{reverse('management_dashboard')}?tab=menu")
+
+
+@user_passes_test(is_staff)
+def save_category(request, category_id=None):
+    """Handles adding and renaming menu categories."""
+    if request.method == "POST":
+        if category_id:
+            category = get_object_or_404(Category, id=category_id)
+        else:
+            category = Category()
+
+        category.name = request.POST.get("name")
+        category.save()
+    return redirect(f"{reverse('management_dashboard')}?tab=menu")
+
+
+@user_passes_test(is_staff)
+def unified_delete(request, model_type, object_id):
+    """A single, secure endpoint to delete Menu Items, Categories, or Reviews."""
+    if request.method != "POST":
+        return HttpResponseForbidden("Must use POST to delete.")
+
+    return_tab = "menu"
+
+    try:
+        if model_type == "menu_item":
+            obj = get_object_or_404(MenuItem, id=object_id)
+        elif model_type == "category":
+            obj = get_object_or_404(Category, id=object_id)
+        elif model_type == "review":
+            obj = get_object_or_404(Review, id=object_id)
+            return_tab = "reviews"
+        elif model_type == "order":
+            obj = get_object_or_404(Order, id=object_id)
+            return_tab = "tables"
+        else:
+            return HttpResponseForbidden("Invalid model type.")
+
+        obj.delete()
+    except Exception as e:
+        print(f"Deletion error: {e}")
+
+    return redirect(f"{reverse('management_dashboard')}?tab={return_tab}")

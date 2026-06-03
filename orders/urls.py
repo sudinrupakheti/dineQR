@@ -72,4 +72,9 @@ urlpatterns = [
         views.update_kitchen_broadcast,
         name="update_kitchen_broadcast",
     ),
+    path('management/menu/add/', views.save_menu_item, name='add_menu_item'),
+    path('management/menu/edit/<int:item_id>/', views.save_menu_item, name='edit_menu_item'),
+    path('management/category/add/', views.save_category, name='add_category'),
+    path('management/category/edit/<int:category_id>/', views.save_category, name='edit_category'),
+    path('management/delete/<str:model_type>/<int:object_id>/', views.unified_delete, name='unified_delete'),
 ]
