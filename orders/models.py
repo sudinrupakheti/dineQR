@@ -23,11 +23,15 @@ class MenuItem(models.Model):
     # New operational fields
     veg = models.BooleanField(default=False)
     SPICE_CHOICES = [
+        ("sweet", "Sweet"),
+        ("neutral", "Neutral"),
         ("mild", "Mild"),
         ("medium", "Medium"),
         ("hot", "Hot"),
     ]
-    spice_level = models.CharField(max_length=10, choices=SPICE_CHOICES, default="mild")
+    spice_level = models.CharField(
+        max_length=10, choices=SPICE_CHOICES, default="neutral"
+    )
     preparation_time = models.PositiveIntegerField(default=15)
     is_featured = models.BooleanField(
         default=False, verbose_name="Featured/Recommended"
@@ -136,3 +140,8 @@ class TableSession(models.Model):
 
     def __str__(self):
         return f"Table {self.table_number} - {self.session_token}"
+
+
+class KitchenBroadcast(models.Model):
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now=True)
