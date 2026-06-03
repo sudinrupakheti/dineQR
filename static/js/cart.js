@@ -1,16 +1,21 @@
-// 1. Improved Table Detection: Check URL first, then memory (localStorage)
 function getActiveTable() {
     const urlParams = new URLSearchParams(window.location.search);
     let table = urlParams.get('table');
 
     if (table && table !== "null" && table !== "") {
-        // If found in URL, save it to memory for later
         localStorage.setItem('dineqr_table', table);
-        return table;
+    } else {
+        table = localStorage.getItem('dineqr_table');
     }
 
-    // If not in URL, try to get it from memory
-    return localStorage.getItem('dineqr_table');
+    // FIX: Dynamically adapt the main logo anchor link to keep the table context alive
+    if (table) {
+        const logoLink = document.getElementById('logo-link');
+        if (logoLink) {
+            logoLink.href = `/?table=${table}`;
+        }
+    }
+    return table;
 }
 
 let tableNumber = getActiveTable();
@@ -57,9 +62,24 @@ function saveCart() {
 
 function updateCartUI() {
     const badge = document.getElementById('cart-count');
+    const floatingCartText = document.getElementById('cart-cta-text');
+
     if (badge) {
         const totalItems = Object.values(cart).reduce((sum, item) => sum + item.quantity, 0);
         badge.innerText = totalItems;
+
+        // UX Enhancement: Add pulse animation loops on modification
+        badge.classList.remove('scale-100');
+        badge.classList.add('scale-125', 'bg-orange-500', 'animate-bounce');
+        setTimeout(() => {
+            badge.classList.remove('scale-125', 'animate-bounce');
+            badge.classList.add('scale-100');
+        }, 600);
+    }
+
+    // Explicitly update text instructions near floating action triggers if present
+    if (floatingCartText) {
+        floatingCartText.innerText = "View Your Order/Cart";
     }
 }
 
