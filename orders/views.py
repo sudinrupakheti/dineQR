@@ -1163,6 +1163,54 @@ def get_contextual_recommendations(current_cart_item_ids=None):
     return recommended_items
 
 
+def generate_split_qr_api(request):
+    table_num = request.GET.get("table")
+    amount = request.GET.get("amount", "0.00")
+
+    active_orders = Order.objects.filter(table_number=table_num).exclude(
+        status="completed"
+    )
+    first_order = active_orders.first()
+    order_id = first_order.id if first_order else "000"
+    local_time = timezone.localtime(timezone.now()).strftime("%Y-%m-%d %I:%M %p")
+
+    # Generate QR targeting the specific split portion amount
+    qr_base64 = generate_bill_qr(
+        {
+            "amount": f"{float(amount):,.2f}",
+            "order_id": order_id,
+            "table_number": table_num,
+            "timestamp": local_time,
+        }
+    )
+    return JsonResponse({"qr_code": qr_base64})
+
+
+@user_passes_test(is_staff)
+def serve_table_qr(request, table_num):
+    # 1. Dynamic Local IP detection matching your root domain routing path
+    host_address = request.build_absolute_uri("/")
+    target_url = f"{host_address}?table={table_num}"
+
+    # 2. Configure High Error Correction (Handles restaurant wear-and-tear)
+    qr = qrcode.QRCode(
+        version=1,
+        error_correction=qrcode.constants.ERROR_CORRECT_H,
+        box_size=10,
+        border=4,
+    )
+    qr.add_data(target_url)
+    qr.make(fit=True)
+
+    # 3. Draw image and stream directly from RAM memory
+    img = qr.make_image(fill_color="#000000", back_color="#ffffff")
+
+    buffer = io.BytesIO()
+    img.save(buffer, format="PNG")
+    buffer.seek(0)
+
+    return HttpResponse(buffer.getvalue(), content_type="image/png")
+
 
 @user_passes_test(is_staff)
 def update_kitchen_broadcast(request):
