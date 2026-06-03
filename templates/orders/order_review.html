@@ -1,0 +1,74 @@
+{% extends 'orders/base.html' %}
+
+{% block content %}
+<div class="max-w-xl mx-auto py-6 pb-16">
+
+    <div class="text-center mb-8">
+        <div class="w-12 h-12 bg-gray-50 border border-gray-200 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-sm">
+            <i data-lucide="star" class="w-5 h-5 text-gray-900 fill-gray-950"></i>
+        </div>
+        <h1 class="text-2xl font-serif font-bold text-gray-900 tracking-tight">Review Your Meal</h1>
+        <p class="text-xs text-gray-400 font-medium mt-0.5">Table {{ order.table_number }}</p>
+    </div>
+
+    <form method="POST" id="review-form" class="space-y-4">
+        {% csrf_token %}
+
+        {% for item in order.items.all %}
+        <div class="bg-white rounded-xl p-5 border border-gray-200/80 shadow-sm space-y-4">
+            <h3 class="font-serif font-bold text-sm text-gray-900 text-center uppercase tracking-wide border-b border-gray-50 pb-2">{{ item.menu_item.name }}</h3>
+
+            <div class="flex justify-center gap-2 flex-row-reverse" id="star-group-{{ item.id }}">
+                <input type="radio" name="rating_{{ item.id }}" id="star5_{{ item.id }}" value="5" class="hidden peer" required>
+                <label for="star5_{{ item.id }}" class="cursor-pointer text-gray-200 hover:text-gray-900 peer-checked:text-gray-900 transition-colors">
+                    <i data-lucide="star" class="w-6 h-6 fill-current"></i>
+                </label>
+
+                <input type="radio" name="rating_{{ item.id }}" id="star4_{{ item.id }}" value="4" class="hidden peer">
+                <label for="star4_{{ item.id }}" class="cursor-pointer text-gray-200 hover:text-gray-900 peer-checked:text-gray-900 transition-colors">
+                    <i data-lucide="star" class="w-6 h-6 fill-current"></i>
+                </label>
+
+                <input type="radio" name="rating_{{ item.id }}" id="star3_{{ item.id }}" value="3" class="hidden peer">
+                <label for="star3_{{ item.id }}" class="cursor-pointer text-gray-200 hover:text-gray-900 peer-checked:text-gray-900 transition-colors">
+                    <i data-lucide="star" class="w-6 h-6 fill-current"></i>
+                </label>
+
+                <input type="radio" name="rating_{{ item.id }}" id="star2_{{ item.id }}" value="2" class="hidden peer">
+                <label for="star2_{{ item.id }}" class="cursor-pointer text-gray-200 hover:text-gray-900 peer-checked:text-gray-900 transition-colors">
+                    <i data-lucide="star" class="w-6 h-6 fill-current"></i>
+                </label>
+
+                <input type="radio" name="rating_{{ item.id }}" id="star1_{{ item.id }}" value="1" class="hidden peer">
+                <label for="star1_{{ item.id }}" class="cursor-pointer text-gray-200 hover:text-gray-900 peer-checked:text-gray-900 transition-colors">
+                    <i data-lucide="star" class="w-6 h-6 fill-current"></i>
+                </label>
+            </div>
+
+            <textarea
+                name="comment_{{ item.id }}"
+                placeholder="Leave a comment (optional)..."
+                class="w-full p-3 bg-gray-50 border border-gray-100 rounded-lg text-xs focus:bg-white outline-none transition-all resize-none h-20 font-normal placeholder:text-gray-300"
+            ></textarea>
+        </div>
+        {% endfor %}
+
+        <div class="pt-2">
+            <button type="submit" class="w-full bg-gray-900 text-white font-bold py-3.5 rounded-xl text-xs uppercase tracking-widest hover:bg-gray-800 transition-all shadow-md flex items-center justify-center gap-1.5">
+                Submit Review <i data-lucide="check-circle" class="w-4 h-4"></i>
+            </button>
+        </div>
+    </form>
+</div>
+
+<style>
+    #review-form label:hover ~ label { color: #111827; }
+    #review-form input:checked ~ label { color: #111827; }
+</style>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        lucide.createIcons();
+    });
+</script>
+{% endblock %}

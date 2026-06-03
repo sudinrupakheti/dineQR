@@ -75,15 +75,6 @@
                 <p class="text-[10px] font-black text-gray-400 uppercase mb-1 tracking-widest">Busy Tables</p>
                 <p class="text-xl font-black text-gray-900">{{ busy_tables_count|default:"0" }}/10</p>
             </div>
-
-            <a href="?tab=tables" class="group bg-orange-600 p-5 rounded-[2rem] shadow-lg shadow-orange-100 flex items-center justify-between transition-all hover:scale-[1.02]">
-                <span class="text-white font-black text-sm uppercase">Operations</span>
-                <i data-lucide="layout-grid" class="text-white w-5 h-5 group-hover:translate-x-1 transition-transform"></i>
-            </a>
-            <a href="?tab=insights" class="group bg-gray-900 p-5 rounded-[2rem] shadow-lg shadow-gray-200 flex items-center justify-between transition-all hover:scale-[1.02]">
-                <span class="text-white font-black text-sm uppercase">Insights</span>
-                <i data-lucide="trending-up" class="text-white w-5 h-5 group-hover:rotate-12 transition-transform"></i>
-            </a>
         </div>
 
         <!-- 3. TAB NAVIGATION -->
@@ -156,6 +147,19 @@
                 {% endfor %}
             </div>
 
+            <!-- MANAGER BROADCAST INPUT -->
+            <div class="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm mb-6">
+                <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Kitchen Broadcast</h3>
+                <form action="{% url 'update_kitchen_broadcast' %}" method="POST" class="flex gap-2">
+                    {% csrf_token %}
+                    <input type="text" name="message" placeholder="Type a message to the kitchen"
+                        class="flex-grow px-4 py-2 text-sm rounded-xl border border-gray-100 focus:ring-2 focus:ring-orange-500 outline-none font-medium">
+                    <button type="submit" class="bg-gray-900 hover:bg-orange-600 text-white text-xs font-black uppercase tracking-wider px-5 py-2 rounded-xl transition-all shadow-sm">
+                        Send
+                    </button>
+                </form>
+            </div>
+
         {% elif current_tab == 'menu' %}
             <!-- MENU MANAGEMENT -->
             <div class="max-w-4xl mx-auto animate-in fade-in duration-500">
@@ -215,120 +219,244 @@
 
         {% elif current_tab == 'insights' %}
             <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-            <div class="space-y-8 animate-in fade-in duration-500">
 
-                <div class="bg-white p-6 md:p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
-                    <div class="flex justify-between items-center mb-6">
-                        <div>
-                            <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Time-Series Density</h3>
-                            <p class="text-lg font-black text-gray-900">Peak Ordering Hours (Last 7 Days)</p>
-                        </div>
-                        <div class="bg-orange-100 text-orange-600 p-2 rounded-lg"><i data-lucide="clock" class="w-4 h-4"></i></div>
+            <style>
+                @media print {
+                    nav, form, button, main > *:not(#insights-workspace), #charts-panel, .print\:hidden {
+                        display: none !important;
+                    }
+                    body, main, #insights-workspace {
+                        background: transparent !important;
+                        padding: 0 !important;
+                        margin: 0 !important;
+                        box-shadow: none !important;
+                    }
+                    #z-report-receipt-container { width: 100% !important; max-width: 100% !important; padding: 0 !important; }
+                    #z-report-receipt {
+                        border: none !important; box-shadow: none !important; padding: 0 !important; margin: 0 auto !important;
+                        background: white !important; color: #000000 !important; max-width: 3in;
+                    }
+                }
+            </style>
+
+            <div id="insights-workspace" class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start animate-in fade-in duration-500">
+
+                <div id="z-report-receipt-container" class="lg:col-span-1 space-y-4">
+
+                    <div class="bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm print:hidden">
+                        <h3 class="text-xs font-black tracking-widest text-gray-400 uppercase mb-1">Live Synchronization</h3>
+                        <p class="text-[10px] font-bold text-gray-400 uppercase mb-4">Calculated from 12:00 AM to current system time.</p>
+
+                        <button onclick="window.location.reload()" class="w-full py-3.5 bg-orange-600 hover:bg-orange-700 text-white font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-sm flex items-center justify-center gap-2">
+                            <i data-lucide="refresh-cw" class="w-4 h-4"></i> Refresh Today's Ledger
+                        </button>
                     </div>
-                    <canvas id="hourlyChart" height="100"></canvas>
+
+                    <div id="z-report-receipt" class="bg-white text-gray-900 rounded-[2.5rem] p-6 shadow-sm border border-gray-100 font-mono relative overflow-hidden">
+                        <div class="text-center border-b border-dashed border-gray-200 pb-4 mb-4">
+                            <h4 class="text-sm font-black tracking-widest uppercase text-gray-900">TODAY'S LIVE LEDGER</h4>
+                            <p class="text-[9px] text-gray-400 mt-0.5 uppercase tracking-wider">Real-Time Shift Analytics</p>
+                            <p class="text-[10px] text-orange-600 font-black mt-2 bg-orange-50 inline-block px-3 py-1 rounded-lg uppercase tracking-wide">
+                                Active Shift
+                            </p>
+                        </div>
+
+                        <div class="space-y-3 text-xs border-b border-dashed border-gray-200 pb-4 mb-4">
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-400 uppercase text-[10px] font-bold tracking-wider">Gross Income:</span>
+                                <span class="font-black text-gray-900 text-sm">Rs. {{ z_gross_sales|default:"0" }}</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-400 uppercase text-[10px] font-bold tracking-wider">Settled Orders:</span>
+                                <span class="text-gray-900 font-black">{{ z_ticket_count|default:"0" }} Slips</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-400 uppercase text-[10px] font-bold tracking-wider">Avg Ticket Size:</span>
+                                <span class="text-gray-900 font-black">Rs. {{ z_avg_ticket|default:"0" }}</span>
+                            </div>
+                            <div class="flex justify-between items-center">
+                                <span class="text-gray-400 uppercase text-[10px] font-bold tracking-wider">Voids/Canceled:</span>
+                                <span class="font-black {% if z_canceled_count > 0 %}text-red-600{% else %}text-gray-900{% endif %}">
+                                    {{ z_canceled_count|default:"0" }} Orders
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="text-center text-[9px] text-gray-400 uppercase tracking-widest">
+                            Sync Point: {% now "H:i:s" %}
+                        </div>
+                    </div>
+
+                    <button onclick="window.print()" class="w-full py-4 bg-gray-900 hover:bg-orange-600 text-white font-black text-xs uppercase tracking-widest rounded-2xl transition-all shadow-sm flex items-center justify-center gap-2 print:hidden">
+                        <i data-lucide="printer" class="w-4 h-4"></i> Print Receipt Voucher
+                    </button>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div id="charts-panel" class="lg:col-span-2 space-y-8 print:hidden">
 
-                    <div class="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex flex-col justify-between">
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Product Performance</h3>
-                            <div class="bg-orange-100 text-orange-600 p-2 rounded-lg"><i data-lucide="bar-chart-2" class="w-4 h-4"></i></div>
-                        </div>
-                        <canvas id="topItemsChart" height="200"></canvas>
-                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
 
-                    <div class="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex flex-col justify-between">
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Dietary Shares</h3>
-                            <div class="bg-green-100 text-green-600 p-2 rounded-lg"><i data-lucide="leaf" class="w-4 h-4"></i></div>
-                        </div>
-                        <div class="max-w-[180px] mx-auto w-full">
-                            <canvas id="dietShareChart" height="180"></canvas>
-                        </div>
-                    </div>
-
-                    <div class="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex flex-col justify-between">
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">NLP Sentiment Distribution</h3>
-                            <div class="bg-blue-100 text-blue-600 p-2 rounded-lg"><i data-lucide="smile" class="w-4 h-4"></i></div>
-                        </div>
-
-                        <div class="space-y-3 my-auto">
+                        <div class="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex items-center gap-4">
+                            <div class="bg-blue-50 text-blue-600 p-4 rounded-2xl"><i data-lucide="timer" class="w-6 h-6"></i></div>
                             <div>
-                                <div class="flex justify-between text-xs font-bold mb-1">
-                                    <span class="text-green-600 uppercase">Positive Sentiment</span>
-                                    <span>{{ insights.sentiment_ratios.positive }}%</span>
-                                </div>
-                                <div class="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
-                                    <div class="bg-green-500 h-full" style="width: {{ insights.sentiment_ratios.positive }}%"></div>
-                                </div>
-                            </div>
-                            <div>
-                                <div class="flex justify-between text-xs font-bold mb-1">
-                                    <span class="text-gray-500 uppercase">Neutral Sentiment</span>
-                                    <span>{{ insights.sentiment_ratios.neutral }}%</span>
-                                </div>
-                                <div class="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
-                                    <div class="bg-gray-400 h-full" style="width: {{ insights.sentiment_ratios.neutral }}%"></div>
-                                </div>
-                            </div>
-                            <div>
-                                <div class="flex justify-between text-xs font-bold mb-1">
-                                    <span class="text-red-600 uppercase">Negative Sentiment</span>
-                                    <span>{{ insights.sentiment_ratios.negative }}%</span>
-                                </div>
-                                <div class="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
-                                    <div class="bg-red-500 h-full" style="width: {{ insights.sentiment_ratios.negative }}%"></div>
-                                </div>
+                                <h4 class="text-xs font-black text-gray-400 uppercase tracking-wider">Turnaround Speed</h4>
+                                <p class="text-xl font-black text-gray-900">{{ insights.avg_turnaround_mins }} <span class="text-xs font-normal text-gray-500">Mins/Table</span></p>
                             </div>
                         </div>
 
-                        <p class="text-[10px] text-gray-400 text-center font-bold mt-2">Real-time inference classification totals</p>
-                    </div>
-                </div>
+                        <div class="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex items-center gap-4">
+                            <div class="bg-rose-50 text-rose-600 p-4 rounded-2xl"><i data-lucide="shield-alert" class="w-6 h-6"></i></div>
+                            <div>
+                                <h4 class="text-xs font-black text-gray-400 uppercase tracking-wider">Revenue Bleed</h4>
+                                <p class="text-xl font-black text-rose-600">Rs. {{ insights.lost_revenue }}</p>
+                                <p class="text-[10px] font-bold text-gray-400 uppercase mt-0.5">{{ insights.lost_tickets_count }} Total Cancelations</p>
+                            </div>
+                        </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <div class="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex items-center gap-4">
+                            <div class="bg-amber-50 text-amber-600 p-4 rounded-2xl"><i data-lucide="star" class="w-6 h-6"></i></div>
+                            <div>
+                                <h4 class="text-xs font-black text-gray-400 uppercase tracking-wider">Avg Stars Index</h4>
+                                <p class="text-xl font-black text-gray-900">{{ insights.avg_rating }} <span class="text-xs text-gray-400">/ 5.0</span></p>
+                            </div>
+                        </div>
+                    </div>
 
                     <div class="bg-white p-6 md:p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
-                        <div class="flex justify-between items-center mb-4">
+                        <div class="flex justify-between items-center mb-6">
                             <div>
-                                <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Association Mining</h3>
-                                <p class="text-md font-black text-gray-900">Market Basket Companion Items</p>
+                                <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Time-Series Density</h3>
+                                <p class="text-lg font-black text-gray-900">Peak Ordering Hours (Last 7 Days)</p>
                             </div>
-                            <div class="bg-purple-100 text-purple-600 p-2 rounded-lg"><i data-lucide="blocks" class="w-4 h-4"></i></div>
+                            <div class="bg-orange-100 text-orange-600 p-2 rounded-lg"><i data-lucide="clock" class="w-4 h-4"></i></div>
                         </div>
-                        <div class="divide-y divide-gray-50">
-                            {% for cluster in insights.frequent_pairs %}
-                            <div class="py-3 flex items-center justify-between">
-                                <div class="flex items-center gap-2 text-sm font-bold text-gray-800">
-                                    <span class="bg-gray-100 px-2 py-1 rounded-lg text-gray-700 text-xs">{{ cluster.item_a }}</span>
-                                    <span class="text-gray-400">&</span>
-                                    <span class="bg-gray-100 px-2 py-1 rounded-lg text-gray-700 text-xs">{{ cluster.item_b }}</span>
+                        <canvas id="hourlyChart" height="100"></canvas>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                        <div class="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex flex-col justify-between">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Category Volume</h3>
+                                <div class="bg-indigo-100 text-indigo-600 p-2 rounded-lg"><i data-lucide="layers" class="w-4 h-4"></i></div>
+                            </div>
+                            <div class="space-y-3 my-auto">
+                                {% for cat in insights.category_shares %}
+                                <div>
+                                    <div class="flex justify-between text-xs font-bold mb-1">
+                                        <span class="text-gray-700 truncate max-w-[100px] inline-block">{{ cat.menu_item__category__name }}</span>
+                                        <span class="text-gray-900 font-black">{{ cat.total_qty }} units</span>
+                                    </div>
                                 </div>
-                                <div class="text-right">
-                                    <span class="text-xs font-black text-purple-600 bg-purple-50 px-2.5 py-1 rounded-full uppercase tracking-wider">
-                                        Support Count: {{ cluster.support_count }}
+                                {% empty %}
+                                <p class="text-xs text-gray-400 font-bold">No data available.</p>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex flex-col justify-between">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Dietary Shares</h3>
+                                <div class="bg-green-100 text-green-600 p-2 rounded-lg"><i data-lucide="leaf" class="w-4 h-4"></i></div>
+                            </div>
+                            <div class="max-w-[180px] mx-auto w-full">
+                                <canvas id="dietShareChart" height="180"></canvas>
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm flex flex-col justify-between">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">NLP Sentiments</h3>
+                                <div class="bg-blue-100 text-blue-600 p-2 rounded-lg"><i data-lucide="smile" class="w-4 h-4"></i></div>
+                            </div>
+
+                            <div class="space-y-3 my-auto">
+                                <div>
+                                    <div class="flex justify-between text-xs font-bold mb-1">
+                                        <span class="text-green-600 uppercase text-[10px]">Positive</span>
+                                        <span>{{ insights.sentiment_ratios.positive }}%</span>
+                                    </div>
+                                    <div class="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                                        <div class="bg-green-500 h-full" style="width: {{ insights.sentiment_ratios.positive }}%"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-xs font-bold mb-1">
+                                        <span class="text-gray-500 uppercase text-[10px]">Neutral</span>
+                                        <span>{{ insights.sentiment_ratios.neutral }}%</span>
+                                    </div>
+                                    <div class="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                                        <div class="bg-gray-400 h-full" style="width: {{ insights.sentiment_ratios.neutral }}%"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="flex justify-between text-xs font-bold mb-1">
+                                        <span class="text-red-600 uppercase text-[10px]">Negative</span>
+                                        <span>{{ insights.sentiment_ratios.negative }}%</span>
+                                    </div>
+                                    <div class="w-full bg-gray-100 h-1.5 rounded-full overflow-hidden">
+                                        <div class="bg-red-500 h-full" style="width: {{ insights.sentiment_ratios.negative }}%"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                        <div class="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm lg:col-span-1">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Co-occurrence</h3>
+                                <div class="bg-purple-100 text-purple-600 p-2 rounded-lg"><i data-lucide="blocks" class="w-4 h-4"></i></div>
+                            </div>
+                            <div class="divide-y divide-gray-50 text-xs">
+                                {% for cluster in insights.frequent_pairs %}
+                                <div class="py-2.5 flex items-center justify-between">
+                                    <span class="font-bold text-gray-800">{{ cluster.item_a }} + {{ cluster.item_b }}</span>
+                                    <span class="text-purple-600 font-black bg-purple-50 px-2 py-0.5 rounded-md">x{{ cluster.support_count }}</span>
+                                </div>
+                                {% empty %}
+                                <p class="text-xs text-gray-400 font-bold py-2">No pairings tracked.</p>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm lg:col-span-1">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Zone Performance</h3>
+                                <div class="bg-emerald-100 text-emerald-600 p-2 rounded-lg"><i data-lucide="armchair" class="w-4 h-4"></i></div>
+                            </div>
+                            <div class="divide-y divide-gray-50 text-xs">
+                                {% for tab_rev in insights.table_revenue|slice:":4" %}
+                                <div class="py-2.5 flex items-center justify-between">
+                                    <span class="font-bold text-gray-800">Table #{{ tab_rev.table_number }}</span>
+                                    <span class="text-emerald-600 font-black">Rs. {{ tab_rev.total_earned }}</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <div class="bg-white p-6 rounded-[2.5rem] border border-orange-200 bg-orange-50/30 shadow-sm lg:col-span-1">
+                            <div class="flex justify-between items-center mb-4">
+                                <h3 class="text-xs font-black text-orange-700 uppercase tracking-widest">Recipe Risk Matrix</h3>
+                                <div class="bg-orange-100 text-orange-700 p-2 rounded-lg"><i data-lucide="frown" class="w-4 h-4"></i></div>
+                            </div>
+                            <p class="text-[10px] font-bold text-gray-500 mb-2 uppercase">Items tied to negative reviews:</p>
+                            <div class="space-y-2 text-xs">
+                                {% for toxic in insights.toxic_dishes %}
+                                <div class="bg-white border border-orange-100 p-2 rounded-xl flex justify-between items-center">
+                                    <span class="font-bold text-gray-800 truncate max-w-[120px]">{{ toxic.menu_item__name }}</span>
+                                    <span class="bg-red-50 text-red-600 font-black px-2 py-0.5 rounded text-[10px]">
+                                        {{ toxic.complaint_weight }} Flags
                                     </span>
                                 </div>
+                                {% empty %}
+                                <p class="text-xs text-green-700 font-bold py-2"><i data-lucide="shield-check" class="w-4 h-4 inline mr-1"></i>0 items flagged.</p>
+                                {% endfor %}
                             </div>
-                            {% empty %}
-                            <p class="text-sm text-gray-400 font-bold py-4">Awaiting transaction co-occurrence intersections...</p>
-                            {% endfor %}
                         </div>
-                    </div>
 
-                    <div class="bg-white p-6 md:p-8 rounded-[2.5rem] border border-gray-100 shadow-sm flex flex-col justify-between">
-                        <div class="flex justify-between items-center mb-4">
-                            <div>
-                                <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Operational Latency</h3>
-                                <p class="text-md font-black text-gray-900">Waiter Call Hot-Spots & Alerts</p>
-                            </div>
-                            <div class="bg-rose-100 text-rose-600 p-2 rounded-lg"><i data-lucide="alert-triangle" class="w-4 h-4"></i></div>
-                        </div>
-                        <canvas id="waiterTelemetryChart" height="140"></canvas>
                     </div>
-
                 </div>
             </div>
         {% elif current_tab == 'reviews' %}

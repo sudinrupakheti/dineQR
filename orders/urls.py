@@ -67,4 +67,9 @@ urlpatterns = [
         views.serve_table_qr,
         name="serve_table_qr",
     ),
+    path(
+        "management/broadcast/update/",
+        views.update_kitchen_broadcast,
+        name="update_kitchen_broadcast",
+    ),
 ]

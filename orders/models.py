@@ -140,3 +140,8 @@ class TableSession(models.Model):
 
     def __str__(self):
         return f"Table {self.table_number} - {self.session_token}"
+
+
+class KitchenBroadcast(models.Model):
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now=True)

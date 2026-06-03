@@ -4,62 +4,63 @@
 
 {% block content %}
 
-<!-- Search Bar -->
-<div class="max-w-2xl mx-auto px-4 mb-4 mt-2">
-    <h1 class="text-2xl font-black text-gray-900 tracking-tight">{{ greeting }}</h1>
-    <p class="text-xs text-gray-500 font-medium">Welcome to Table {{ request.GET.table|default:"Ready" }} • Scan, Order & Enjoy</p>
+<!-- Header and Greetings (Scales dynamically) -->
+<div class="max-w-2xl md:max-w-5xl lg:max-w-7xl mx-auto px-4 mb-4 mt-2">
+    <h1 class="text-2xl font-serif font-bold text-gray-900 tracking-tight">{{ greeting }}</h1>
+    <p class="text-xs text-gray-400 font-medium mt-0.5">Welcon to Table {{ request.GET.table|default:"Ready" }}</p>
 </div>
 
-<div class="mb-6 max-w-2xl mx-auto px-2">
+<!-- Search Bar Section -->
+<div class="mb-6 max-w-2xl md:max-w-5xl lg:max-w-7xl mx-auto px-4">
     <form action="." method="GET" class="relative group">
         {% if request.GET.table %}
             <input type="hidden" name="table" value="{{ request.GET.table }}">
         {% endif %}
 
         <input type="text" name="search" value="{{ query|default:'' }}"
-               placeholder="Search 'spicy chicken' or 'veg'..."
-               class="w-full pl-14 pr-4 py-4 rounded-3xl border-none shadow-xl ring-1 ring-gray-100 focus:ring-2 focus:ring-orange-500 outline-none text-lg transition-all">
-        <i data-lucide="search" class="absolute left-5 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-orange-600 transition-colors"></i>
+               placeholder="Search menu items..."
+               class="w-full pl-12 pr-4 py-3.5 rounded-xl border border-gray-200 shadow-sm focus:border-gray-900 focus:ring-1 focus:ring-gray-900 outline-none text-sm transition-all placeholder:text-gray-300">
+        <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-gray-900 transition-colors"></i>
 
         {% if query %}
-            <a href="?table={{ request.GET.table }}" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs font-bold bg-gray-100 px-2 py-1 rounded-lg uppercase">Clear</a>
+            <a href="?table={{ request.GET.table }}" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-900 text-[10px] font-bold bg-gray-50 border border-gray-200 px-2 py-1 rounded-md uppercase tracking-wider">Clear</a>
         {% endif %}
     </form>
 </div>
 
-<div class="flex gap-2 overflow-x-auto no-scrollbar pb-4 max-w-2xl mx-auto px-2 mb-4">
+<!-- Fast Filters -->
+<div class="flex gap-2 overflow-x-auto no-scrollbar pb-2 max-w-2xl md:max-w-5xl lg:max-w-7xl mx-auto px-4 mb-4">
     <a href="?search=veg{% if request.GET.table %}&table={{ request.GET.table }}{% endif %}"
-       class="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-xs font-black border transition-all whitespace-nowrap {% if query == 'veg' %}bg-green-600 border-green-600 text-white shadow-md shadow-green-200{% else %}bg-white border-gray-200 text-gray-700 hover:bg-gray-50 shadow-sm{% endif %}">
-        🥬 Pure Veg
+       class="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border transition-all whitespace-nowrap {% if query == 'veg' %}bg-gray-950 border-gray-950 text-white shadow-sm{% else %}bg-white border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50 shadow-sm{% endif %}">
+        🥬 Vegetarian
     </a>
 
     <a href="?search=spicy{% if request.GET.table %}&table={{ request.GET.table }}{% endif %}"
-       class="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-xs font-black border transition-all whitespace-nowrap {% if query == 'spicy' %}bg-red-600 border-red-600 text-white shadow-md shadow-red-200{% else %}bg-white border-gray-200 text-gray-700 hover:bg-gray-50 shadow-sm{% endif %}">
+       class="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border transition-all whitespace-nowrap {% if query == 'spicy' %}bg-gray-950 border-gray-950 text-white shadow-sm{% else %}bg-white border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50 shadow-sm{% endif %}">
         🔥 Spicy Hits
     </a>
 
     <a href="?search=quick{% if request.GET.table %}&table={{ request.GET.table }}{% endif %}"
-       class="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl text-xs font-black border transition-all whitespace-nowrap {% if query == 'quick' %}bg-blue-600 border-blue-600 text-white shadow-md shadow-blue-200{% else %}bg-white border-gray-200 text-gray-700 hover:bg-gray-50 shadow-sm{% endif %}">
+       class="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border transition-all whitespace-nowrap {% if query == 'quick' %}bg-gray-950 border-gray-950 text-white shadow-sm{% else %}bg-white border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50 shadow-sm{% endif %}">
         ⚡ Express Menu
     </a>
-
 </div>
+
 {% if zero_results %}
-    <div class="text-center py-12 max-w-md mx-auto px-4 bg-orange-50/50 rounded-3xl border border-dashed border-orange-200 my-6">
-        <div class="bg-orange-100 text-orange-600 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-4">
-            <i data-lucide="search-code" class="w-6 h-6"></i>
+    <div class="text-center py-12 max-w-md mx-auto px-4 bg-gray-50 rounded-2xl border border-gray-200 my-6">
+        <div class="bg-white border border-gray-200 text-gray-400 w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-sm">
+            <i data-lucide="search-code" class="w-4 h-4"></i>
         </div>
-        <h3 class="text-lg font-black text-gray-900 mb-1">No exact matches found</h3>
-        <p class="text-sm text-gray-500 mb-4">We couldn't quite find "{{ query }}", but check out these popular choices!</p>
+        <h3 class="text-sm font-serif font-bold text-gray-900 mb-0.5">No matching dishes</h3>
+        <p class="text-xs text-gray-400">We couldn't find matches for "{{ query }}", but browse our house favorites below.</p>
     </div>
 {% endif %}
 
-
-<!-- Sticky Category Bar -->
-<div class="sticky top-16 z-30 bg-gray-50/95 backdrop-blur-md py-3 -mx-4 px-4 mb-8 border-b border-gray-100">
-    <div class="flex gap-3 overflow-x-auto no-scrollbar scroll-smooth">
+<!-- Sticky Category Bar with dynamic gradient scroll hint cue -->
+<div class="sticky top-16 z-30 bg-white/95 backdrop-blur-md py-3 -mx-4 px-4 mb-6 border-b border-gray-100 after:absolute after:right-0 after:top-0 after:h-full after:w-12 after:bg-gradient-to-l after:from-white after:to-transparent after:pointer-events-none">
+    <div class="flex gap-2 overflow-x-auto no-scrollbar scroll-smooth max-w-2xl md:max-w-5xl lg:max-w-7xl mx-auto pr-8">
         {% for category in categories %}
-            <a href="#cat-{{ category.id }}" class="px-5 py-2.5 bg-white border border-gray-200 rounded-2xl text-sm font-bold text-gray-600 whitespace-nowrap shadow-sm hover:bg-gray-900 hover:text-white transition-colors">
+            <a href="#cat-{{ category.id }}" class="px-4 py-2 bg-gray-50 border border-gray-200/60 rounded-xl text-xs font-bold text-gray-500 whitespace-nowrap hover:bg-gray-950 hover:border-gray-950 hover:text-white transition-all shadow-sm">
                 {{ category.name }}
             </a>
         {% endfor %}
@@ -67,17 +68,18 @@
 </div>
 
 {% if recommended_items %}
-<div class="mb-10 animate-in fade-in duration-500">
+<!-- Recommended Slider Container -->
+<div class="mb-10 animate-in fade-in duration-500 max-w-2xl md:max-w-5xl lg:max-w-7xl mx-auto px-4">
     <div class="flex justify-between items-end mb-4">
-        <h2 class="text-lg font-black text-gray-900 uppercase tracking-widest flex items-center gap-2">
-            <i data-lucide="sparkles" class="w-5 h-5 text-orange-500"></i> Recommended for You
+        <h2 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-gray-900"></i> Recommended
         </h2>
-        <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Based on your table</span>
+        <span class="text-[9px] font-medium text-gray-400 uppercase tracking-widest">Table Selections</span>
     </div>
 
-    <div class="flex gap-4 overflow-x-auto no-scrollbar pb-4 -mx-4 px-4 snap-x">
+    <div class="flex gap-4 overflow-x-auto no-scrollbar pb-3 -mx-2 px-2 snap-x">
         {% for item in recommended_items %}
-        <div class="snap-start shrink-0 w-64 bg-gray-900 rounded-[2rem] p-3 shadow-lg relative overflow-hidden group cursor-pointer"
+        <div class="snap-start shrink-0 w-60 bg-gray-950 rounded-2xl p-3 shadow-md relative overflow-hidden group cursor-pointer flex flex-col justify-between"
              onclick="openItemModal(this)"
              data-id="{{ item.id }}"
              data-name="{{ item.name|escapejs }}"
@@ -91,28 +93,31 @@
              data-companion-name="{{ item.frequent_companion.name }}"
              data-companion-price="{{ item.frequent_companion.price|default:0 }}">
 
-            <div class="absolute top-0 right-0 bg-orange-600 text-white text-[9px] font-black px-3 py-1 rounded-bl-xl rounded-tr-[2rem] z-10 shadow-md">
-                RECOMMENDED
+            <div class="absolute top-0 right-0 bg-white border-b border-l border-gray-800 text-gray-900 text-[8px] font-extrabold px-2 py-0.5 rounded-bl-lg tracking-widest uppercase z-10">
+                House Pick
             </div>
 
-            <div class="flex gap-3 h-full items-center">
-                <div class="w-20 h-20 rounded-xl overflow-hidden bg-gray-800 flex-shrink-0">
+            <div class="flex gap-3 items-center">
+                <div class="w-16 h-16 rounded-xl overflow-hidden bg-gray-900 border border-gray-800 flex-shrink-0">
                     {% if item.image %}
-                        <img src="{{ item.image.url }}" class="w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity">
+                        <img src="{{ item.image.url }}" class="w-full h-full object-cover opacity-85 group-hover:opacity-100 transition-opacity">
                     {% else %}
-                        <div class="w-full h-full flex items-center justify-center text-gray-600">
-                            <i data-lucide="image" class="w-6 h-6"></i>
+                        <div class="w-full h-full flex items-center justify-center text-gray-700">
+                            <i data-lucide="image" class="w-4 h-4"></i>
                         </div>
                     {% endif %}
                 </div>
 
-                <div class="flex flex-col justify-center pr-2">
-                    <h3 class="text-sm font-black text-white leading-tight mb-1 truncate w-32">{{ item.name }}</h3>
-                    <p class="text-orange-400 text-xs font-black">Rs. {{ item.price|intcomma }}</p>
-                    <button class="mt-2 w-8 h-8 rounded-full bg-white/10 text-white flex items-center justify-center group-hover:bg-orange-500 transition-colors">
-                        <i data-lucide="plus" class="w-4 h-4"></i>
-                    </button>
+                <div class="min-w-0 flex-1">
+                    <h3 class="text-xs font-bold text-white leading-snug truncate mb-0.5">{{ item.name }}</h3>
+                    <p class="text-gray-400 font-serif text-xs font-bold">Rs. {{ item.price|floatformat:0|intcomma }}</p>
                 </div>
+            </div>
+
+            <div class="flex justify-end mt-2">
+                <button class="w-7 h-7 rounded-lg bg-white/10 text-white flex items-center justify-center hover:bg-white hover:text-gray-950 transition-all active:scale-95">
+                    <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+                </button>
             </div>
         </div>
         {% endfor %}
@@ -120,20 +125,21 @@
 </div>
 {% endif %}
 
-<!-- Menu Sections -->
-<div class="space-y-12">
+<!-- Main Menu Segment Grid (Updated with Scaling Responsive Grid Track Boundaries) -->
+<div class="space-y-10 max-w-2xl md:max-w-5xl lg:max-w-7xl mx-auto px-4">
     {% for category in categories %}
-    <section id="cat-{{ category.id }}" class="scroll-mt-36">
-        <h2 class="text-xl font-black text-gray-900 mb-6 uppercase tracking-widest flex items-center gap-3">
-            <span class="w-1.5 h-6 bg-orange-600 rounded-full"></span>
-            {{ category.name }}
-        </h2>
+    <section id="cat-{{ category.id }}" class="scroll-mt-32">
+        <div class="flex items-center gap-3 mb-5">
+            <h2 class="text-sm font-serif font-bold text-gray-900 uppercase tracking-wider">
+                {{ category.name }}
+            </h2>
+            <div class="flex-grow h-px bg-gray-100"></div>
+        </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
             {% for item in items %}
                 {% if item.category_id == category.id %}
 
-                <!-- CARD CONTAINER -->
                 <div id="food-card-{{ item.id }}"
                     data-id="{{ item.id }}"
                     data-name="{{ item.name|escapejs }}"
@@ -147,88 +153,84 @@
                     data-companion-name="{{ item.frequent_companion.name }}"
                     data-companion-price="{{ item.frequent_companion.price|default:0 }}"
                     onclick="openItemModal(this)"
-                    class="food-card bg-white rounded-[2.5rem] p-4 shadow-sm border border-gray-100 transition-all flex flex-col group
-                    {% if not item.is_available %} grayscale opacity-60 pointer-events-none {% else %} hover:shadow-xl hover:scale-[1.01] cursor-pointer {% endif %}">
+                    class="food-card bg-white rounded-2xl p-4 border border-gray-200/80 shadow-sm transition-all flex flex-col justify-between group
+                    {% if not item.is_available %} grayscale opacity-50 pointer-events-none {% else %} hover:shadow-md hover:border-gray-300 cursor-pointer {% endif %}">
 
-                    <!-- Image Container -->
-                    <div class="relative h-48 w-full rounded-[2rem] overflow-hidden mb-4 bg-gray-50">
+                    <div>
+                        <div class="relative h-40 w-full rounded-xl overflow-hidden mb-3 bg-gray-50 border border-gray-100">
 
-                        <!-- TOP RIGHT BADGES -->
-                        <div class="absolute top-3 right-3 z-20 flex flex-col gap-2 items-end">
-                            {% if item.is_featured %}
-                            <span class="bg-orange-500 text-white text-[9px] font-black px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 shadow-lg border border-orange-400">
-                                <i data-lucide="award" class="w-3 h-3 fill-current"></i> CHEF'S CHOICE
-                            </span>
-                            {% endif %}
-
-                            {% if item.id in popular_ids %}
-                            <span class="bg-blue-600 text-white text-[9px] font-black px-2.5 py-1.5 rounded-lg flex items-center gap-1.5 shadow-lg">
-                                <i data-lucide="trending-up" class="w-3 h-3"></i> TRENDING
-                            </span>
-                            {% endif %}
-                        </div>
-
-                        <!-- Sold Out Overlay -->
-                        <div id="sold-out-overlay-{{ item.id }}" class="absolute inset-0 bg-black/40 z-10 flex items-center justify-center {% if item.is_available %}hidden{% endif %}">
-                            <span class="bg-white text-black font-black text-xs px-4 py-2 rounded-full uppercase tracking-tighter">Sold Out</span>
-                        </div>
-
-                        {% if item.image %}
-                            <img src="{{ item.image.url }}" class="w-full h-full object-cover">
-                        {% else %}
-                            <div class="w-full h-full flex items-center justify-center text-gray-300">
-                                <i data-lucide="utensils-crosses" class="w-12 h-12"></i>
-                            </div>
-                        {% endif %}
-
-                        <!-- Card Badge -->
-                        <div class="absolute top-3 left-3">
-                            {% if item.veg %}
-                                <span class="bg-white/90 backdrop-blur-sm text-green-600 border border-green-200 text-[10px] font-black px-2 py-1 rounded-lg flex items-center gap-1 shadow-sm">
-                                    <span class="w-2 h-2 bg-green-500 rounded-full"></span> VEG
+                            <!-- Badge Container (Fixed position overlap bug) -->
+                            <div class="absolute top-2.5 right-2.5 waves-effect z-20 flex flex-col gap-1.5 items-end">
+                                {% if item.is_featured %}
+                                <span class="bg-gray-950 text-white text-[8px] font-bold px-2 py-1 rounded shadow-sm border border-gray-800 tracking-wider uppercase flex items-center gap-1">
+                                    <i data-lucide="star" class="w-2.5 h-2.5 text-amber-400 fill-amber-400"></i> Chef Choice
                                 </span>
+                                {% endif %}
+
+                                {% if item.id in popular_ids %}
+                                <span class="bg-white border border-gray-200 text-gray-800 text-[8px] font-bold px-2 py-1 rounded shadow-sm tracking-wider uppercase flex items-center gap-1">
+                                    <i data-lucide="trending-up" class="w-2.5 h-2.5 text-red-500"></i> Trending
+                                </span>
+                                {% endif %}
+                            </div>
+
+                            <div id="sold-out-overlay-{{ item.id }}" class="absolute inset-0 bg-white/80 z-10 flex items-center justify-center {% if item.is_available %}hidden{% endif %}">
+                                <span class="border border-gray-400 text-gray-600 font-bold text-[10px] px-3 py-1 rounded-md uppercase tracking-wider">Sold Out</span>
+                            </div>
+
+                            {% if item.image %}
+                                <img src="{{ item.image.url }}" class="w-full h-full object-cover">
                             {% else %}
-                                <span class="bg-white/90 backdrop-blur-sm text-red-600 border border-red-200 text-[10px] font-black px-2 py-1 rounded-lg flex items-center gap-1 shadow-sm">
-                                    <span class="w-2 h-2 bg-red-500 rounded-full"></span> NON-VEG
-                                </span>
+                                <div class="w-full h-full flex items-center justify-center text-gray-200">
+                                    <i data-lucide="utensils" class="w-8 h-8 stroke-[1.2]"></i>
+                                </div>
                             {% endif %}
+
+                            <div class="absolute bottom-2.5 left-2.5">
+                                {% if item.veg %}
+                                    <span class="bg-white/95 backdrop-blur-sm text-green-700 border border-green-200/60 text-[8px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 shadow-sm uppercase tracking-wider">
+                                        <span class="w-1.5 h-1.5 bg-green-600 rounded-full"></span> Veg
+                                    </span>
+                                {% else %}
+                                    <span class="bg-white/95 backdrop-blur-sm text-red-700 border border-red-200/60 text-[8px] font-bold px-1.5 py-0.5 rounded flex items-center gap-1 shadow-sm uppercase tracking-wider">
+                                        <span class="w-1.5 h-1.5 bg-red-600 rounded-full"></span> Non-Veg
+                                    </span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="px-1">
+                            <div class="flex justify-between items-start gap-2 mb-1">
+                                <h3 class="text-sm font-bold text-gray-900 leading-tight truncate max-w-[70%] group-hover:text-black transition-colors">{{ item.name }}</h3>
+                                <p class="text-gray-900 font-serif font-bold text-sm whitespace-nowrap">Rs. {{ item.price|floatformat:0|intcomma }}</p>
+                            </div>
+
+                            <p class="text-gray-400 text-xs font-normal line-clamp-2 mb-3 leading-relaxed">{{ item.description }}</p>
+
+                            <div class="flex gap-3 mb-4">
+                                <div class="flex items-center gap-1 text-[9px] font-bold text-gray-400 uppercase tracking-wider">
+                                    <i data-lucide="flame" class="w-3 h-3 {% if item.spice_level == 'hot' %}text-gray-900{% else %}text-gray-300{% endif %}"></i>
+                                    {{ item.spice_level }}
+                                </div>
+                                <div class="flex items-center gap-1 text-[9px] font-bold text-gray-400 uppercase tracking-wider">
+                                    <i data-lucide="clock" class="w-3 h-3 text-gray-300"></i>
+                                    {{ item.preparation_time }} mins
+                                </div>
+                            </div>
                         </div>
                     </div>
 
-                    <div class="px-2 flex-grow">
-                        <div class="flex justify-between items-start mb-1">
-                            <h3 class="text-lg font-black text-gray-900 leading-tight">{{ item.name }}</h3>
-                            <p class="text-orange-600 font-black whitespace-nowrap ml-2">Rs. {{ item.price|intcomma }}</p>
-                        </div>
-
-                        <p class="text-gray-400 text-xs mb-4 line-clamp-2">{{ item.description }}</p>
-
-                        <!-- Metadata -->
-                        <div class="flex gap-4 mb-6">
-                            <div class="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase">
-                                <i data-lucide="flame" class="w-3 h-3 {% if item.spice_level == 'hot' %}text-red-500{% elif item.spice_level == 'medium' %}text-orange-500{% else %}text-gray-300{% endif %}"></i>
-                                {{ item.spice_level }}
-                            </div>
-                            <div class="flex items-center gap-1 text-[10px] font-bold text-gray-400 uppercase">
-                                <i data-lucide="clock" class="w-3 h-3 text-gray-300"></i>
-                                {{ item.preparation_time }}m
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Add to Cart -->
-                    <div class="mt-auto">
+                    <div class="pt-1">
                         <button id="add-btn-{{ item.id }}"
                             {% if not item.is_available %}disabled{% endif %}
                             onclick="event.stopPropagation(); handleAddToCart(event, '{{ item.id }}', '{{ item.name|escapejs }}', '{{ item.price }}')"
-                            class="w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2
-                            {% if not item.is_available %} bg-gray-200 text-gray-400 cursor-not-allowed {% else %} bg-gray-900 text-white hover:bg-orange-600 group-hover:shadow-lg group-hover:shadow-orange-200 {% endif %}">
+                            class="w-full py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-1.5
+                            {% if not item.is_available %} bg-gray-100 text-gray-400 cursor-not-allowed {% else %} bg-gray-950 text-white hover:bg-gray-800 shadow-sm {% endif %}">
 
                             {% if not item.is_available %}
                                 Unavailable
                             {% else %}
-                                <i data-lucide="plus" class="w-4 h-4 icon-normal"></i>
-                                <i data-lucide="check" class="w-4 h-4 icon-success hidden"></i>
+                                <i data-lucide="plus" class="w-3.5 h-3.5"></i>
                                 <span class="btn-text">Add to Cart</span>
                             {% endif %}
                         </button>
@@ -242,95 +244,96 @@
 </div>
 
 {% if not items %}
-<div class="text-center py-20">
-    <i data-lucide="search-x" class="w-12 h-12 text-gray-300 mx-auto mb-4"></i>
-    <p class="text-gray-500 font-bold">No dishes match your search.</p>
+<div class="text-center py-20 max-w-2xl mx-auto">
+    <i data-lucide="search" class="w-8 h-8 text-gray-200 mx-auto mb-3"></i>
+    <p class="text-gray-400 text-xs font-medium">No dishes match your active search terms.</p>
 </div>
 {% endif %}
 
-<!-- ========================================== -->
-<!-- GLOBAL ITEM MODAL                          -->
-<!-- ========================================== -->
+<!-- Selection Detail Overlay Modal View -->
 <div id="item-modal" class="fixed inset-0 z-[60] hidden pointer-events-none">
-    <!-- Dark Backdrop -->
-    <div id="modal-backdrop" onclick="closeModal()" class="absolute inset-0 bg-black/60 opacity-0 transition-opacity duration-300 pointer-events-auto"></div>
+    <div id="modal-backdrop" onclick="closeModal()" class="absolute inset-0 bg-gray-900/40 backdrop-blur-sm opacity-0 transition-opacity duration-300 pointer-events-auto"></div>
 
-    <!-- Modal Content -->
-    <div id="modal-content" class="absolute bottom-0 w-full bg-white rounded-t-[2.5rem] md:rounded-[2.5rem] md:relative md:w-full md:max-w-md md:mx-auto md:top-1/2 md:-translate-y-1/2 transform translate-y-full transition-transform duration-300 shadow-2xl overflow-hidden flex flex-col max-h-[90vh] pointer-events-auto pb-safe">
+    <div id="modal-content" class="absolute bottom-0 w-full bg-white rounded-t-2xl md:rounded-2xl md:relative md:w-full md:max-w-md md:mx-auto md:top-1/2 md:-translate-y-1/2 transform translate-y-full transition-transform duration-300 shadow-2xl overflow-hidden flex flex-col max-h-[88vh] pointer-events-auto pb-safe">
 
-        <!-- Image Area -->
-        <div class="relative h-64 w-full bg-gray-100">
+        <div class="relative h-56 w-full bg-gray-50 border-b border-gray-100">
             <img id="modal-img" src="" class="w-full h-full object-cover hidden">
             <div id="modal-no-img" class="w-full h-full flex items-center justify-center text-gray-300 hidden">
-                <i data-lucide="utensils-crosses" class="w-16 h-16"></i>
+                <i data-lucide="utensils" class="w-10 h-10 stroke-[1.2]"></i>
             </div>
 
-            <!-- Close Button -->
-            <button onclick="closeModal()" class="absolute top-4 right-4 bg-white/90 backdrop-blur p-2 rounded-full shadow-sm text-gray-900 hover:bg-gray-200 active:scale-95 transition-all">
-                <i data-lucide="x" class="w-5 h-5"></i>
+            <button onclick="closeModal()" class="absolute top-4 right-4 bg-white/90 backdrop-blur border border-gray-200 p-2 rounded-xl shadow-sm text-gray-500 hover:text-gray-900 active:scale-95 transition-all">
+                <i data-lucide="x" class="w-4 h-4"></i>
             </button>
         </div>
 
-        <!-- Details Area -->
-        <div class="p-6 overflow-y-auto">
-            <div class="flex justify-between items-start mb-4">
-                <h2 id="modal-title" class="text-2xl font-black text-gray-900 leading-tight"></h2>
-                <span id="modal-price" class="text-xl font-black text-orange-600 ml-4"></span>
-            </div>
-
-            <!-- Scrollable full description -->
-            <div class="mb-8">
-                <h4 class="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-2">Description</h4>
-                <p id="modal-desc" class="text-gray-600 leading-relaxed text-sm font-medium italic"></p>
-            </div>
-
-            <!-- Specs Box -->
-            <div class="flex flex-col gap-3 mb-8 bg-gray-50 p-5 rounded-2xl border border-gray-100">
-                <div class="flex justify-between items-center border-b border-gray-200 pb-2">
-                    <span class="text-xs font-bold text-gray-400 uppercase tracking-widest">Dietary</span>
-                    <span id="modal-diet-text" class="text-sm font-black tracking-wide"></span>
+        <div class="p-6 overflow-y-auto no-scrollbar space-y-6">
+            <div>
+                <div class="flex justify-between items-start gap-4 mb-1">
+                    <h2 id="modal-title" class="text-lg font-serif font-bold text-gray-900 tracking-tight leading-tight"></h2>
+                    <span id="modal-price" class="text-lg font-serif font-bold text-gray-900 ml-4 whitespace-nowrap"></span>
                 </div>
-                <div class="flex justify-between items-center border-b border-gray-200 pb-2">
-                    <span class="text-xs font-bold text-gray-400 uppercase tracking-widest">Spice Level</span>
-                    <span id="modal-spice-text" class="text-sm font-black tracking-wide"></span>
+                <p id="modal-desc" class="text-gray-400 text-xs font-normal leading-relaxed"></p>
+            </div>
+
+            <div class="flex flex-col gap-2 bg-gray-50 p-4 rounded-xl border border-gray-200/60">
+                <div class="flex justify-between items-center border-b border-gray-200/40 pb-2">
+                    <span class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Dietary Preference</span>
+                    <span id="modal-diet-text" class="text-xs font-bold tracking-wide"></span>
+                </div>
+                <div class="flex justify-between items-center border-b border-gray-200/40 pb-2">
+                    <span class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Spice Level</span>
+                    <span id="modal-spice-text" class="text-xs font-bold text-gray-800 tracking-wide"></span>
                 </div>
                 <div class="flex justify-between items-center">
-                    <span class="text-xs font-bold text-gray-400 uppercase tracking-widest">Prep Time</span>
-                    <span id="modal-time-text" class="text-sm font-black text-gray-700 tracking-wide"></span>
+                    <span class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Preparation Windows</span>
+                    <span id="modal-time-text" class="text-xs font-bold text-gray-600 tracking-wide"></span>
                 </div>
             </div>
 
-            <!-- Combo Suggestion Container -->
-            <div id="modal-combo-container" class="hidden mt-4 p-3 bg-orange-50 border border-orange-100 rounded-2xl mb-8">
-                <p class="text-[10px] font-black text-orange-800 uppercase tracking-widest mb-2">Frequently Bought Together</p>
-                <div class="flex justify-between items-center">
-                    <div>
-                        <span id="modal-combo-name" class="text-sm font-bold text-gray-950"></span>
-                        <span id="modal-combo-price" class="text-xs text-orange-600 font-black ml-2"></span>
+            <div id="modal-combo-container" class="hidden p-3.5 bg-gray-50 border border-gray-200 rounded-xl">
+                <p class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-2.5">Frequently Paired Together</p>
+                <div class="flex justify-between items-center gap-4">
+                    <div class="min-w-0">
+                        <span id="modal-combo-name" class="text-xs font-bold text-gray-900 truncate block"></span>
+                        <span id="modal-combo-price" class="text-xs font-serif font-bold text-gray-500 mt-0.5 block"></span>
                     </div>
-                    <button type="button" id="modal-combo-add-btn" class="px-3 py-1 bg-gray-900 text-white rounded-xl text-xs font-black uppercase tracking-wider hover:bg-orange-600 transition-colors">
+                    <button type="button" id="modal-combo-add-btn" class="px-3 py-1.5 bg-gray-900 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-gray-800 transition-colors shrink-0">
                         Add Combo
                     </button>
                 </div>
             </div>
 
-            <!-- Add to Cart Action -->
-            <button id="modal-add-btn" class="w-full bg-gray-900 text-white py-4 rounded-2xl font-black text-sm uppercase tracking-widest hover:bg-orange-600 active:scale-95 transition-all flex items-center justify-center gap-2 shadow-xl shadow-gray-200">
-                <i data-lucide="shopping-bag" class="w-5 h-5"></i>
-                Add to Cart
+            <div class="flex items-center justify-between border-t border-gray-100 pt-4">
+                <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Select Quantity</span>
+                <div class="flex items-center gap-3 bg-gray-50 border border-gray-200/60 rounded-lg p-0.5">
+                    <button type="button" onclick="updateModalQuantity(-1)" class="w-7 h-7 flex items-center justify-center bg-white border border-gray-100 shadow-sm rounded-md font-bold text-xs text-gray-600 hover:bg-gray-100 active:scale-95 transition-all">-</button>
+                    <span id="modal-quantity" class="font-serif font-bold text-gray-900 w-5 text-center text-xs">1</span>
+                    <button type="button" onclick="updateModalQuantity(1)" class="w-7 h-7 flex items-center justify-center bg-white border border-gray-100 shadow-sm rounded-md font-bold text-xs text-gray-600 hover:bg-gray-100 active:scale-95 transition-all">+</button>
+                </div>
+            </div>
+
+            <button id="modal-add-btn" class="w-full bg-gray-950 text-white py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-gray-800 active:scale-98 transition-all flex justify-between items-center px-5 shadow-md">
+                <span class="flex items-center gap-1.5">
+                    <i data-lucide="shopping-bag" class="w-3.5 h-3.5"></i>
+                    <span>Add to Cart</span>
+                </span>
+                <span id="modal-total-display" class="font-serif font-bold text-sm">Rs. 0</span>
             </button>
         </div>
     </div>
 </div>
 
+<!-- Embedded DOM Interaction Pipelines Scripts -->
 <script>
     let currentModalItem = null;
+    let modalQuantity = 1;
 
     function openItemModal(element) {
         const data = {
             id: element.getAttribute('data-id'),
             name: element.getAttribute('data-name'),
-            price: element.getAttribute('data-price'),
+            price: parseFloat(element.getAttribute('data-price')),
             image: element.getAttribute('data-image'),
             desc: element.getAttribute('data-desc'),
             isVeg: element.getAttribute('data-veg') === 'true',
@@ -338,50 +341,63 @@
             time: element.getAttribute('data-time'),
             companionId: element.getAttribute('data-companion-id'),
             companionName: element.getAttribute('data-companion-name'),
-            companionPrice: element.getAttribute('data-companion-price')
+            companionPrice: parseFloat(element.getAttribute('data-companion-price') || 0)
         };
 
         currentModalItem = data;
+        modalQuantity = 1;
 
         document.getElementById('modal-title').innerText = data.name;
-        document.getElementById('modal-price').innerText = `Rs. ${data.price}`;
-        document.getElementById('modal-desc').innerText = data.desc || 'No description available.';
+        document.getElementById('modal-price').innerText = `Rs. ${data.price.toLocaleString(undefined, {minimumFractionDigits: 0})}`;
+        document.getElementById('modal-desc').innerText = data.desc || 'No item description details provided.';
 
-        // Handle combo suggestion display
+        updateModalPriceDisplays();
+
         const comboContainer = document.getElementById('modal-combo-container');
         if (data.companionId && data.companionId !== "") {
             comboContainer.classList.remove('hidden');
-            document.getElementById('modal-combo-name').innerText = `+ Add ${data.companionName}`;
-            document.getElementById('modal-combo-price').innerText = `Rs. ${parseInt(data.companionPrice)}`;
+            document.getElementById('modal-combo-name').innerText = `+ Pair with ${data.companionName}`;
+            document.getElementById('modal-combo-price').innerText = `Rs. ${parseInt(data.companionPrice).toLocaleString()}`;
 
             document.getElementById('modal-combo-add-btn').onclick = function() {
-                addToCart(currentModalItem.id, currentModalItem.name, currentModalItem.price);
+                if (typeof cart !== 'undefined' && !cart[currentModalItem.id]) {
+                    for(let q = 0; q < modalQuantity; q++) {
+                        addToCart(currentModalItem.id, currentModalItem.name, currentModalItem.price);
+                    }
+                }
                 addToCart(data.companionId, data.companionName, data.companionPrice);
-                if (typeof showToast === "function") showToast(`${data.companionName} added to combo!`);
+                if (typeof showToast === "function") showToast(`${data.companionName} added context package combo.`);
+                closeModal();
             };
         } else {
             comboContainer.classList.add('hidden');
         }
 
-        document.getElementById('modal-add-btn').addEventListener('click', function(e) {
+        const actionBtn = document.getElementById('modal-add-btn');
+        const coreReplacementNode = actionBtn.cloneNode(true);
+        actionBtn.parentNode.replaceChild(coreReplacementNode, actionBtn);
+
+        coreReplacementNode.addEventListener('click', function(e) {
             if (!currentModalItem) return;
 
+            for(let q = 0; q < modalQuantity; q++) {
                 addToCart(currentModalItem.id, currentModalItem.name, currentModalItem.price);
+            }
 
-                const originalContent = this.innerHTML;
-                this.classList.replace('bg-gray-900', 'bg-green-600');
-                this.innerHTML = `<i data-lucide="check" class="w-5 h-5"></i> Added!`;
+            const originalContent = this.innerHTML;
+            this.className = "w-full bg-gray-900 text-white py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-1.5 shadow-md";
+            this.innerHTML = `<i data-lucide="check" class="w-4 h-4"></i> Added to Cart`;
+            lucide.createIcons();
+
+            if (typeof showToast === "function") showToast(`${modalQuantity}x ${currentModalItem.name} items updated.`);
+
+            setTimeout(() => {
+                this.className = "w-full bg-gray-950 text-white py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-gray-800 active:scale-98 transition-all flex justify-between items-center px-5 shadow-md";
+                this.innerHTML = originalContent;
                 lucide.createIcons();
-
-                showToast(`${currentModalItem.name} added to cart`);
-
-                setTimeout(() => {
-                    this.classList.replace('bg-green-600', 'bg-gray-900');
-                    this.innerHTML = originalContent;
-                    lucide.createIcons();
-                    closeModal();
-                }, 600);
-            });
+                closeModal();
+            }, 600);
+        });
 
         const imgEl = document.getElementById('modal-img');
         const noImgEl = document.getElementById('modal-no-img');
@@ -398,16 +414,14 @@
         const dietText = document.getElementById('modal-diet-text');
         if (data.isVeg) {
             dietText.innerText = "VEGETARIAN";
-            dietText.className = "text-sm font-black tracking-wide text-green-600";
+            dietText.className = "text-xs font-bold tracking-wide text-green-700";
         } else {
             dietText.innerText = "NON-VEGETARIAN";
-            dietText.className = "text-sm font-black tracking-wide text-red-600";
+            dietText.className = "text-xs font-bold tracking-wide text-red-700";
         }
 
-        const spiceText = document.getElementById('modal-spice-text');
-        spiceText.innerText = data.spice.toUpperCase();
-
-        document.getElementById('modal-time-text').innerText = `${data.time} MINUTES`;
+        document.getElementById('modal-spice-text').innerText = data.spice.toUpperCase();
+        document.getElementById('modal-time-text').innerText = `${data.time} MINS`;
 
         const modal = document.getElementById('item-modal');
         const backdrop = document.getElementById('modal-backdrop');
@@ -421,12 +435,22 @@
         }, 10);
     }
 
-    function closeModal() {
-        const backdrop = document.getElementById('modal-backdrop');
-        const content = document.getElementById('modal-content');
+    function updateModalQuantity(delta) {
+        modalQuantity = Math.max(1, modalQuantity + delta);
+        updateModalPriceDisplays();
+    }
 
-        backdrop.classList.add('opacity-0');
-        content.classList.add('translate-y-full');
+    function updateModalPriceDisplays() {
+        document.getElementById('modal-quantity').innerText = modalQuantity;
+        if (currentModalItem) {
+            const calculatedTotal = currentModalItem.price * modalQuantity;
+            document.getElementById('modal-total-display').innerText = `Rs. ${calculatedTotal.toLocaleString(undefined, {minimumFractionDigits: 0})}`;
+        }
+    }
+
+    function closeModal() {
+        document.getElementById('modal-backdrop').classList.add('opacity-0');
+        document.getElementById('modal-content').classList.add('translate-y-full');
 
         setTimeout(() => {
             document.getElementById('item-modal').classList.add('hidden');
@@ -436,25 +460,29 @@
     }
 
     function handleAddToCart(event, id, name, price) {
-        event.stopPropagation(); // Prevents opening the modal when clicking the button
+        event.stopPropagation();
 
         if (typeof addToCart === "function") {
             addToCart(id, name, price);
 
-            // Show the toast we just created!
-            if (typeof showToast === "function") {
-                showToast(`${name} added to cart`);
+            if (typeof showToast === "function") showToast(`${name} added to cart.`);
+
+            const card = document.getElementById(`food-card-${id}`);
+            if (card) {
+                const companionId = card.getAttribute('data-companion-id');
+                if (companionId && companionId !== "") {
+                    openItemModal(card);
+                }
             }
         }
     }
 
-    // --- REAL-TIME MENU AVAILABILITY POLLING ---
     async function pollMenuStatus() {
         try {
             const response = await fetch('/api/menu-status/');
             if (!response.ok) return;
             const data = await response.json();
-            const soldOutIds = data.sold_out; // Array of IDs e.g. [2, 5, 8]
+            const soldOutIds = data.sold_out;
 
             document.querySelectorAll('.food-card').forEach(card => {
                 const id = parseInt(card.dataset.id);
@@ -462,32 +490,31 @@
                 const btn = document.getElementById(`add-btn-${id}`);
 
                 if (soldOutIds.includes(id)) {
-                    card.classList.add('grayscale', 'opacity-60', 'pointer-events-none');
-                    card.classList.remove('hover:shadow-xl', 'hover:scale-[1.01]', 'cursor-pointer');
-
-                    overlay.classList.remove('hidden');
-
-                    btn.disabled = true;
-                    btn.className = "w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 bg-gray-200 text-gray-400 cursor-not-allowed";
-                    btn.innerHTML = "Unavailable";
+                    card.classList.add('grayscale', 'opacity-50', 'pointer-events-none');
+                    card.classList.remove('hover:shadow-md', 'hover:border-gray-300', 'cursor-pointer');
+                    if (overlay) overlay.classList.remove('hidden');
+                    if (btn) {
+                        btn.disabled = true;
+                        btn.className = "w-full py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 bg-gray-100 text-gray-400 cursor-not-allowed";
+                        btn.innerHTML = "Unavailable";
+                    }
                 } else {
-                    card.classList.remove('grayscale', 'opacity-60', 'pointer-events-none');
-                    card.classList.add('hover:shadow-xl', 'hover:scale-[1.01]', 'cursor-pointer');
-
-                    overlay.classList.add('hidden');
-
-                    btn.disabled = false;
-                    btn.className = "w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 bg-gray-900 text-white hover:bg-orange-600 group-hover:shadow-lg group-hover:shadow-orange-200";
-                    btn.innerHTML = `<i data-lucide="plus" class="w-4 h-4 icon-normal"></i><i data-lucide="check" class="w-4 h-4 icon-success hidden"></i><span class="btn-text">Add to Cart</span>`;
-                    lucide.createIcons();
+                    card.classList.remove('grayscale', 'opacity-50', 'pointer-events-none');
+                    card.classList.add('hover:shadow-md', 'hover:border-gray-300', 'cursor-pointer');
+                    if (overlay) overlay.classList.add('hidden');
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.className = "w-full py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 bg-gray-950 text-white hover:bg-gray-800 shadow-sm";
+                        btn.innerHTML = `<i data-lucide="plus" class="w-3.5 h-3.5"></i><span class="btn-text">Add to Cart</span>`;
+                        lucide.createIcons();
+                    }
                 }
             });
         } catch (error) {
-            console.error("Error polling menu status:", error);
+            console.error("Error matching active dynamic menu arrays:", error);
         }
     }
 
-    // Poll every 10 seconds
     setInterval(pollMenuStatus, 10000);
 </script>
 
