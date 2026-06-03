@@ -2,14 +2,8 @@
 
 {% block content %}
 <div class="max-w-xl mx-auto py-6 pb-16">
+    <!--here-->
 
-    <div class="text-center mb-8">
-        <div class="w-12 h-12 bg-gray-50 border border-gray-200 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-sm">
-            <i data-lucide="star" class="w-5 h-5 text-gray-900 fill-gray-950"></i>
-        </div>
-        <h1 class="text-2xl font-serif font-bold text-gray-900 tracking-tight">Review Your Meal</h1>
-        <p class="text-xs text-gray-400 font-medium mt-0.5">Table {{ order.table_number }}</p>
-    </div>
 
     <form method="POST" id="review-form" class="space-y-4">
         {% csrf_token %}
