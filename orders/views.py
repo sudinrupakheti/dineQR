@@ -300,71 +300,60 @@ def menu_view(request):
 
 def cart_detail(request):
     table_num = request.GET.get("table")
+    order_id = request.GET.get("order")
+
     previous_orders = []
     running_total = Decimal("0.00")
-    any_ready = False
     show_thanks = False
 
-    if table_num:
-        previous_orders = (
-            Order.objects.filter(table_number=table_num)
-            .exclude(status__in=["completed", "cancelled"])
-            .order_by("-created_at")
-        )
-
+    if order_id:
+        previous_orders = Order.objects.filter(id=order_id).exclude(status__in=["completed", "cancelled"])
+        if not previous_orders.exists() and Order.objects.filter(id=order_id, status="completed").exists():
+            show_thanks = True
+    elif table_num:
+        previous_orders = Order.objects.filter(table_number=table_num).exclude(status__in=["completed", "cancelled"]).order_by("-created_at")
         recently_settled = Order.objects.filter(
-            table_number=table_num,
-            status="completed",
-            paid_at__gte=timezone.now() - timedelta(minutes=10),
+            table_number=table_num, status="completed", paid_at__gte=timezone.now() - timedelta(minutes=10)
         ).exists()
-
         if not previous_orders.exists() and recently_settled:
             show_thanks = True
 
-        for order in previous_orders:
-            running_total += order.total_price
-            if order.status == "ready":
-                any_ready = True
+    # DYNAMIC AUTO-HEALING RECALCULATION (Fixes the 0.00 Price Bug)
+    for order in previous_orders:
+        order_calc_total = Decimal("0.00")
+        for item in order.items.all():
+            order_calc_total += Decimal(str(item.menu_item.price)) * item.quantity
+
+        # If DB went out of sync, fix it instantly!
+        if order.total_price != order_calc_total:
+            order.total_price = order_calc_total
+            order.save()
+
+        running_total += order_calc_total
 
     qr_code = None
-    if previous_orders.exists():
-        first_order = previous_orders.first()
+    if previous_orders:
+        first_order = previous_orders[0]
         local_time = timezone.localtime(timezone.now()).strftime("%Y-%m-%d %I:%M %p")
+        qr_code = generate_bill_qr({
+            "amount": f"{running_total:,.2f}",
+            "order_id": first_order.id,
+            "table_number": table_num if table_num else f"WalkIn-{first_order.id}",
+            "timestamp": local_time,
+        })
 
-        qr_code = generate_bill_qr(
-            {
-                "amount": f"{running_total:,.2f}",
-                "order_id": first_order.id,
-                "table_number": table_num,
-                "timestamp": local_time,
-            }
-        )
-
-    # ADDED: Get popular item recommendations for the Cart page
-    popular_item_ids = (
-        OrderItem.objects.filter(order__is_paid=True)
-        .values("menu_item_id")
-        .annotate(total_sold=Sum("quantity"))
-        .order_by("-total_sold")
-        .values_list("menu_item_id", flat=True)[:4]
-    )
-
+    popular_item_ids = OrderItem.objects.filter(order__is_paid=True).values("menu_item_id").annotate(total_sold=Sum("quantity")).order_by("-total_sold").values_list("menu_item_id", flat=True)[:4]
     popular_items = MenuItem.objects.filter(id__in=popular_item_ids, is_available=True)
     if not popular_items.exists():
         popular_items = MenuItem.objects.filter(is_available=True, is_featured=True)[:4]
 
-    return render(
-        request,
-        "orders/cart_detail.html",
-        {
-            "previous_orders": previous_orders,
-            "running_total": running_total,
-            "any_ready": any_ready,
-            "show_thanks": show_thanks,
-            "qr_code": qr_code,
-            "popular_items": popular_items,  # Sent to template context
-        },
-    )
+    return render(request, "orders/cart_detail.html", {
+        "previous_orders": previous_orders,
+        "running_total": running_total,
+        "show_thanks": show_thanks,
+        "qr_code": qr_code,
+        "popular_items": popular_items,
+    })
 
 
 def place_order(request):
@@ -815,7 +804,7 @@ def order_review_page(request, order_id):
                         if comment_val
                         else "neutral",
                     )
-        return redirect(f"{reverse('menu')}?table={current_order.table_number}")
+        return redirect(f"{reverse('menu')}cart/?table={current_order.table_number}")
 
     # Gather unique menu items from all current session orders to present in template
     items_to_review = []
@@ -1072,11 +1061,21 @@ def confirm_payment_request(request, table_num):
 
         items_to_pay = data.get("items", [])
         manual_amount = Decimal(str(data.get("amount", 0)))
-        payment_method = data.get("payment_method", "qr")  # Track payment source
+        payment_method = data.get("payment_method", "qr")
+        order_id = data.get("order_id")
     except:
         manual_amount = Decimal("0")
         items_to_pay = []
         payment_method = "qr"
+        order_id = None
+
+    if order_id:
+        active_orders = Order.objects.filter(id=order_id).exclude(status="completed")
+    else:
+        active_orders = Order.objects.filter(table_number=table_num).exclude(status="completed")
+
+    if not active_orders.exists():
+        return JsonResponse({"status": "error", "message": "No active orders"}, status=400)
 
     # --- CASH MODE FLOW ---
     if payment_method == "cash":
@@ -1324,20 +1323,24 @@ def staff_place_order(request):
 
         running_total = Decimal("0.00")
         for item in cart:
-            menu_item = MenuItem.objects.get(id=item["id"])
-            qty = int(item["qty"])
-            OrderItem.objects.create(
-                order=new_order,
-                menu_item=menu_item,
-                quantity=qty,
-                notes=item.get("notes", "")
-            )
-            running_total += Decimal(str(menu_item.price)) * qty
+            try:
+                menu_item = MenuItem.objects.get(id=item.get("id"))
+                # Robust extraction just in case frontend sends 'qty' instead of 'quantity'
+                qty = int(item.get("qty", item.get("quantity", 1)))
+
+                OrderItem.objects.create(
+                    order=new_order,
+                    menu_item=menu_item,
+                    quantity=qty,
+                    notes=item.get("notes", "")
+                )
+                running_total += Decimal(str(menu_item.price)) * qty
+            except Exception as e:
+                print(f"Error parsing Walk-In item: {e}")
 
         new_order.total_price = running_total
         new_order.save()
         return JsonResponse({"status": "success"})
-
 
 @user_passes_test(is_staff)
 def get_table_orders(request, table_num):

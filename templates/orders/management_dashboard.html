@@ -142,11 +142,15 @@
                         </div>
 
                         <div class="flex flex-col gap-2 z-10">
+                            <a href="{% url 'cart_detail' %}?table={{ table.number }}" onclick="event.stopPropagation();"
+                                class="w-full py-2.5 bg-gray-900 text-white text-[10px] font-black rounded-xl shadow-lg hover:bg-black transition-all flex items-center justify-center gap-2">
+                                <i data-lucide="calculator" class="w-3 h-3"></i> Billing
+                            </a>
                             <a href="{% url 'table_bill' table.number %}" target="_blank" onclick="event.stopPropagation();"
                                 class="w-full py-2 bg-white/80 backdrop-blur-sm border border-gray-200 text-gray-900 text-[10px] font-black rounded-xl hover:bg-white flex items-center justify-center gap-1 transition-all">
-                                <i data-lucide="printer" class="w-3 h-3"></i> BILL
+                                <i data-lucide="printer" class="w-3 h-3"></i> PRINT BILL
                             </a>
-                            <form action="{% url 'mark_table_paid' table.number %}" method="POST" class="w-full" onclick="event.stopPropagation();">
+                            <form action="{% url 'mark_table_paid' table.number %}" method="POST" class="w-full">
                                 {% csrf_token %}
                                 <button class="w-full py-2.5 bg-gray-900 text-white text-[10px] font-black rounded-xl shadow-lg hover:bg-black transition-all">SETTLE & CLEAR</button>
                             </form>
@@ -189,14 +193,14 @@
                     </div>
 
                     <div class="flex flex-col gap-2 z-10">
+                        <a href="{% url 'cart_detail' %}?order={{ order.id }}" onclick="event.stopPropagation();"
+                            class="w-full py-2.5 bg-gray-900 text-white text-[10px] font-black rounded-xl shadow-lg hover:bg-black transition-all flex items-center justify-center gap-2">
+                            <i data-lucide="calculator" class="w-3 h-3"></i> CHECKOUT TERMINAL
+                        </a>
                         <a href="{% url 'single_order_bill' order.id %}" target="_blank" onclick="event.stopPropagation();"
                             class="w-full py-2 bg-white/80 backdrop-blur-sm border border-gray-200 text-gray-900 text-[10px] font-black rounded-xl hover:bg-white flex items-center justify-center gap-1 transition-all">
                             <i data-lucide="printer" class="w-3 h-3"></i> PRINT BILL
                         </a>
-                        <form action="{% url 'mark_order_paid' order.id %}" method="POST" class="w-full" onclick="event.stopPropagation();">
-                            {% csrf_token %}
-                            <button class="w-full py-2.5 bg-gray-900 text-white text-[10px] font-black rounded-xl shadow-lg hover:bg-black transition-all">SETTLE & CLEAR</button>
-                        </form>
                     </div>
                 </div>
                 {% empty %}

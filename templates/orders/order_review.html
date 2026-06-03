@@ -14,10 +14,13 @@
     <form method="POST" id="review-form" class="space-y-4">
         {% csrf_token %}
 
-        {% for item in order.items.all %}
+        {% for item in items_to_review %}
         <div class="bg-white rounded-xl p-5 border border-gray-200/80 shadow-sm space-y-4">
-            <h3 class="font-serif font-bold text-sm text-gray-900 text-center uppercase tracking-wide border-b border-gray-50 pb-2">{{ item.menu_item.name }}</h3>
 
+            <!-- 2. Change item.menu_item.name to just item.name -->
+            <h3 class="font-serif font-bold text-sm text-gray-900 text-center uppercase tracking-wide border-b border-gray-50 pb-2">{{ item.name }}</h3>
+
+            <!-- 3. item.id will now correctly correspond to the Menu Item ID -->
             <div class="flex justify-center gap-2 flex-row-reverse" id="star-group-{{ item.id }}">
                 <input type="radio" name="rating_{{ item.id }}" id="star5_{{ item.id }}" value="5" class="hidden peer" required>
                 <label for="star5_{{ item.id }}" class="cursor-pointer text-gray-200 hover:text-gray-900 peer-checked:text-gray-900 transition-colors">
