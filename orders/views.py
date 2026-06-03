@@ -23,13 +23,14 @@ from django.db.models import (
     ExpressionWrapper,
     DurationField,
 )
-from django.db.models.functions import ExtractWeekDay
+from django.db.models.functions import ExtractWeekDay, ExtractHour
 from django.contrib.auth.decorators import user_passes_test
 from django.conf import settings
 from collections import defaultdict
 from .ai_utils import analyze_note_sentiment
 from collections import Counter, defaultdict
 from itertools import combinations
+from datetime import timezone as dt_timezone
 from .models import (
     Order,
     OrderItem,
@@ -488,7 +489,6 @@ def cancel_order_item(request, item_id):
         return JsonResponse({"status": "success"})
 
     except OrderItem.DoesNotExist:
-        # FIX: Return a clean 404 instead of a misleading 405 Method Not Allowed
         return JsonResponse(
             {"status": "error", "message": "Item not found or already being prepared"},
             status=404,
@@ -507,11 +507,10 @@ def management_dashboard(request):
         all_active_orders.aggregate(Sum("total_price"))["total_price__sum"] or 0
     )
     busy_tables_count = all_active_orders.values("table_number").distinct().count()
-
-    # --- INITIALIZE EMPTY VARIABLES ---
     table_data = []
     insights_data = {}
     recent_reviews = []
+
     context = {}
 
     # --- 2. LOGIC FOR TABLES TAB ---
@@ -543,7 +542,7 @@ def management_dashboard(request):
                     {"number": i, "status": "empty", "total": 0, "has_orders": False}
                 )
 
-    # --- 3. LOGIC FOR INSIGHTS TAB (REAL-TIME TODAY ONLY) ---
+    # --- 3. LOGIC FOR INSIGHTS TAB ---
     elif current_tab == "insights":
         # A. Core Metrics & Inventory Performance
         top_items = (
@@ -553,9 +552,10 @@ def management_dashboard(request):
             .order_by("-total_sold")[:5]
         )
         avg_rating = Review.objects.aggregate(Avg("rating"))["rating__avg"] or 0
+
         hourly_data = (
             Order.objects.filter(created_at__gte=timezone.now() - timedelta(days=7))
-            .extra(select={"hour": "strftime('%%H', created_at)"})
+            .annotate(hour=ExtractHour("created_at"))
             .values("hour")
             .annotate(count=Count("id"))
             .order_by("hour")
@@ -618,7 +618,11 @@ def management_dashboard(request):
         ]
 
         # F. Market Basket Analysis
-        order_item_groups = OrderItem.objects.values("order_id", "menu_item__name")
+        # (bounded to last 90 days to avoid loading unbounded history into Python)
+        order_item_groups = OrderItem.objects.filter(
+            order__created_at__gte=timezone.now() - timedelta(days=90)
+        ).values("order_id", "menu_item__name")
+
         orders_map = defaultdict(list)
         for entry in order_item_groups:
             orders_map[entry["order_id"]].append(entry["menu_item__name"])
@@ -643,6 +647,7 @@ def management_dashboard(request):
         )
 
         # H. Busiest Days Matrix (Trailing 30 Days)
+        # Django's ExtractWeekDay returns 1=Sunday … 7=Saturday (US convention).
         days_map = {
             1: "Sun",
             2: "Mon",
@@ -694,7 +699,7 @@ def management_dashboard(request):
             lost_cash=Sum("total_price"), lost_count=Count("id")
         )
 
-        # Recipe Quality Risk Index (Toxic Items causing negative sentiment reviews)
+        # Recipe Quality Risk Index
         negative_review_order_ids = Review.objects.filter(
             sentiment="negative"
         ).values_list("order_id", flat=True)
@@ -723,23 +728,26 @@ def management_dashboard(request):
             "toxic_dishes": list(toxic_dishes),
         }
 
-        # 🌟 NEW FORCED TIME WINDOW: From midnight local time to exactly right now
         now_local = timezone.localtime(timezone.now())
-        start_of_day = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+        start_of_day_local = now_local.replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+        start_of_day_utc = start_of_day_local.astimezone(dt_timezone.utc)
 
         shift_orders = Order.objects.filter(
-            status="completed", created_at__range=(start_of_day, timezone.now())
+            status="completed",
+            created_at__range=(start_of_day_utc, timezone.now()),
         )
         z_metrics = shift_orders.aggregate(
             gross=Sum("total_price"), count=Count("id"), avg_spend=Avg("total_price")
         )
         canceled_count = Order.objects.filter(
-            status="canceled", created_at__range=(start_of_day, timezone.now())
+            status="canceled",
+            created_at__range=(start_of_day_utc, timezone.now()),
         ).count()
 
         context.update(
             {
-                "insights": insights_data,
                 "z_gross_sales": z_metrics["gross"] or 0,
                 "z_ticket_count": z_metrics["count"] or 0,
                 "z_avg_ticket": round(z_metrics["avg_spend"] or 0, 2)
@@ -760,16 +768,18 @@ def management_dashboard(request):
 
     categories = Category.objects.prefetch_related("items").all()
 
-    context = {
-        "tables": table_data,
-        "categories": categories,
-        "current_tab": current_tab,
-        "total_live_revenue": total_live_revenue,
-        "busy_tables_count": busy_tables_count,
-        "insights": insights_data,
-        "recent_reviews": recent_reviews,
-        "current_sentiment": sentiment_filter,
-    }
+    context.update(
+        {
+            "tables": table_data,
+            "categories": categories,
+            "current_tab": current_tab,
+            "total_live_revenue": total_live_revenue,
+            "busy_tables_count": busy_tables_count,
+            "insights": insights_data,
+            "recent_reviews": recent_reviews,
+            "current_sentiment": sentiment_filter,
+        }
+    )
 
     return render(request, "orders/management_dashboard.html", context)
 
@@ -878,7 +888,6 @@ def toggle_item_availability(request, item_id):
     except MenuItem.DoesNotExist:
         pass
 
-    # FIX: Clean parameter mapping prevents duplicate "?tab=menu?tab=menu" strings
     return redirect(f"{reverse('management_dashboard')}?tab=menu")
 
 

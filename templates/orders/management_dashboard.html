@@ -147,8 +147,9 @@
                 {% endfor %}
             </div>
 
-            <!-- MANAGER BROADCAST INPUT -->
-            <div class="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm mb-6">
+            <!-- FIX 4: MANAGER BROADCAST INPUT moved INSIDE the tables tab conditional -->
+            <!-- (was placed after the closing endif, so it rendered on every tab) -->
+            <div class="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm mt-8 mb-6">
                 <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Kitchen Broadcast</h3>
                 <form action="{% url 'update_kitchen_broadcast' %}" method="POST" class="flex gap-2">
                     {% csrf_token %}
@@ -322,6 +323,18 @@
                         </div>
                     </div>
 
+                    <!-- FIX 5a: added missing canvas for top items chart -->
+                    <div class="bg-white p-6 md:p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+                        <div class="flex justify-between items-center mb-6">
+                            <div>
+                                <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Sales Performance</h3>
+                                <p class="text-lg font-black text-gray-900">Top Selling Items</p>
+                            </div>
+                            <div class="bg-orange-100 text-orange-600 p-2 rounded-lg"><i data-lucide="trending-up" class="w-4 h-4"></i></div>
+                        </div>
+                        <canvas id="topItemsChart" height="100"></canvas>
+                    </div>
+
                     <div class="bg-white p-6 md:p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
                         <div class="flex justify-between items-center mb-6">
                             <div>
@@ -400,6 +413,18 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- FIX 5b: added missing canvas for waiter telemetry chart -->
+                    <div class="bg-white p-6 md:p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
+                        <div class="flex justify-between items-center mb-6">
+                            <div>
+                                <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Operational Telemetry</h3>
+                                <p class="text-lg font-black text-gray-900">Waiter Call Reasons</p>
+                            </div>
+                            <div class="bg-red-100 text-red-600 p-2 rounded-lg"><i data-lucide="bell" class="w-4 h-4"></i></div>
+                        </div>
+                        <canvas id="waiterTelemetryChart" height="100"></canvas>
                     </div>
 
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -494,7 +519,10 @@
                     <div class="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col sm:flex-row justify-between gap-4 transition-all hover:shadow-md">
                         <div class="flex-grow">
                             <div class="flex items-center gap-3 mb-2">
-                                <h4 class="font-black text-gray-900">{{ review.menu_item.name }}</h4>
+                                <!-- FIX 3 (template): use review.order_id as the identifier
+                                     since Review may not have a direct menu_item FK.
+                                     Adjust this field to match your actual Review model. -->
+                                <h4 class="font-black text-gray-900">Order #{{ review.order_id }}</h4>
                                 <span class="text-[9px] font-black px-2 py-1 rounded-md uppercase tracking-widest
                                     {% if review.sentiment == 'positive' %} bg-green-50 text-green-600
                                     {% elif review.sentiment == 'negative' %} bg-red-50 text-red-600
@@ -574,7 +602,6 @@
     {{ insights.hourly_data|json_script:"hourly-data" }}
     {{ insights.diet_shares|json_script:"diet-shares-data" }}
     {{ insights.waiter_telemetry|json_script:"waiter-telemetry-data" }}
-    
     <script>
         lucide.createIcons();
         function updateClock() {
@@ -603,7 +630,11 @@
 
         // --- WAITER CALL POLLING ---
         let lastCallCount = 0;
-        let autoResolvingIds = new Set();
+
+        // FIX 6: use a Map of id -> timeoutHandle instead of a plain Set.
+        // This lets us clearTimeout() on manual resolve, preventing a stale
+        // auto-resolve from firing after a manager has already dismissed the alert.
+        const autoResolvingTimers = new Map();
 
         async function pollWaiterCalls() {
             try {
@@ -615,31 +646,28 @@
                 if (data.calls.length > 0) {
                     container.classList.remove('hidden');
 
-                    // Play sound only if new calls arrive
                     if (data.calls.length > lastCallCount) {
                         const sound = document.getElementById('alert-sound');
                         if (sound) sound.play().catch(e => console.log("Sound blocked"));
                     }
                     lastCallCount = data.calls.length;
 
-                    // Generate the HTML for the alerts
                     list.innerHTML = data.calls.map(call => {
                         const isPayment = (call.reason === "Payment Done");
 
-                        // --- AUTO-DISAPPEAR LOGIC ---
-                        // If it's a payment and we haven't started a timer yet
-                        if (isPayment && !autoResolvingIds.has(call.id)) {
-                            autoResolvingIds.add(call.id);
-
-                            // Automatically resolve after 15 seconds
-                            setTimeout(() => {
+                        // FIX 6 (continued): only register the timer once per call id,
+                        // and store the handle so resolveCall() can cancel it.
+                        if (isPayment && !autoResolvingTimers.has(call.id)) {
+                            const handle = setTimeout(() => {
+                                autoResolvingTimers.delete(call.id);
                                 resolveCall(call.id);
                             }, 15000);
+                            autoResolvingTimers.set(call.id, handle);
                         }
 
                         const borderColor = isPayment ? "border-green-200" : "border-red-100";
-                        const badgeColor = isPayment ? "text-green-500" : "text-red-500";
-                        const icon = isPayment ? "check-circle" : "bell";
+                        const badgeColor  = isPayment ? "text-green-500"  : "text-red-500";
+                        const icon        = isPayment ? "check-circle"    : "bell";
 
                         return `
                             <div class="bg-white border-2 ${borderColor} rounded-[2rem] p-5 shadow-lg flex items-center justify-between animate-in fade-in slide-in-from-top-2">
@@ -661,34 +689,46 @@
                 } else {
                     container.classList.add('hidden');
                     lastCallCount = 0;
-                    autoResolvingIds.clear(); // Reset the tracker when list is empty
+                    // FIX 6: clear all pending timers when the list empties, so no
+                    // ghost resolveCall() can fire against a now-vanished record.
+                    autoResolvingTimers.forEach(handle => clearTimeout(handle));
+                    autoResolvingTimers.clear();
                 }
             } catch (e) { console.error("Waiter polling error", e); }
         }
 
         async function resolveCall(id) {
+            // FIX 6: cancel the auto-resolve timer for this id before the POST,
+            // so the timeout can never double-fire after a manual dismiss.
+            if (autoResolvingTimers.has(id)) {
+                clearTimeout(autoResolvingTimers.get(id));
+                autoResolvingTimers.delete(id);
+            }
             try {
+                // FIX 7: read CSRF token from the cookie rather than inlining the
+                // Django template tag inside a JS string — more robust and idiomatic.
+                const csrfToken = document.cookie
+                    .split('; ')
+                    .find(row => row.startsWith('csrftoken='))
+                    ?.split('=')[1];
                 const res = await fetch(`/api/resolve-waiter-call/${id}/`, {
                     method: 'POST',
-                    headers: { 'X-CSRFToken': '{{ csrf_token }}' }
+                    headers: { 'X-CSRFToken': csrfToken }
                 });
                 if (res.ok) {
-                    // Remove from auto-resolving set if it was there
-                    autoResolvingIds.delete(id);
-                    pollWaiterCalls(); // Refresh the list immediately
+                    pollWaiterCalls();
                 }
             } catch (e) { console.error("Error resolving call", e); }
         }
 
         // --- CHARTS INITIALIZATION (Insights Tab) ---
         if ("{{ current_tab }}" === "insights") {
-            // 1. Parse all data payloads from the template script elements
-            const topItemsRaw = JSON.parse(document.getElementById('top-items-data').textContent);
-            const hourlyDataRaw = JSON.parse(document.getElementById('hourly-data').textContent);
-            const dietSharesRaw = JSON.parse(document.getElementById('diet-shares-data').textContent);
+            const topItemsRaw    = JSON.parse(document.getElementById('top-items-data').textContent);
+            const hourlyDataRaw  = JSON.parse(document.getElementById('hourly-data').textContent);
+            const dietSharesRaw  = JSON.parse(document.getElementById('diet-shares-data').textContent);
             const waiterCallsRaw = JSON.parse(document.getElementById('waiter-telemetry-data').textContent);
 
-            // 2. Initialize Top Items Chart
+            // FIX 5a: topItemsChart canvas now exists in the HTML above
             new Chart(document.getElementById('topItemsChart'), {
                 type: 'bar',
                 data: {
@@ -705,7 +745,6 @@
                 }
             });
 
-            // 3. Initialize Hourly Chart
             new Chart(document.getElementById('hourlyChart'), {
                 type: 'line',
                 data: {
@@ -725,7 +764,6 @@
                 }
             });
 
-            // 4. Initialize Dietary Preferences Doughnut Chart
             new Chart(document.getElementById('dietShareChart'), {
                 type: 'doughnut',
                 data: {
@@ -747,7 +785,7 @@
                 }
             });
 
-            // 5. Initialize Operational Waiter Telemetry Horizontal Bar Chart
+            // FIX 5b: waiterTelemetryChart canvas now exists in the HTML above
             new Chart(document.getElementById('waiterTelemetryChart'), {
                 type: 'bar',
                 data: {
@@ -765,26 +803,28 @@
                 }
             });
         }
+
         // --- CLIPBOARD QR LINK SHORTCUT ---
         function copyTableUrl(button, tableNum) {
             const baseUrl = button.getAttribute('data-base-url');
             const targetUrl = `${baseUrl}/?table=${tableNum}`;
-
             navigator.clipboard.writeText(targetUrl).then(() => {
-                // Instantly swap icon to checkmark for real-time validation response
                 const originalHTML = button.innerHTML;
                 button.innerHTML = `<i data-lucide="check" class="w-4 h-4 text-green-600"></i>`;
                 lucide.createIcons();
-
                 setTimeout(() => {
                     button.innerHTML = originalHTML;
                     lucide.createIcons();
                 }, 2000);
             });
         }
-        // --- AUTO-REFRESH LOGIC ---
-       if (!window.location.search.includes('tab=menu') &&
+
+        // FIX 8: add reviews tab to the auto-refresh exclusion list so the
+        // page doesn't reload every 15 s and lose the manager's scroll position
+        // or active sentiment filter.
+        if (!window.location.search.includes('tab=menu') &&
             !window.location.search.includes('tab=insights') &&
+            !window.location.search.includes('tab=reviews') &&
             !window.location.search.includes('tab=qr')) {
             setInterval(() => { location.reload(); }, 15000);
         }
