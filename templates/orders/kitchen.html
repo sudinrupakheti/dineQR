@@ -1,198 +1,377 @@
+{% load tz %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KDS | DineQR</title>
+    <title>KDS Hub | DineQR</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        @keyframes pulse-red {
-            0%, 100% { background-color: rgba(254, 226, 226, 1); }
-            50% { background-color: rgba(254, 202, 202, 1); }
+        .order-card { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+
+        @keyframes border-flash {
+            0%, 100% { border-color: #ef4444; box-shadow: 0 0 0 0px rgba(239, 68, 68, 0.2); }
+            50% { border-color: #b91c1c; box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1); }
         }
-        .urgent-card { animation: pulse-red 2s infinite; border-color: #ef4444 !important; }
+        .urgent-card {
+            animation: border-flash 2s infinite;
+            background-color: #fef2f2 !important;
+        }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+    <script>
+        // Execution safety patch: Avoids structural layout flickering during page refreshes
+        (function() {
+            const currentNotice = "{{ broadcast_message|escapejs }}";
+            if (currentNotice && localStorage.getItem('kds_dismissed_notice') === currentNotice) {
+                document.documentElement.classList.add('hide-broadcast-initially');
+            }
+        })();
+    </script>
+    <style>
+        .hide-broadcast-initially #broadcast-banner { display: none !important; }
     </style>
 </head>
-<body class="bg-gray-100 text-gray-900 font-sans antialiased">
+<body class="bg-slate-100 text-slate-900 font-sans antialiased selection:bg-orange-500 selection:text-white">
 
-    <nav class="bg-white shadow-md sticky top-0 z-50 border-b border-gray-200">
-        <div class="max-w-7xl mx-auto px-4 h-20 flex items-center justify-between">
-            <div class="flex items-center gap-4">
-                <div class="bg-orange-600 text-white p-2 rounded-xl">
-                    <i data-lucide="chef-hat" class="w-8 h-8"></i>
+    <!-- Toast Notification Container Workspace Layer -->
+    <div id="kds-toast-container" class="fixed top-20 right-6 z-[100] flex flex-col gap-3 pointer-events-none w-80"></div>
+
+    <!-- Main Navigation Bar Platform -->
+    <nav class="bg-slate-900 text-white sticky top-0 z-50 shadow-sm">
+        <div class="max-w-[1800px] mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="bg-orange-500 text-white p-2 rounded-lg flex items-center justify-center">
+                    <i data-lucide="chef-hat" class="w-5 h-5 stroke-[2]"></i>
                 </div>
-                <span class="text-3xl font-black text-gray-900 tracking-tighter uppercase">
-                    Kitchen <span class="text-orange-600">Display</span>
-                </span>
+                <div class="flex items-baseline gap-1.5">
+                    <span class="text-xl font-serif font-bold tracking-tight flex items-center gap-2">dineQR</span>
+                </div>
             </div>
 
-            <div class="flex items-center gap-6">
-                <div class="hidden md:flex flex-col items-end">
-                    <span class="text-[10px] font-black text-gray-400 uppercase tracking-widest">System Time</span>
-                    <span id="system-clock" class="text-2xl font-mono font-black text-gray-700"></span>
+            <!-- Global Station Commands -->
+            <div class="flex items-center gap-4">
+                <button onclick="executeWaiterSummon('KITCHEN','')" class="bg-slate-800 hover:bg-slate-700 border border-slate-700/80 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-2 transition-all active:scale-95 text-slate-200">
+                    <i data-lucide="bell" class="w-3.5 h-3.5 text-orange-400"></i>
+                    Call Waiter
+                </button>
+
+                <div class="flex items-center gap-2.5 bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-700/50">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span class="text-xs font-medium font-mono tracking-wide text-slate-300" id="system-clock">00:00:00</span>
                 </div>
             </div>
         </div>
     </nav>
 
-    <!-- Audio for new orders -->
+    <!-- Permanent Broadcast Notice Layer -->
+    {% if broadcast_message %}
+    <div id="broadcast-banner" class="bg-amber-500 text-slate-950 px-6 py-2.5 border-b border-amber-600 flex items-center justify-between transition-all duration-300 transform origin-top">
+        <div class="flex items-center gap-3 min-w-0">
+            <div class="bg-slate-950/10 p-1 rounded-md shrink-0">
+                <i data-lucide="megaphone" class="w-4 h-4 text-slate-950 stroke-[2.5]"></i>
+            </div>
+            <p class="text-xs font-bold tracking-wide uppercase shrink-0">Notice:</p>
+            <p class="text-sm font-medium truncate text-slate-900">{{ broadcast_message }}</p>
+        </div>
+        <button onclick="dismissBroadcast()" class="p-1 hover:bg-slate-950/10 rounded-md transition-colors text-slate-950" title="Dismiss Message">
+            <i data-lucide="x" class="w-4 h-4 stroke-[2.5]"></i>
+        </button>
+    </div>
+    {% endif %}
+
+    <!-- Hidden standard hidden forms to acquire core Django context protections -->
+    <div class="hidden">{% csrf_token %}</div>
     <audio id="order-chime" src="https://assets.mixkit.co/active_storage/sfx/1390/1390-preview.mp3" preload="auto"></audio>
 
-    <main class="max-w-[1600px] mx-auto p-6">
-        <!-- 1. KITCHEN SUMMARY (Aggregated Totals) -->
-        <div class="mb-10 bg-white rounded-[2.5rem] p-8 shadow-sm border border-orange-100 relative overflow-hidden">
-            <!-- Decorative subtle background icon -->
-            <div class="absolute -right-4 -top-4 text-orange-50/50 -rotate-12">
-                <i data-lucide="chef-hat" class="w-32 h-32"></i>
+    <!-- Master Grid Container Workspace -->
+    <main class="max-w-[1800px] mx-auto p-6 space-y-6">
+
+        <!-- 1. PRODUCTION LINE QUANTITY AGGREGATOR -->
+        <div class="bg-white rounded-xl p-4 shadow-xs border border-slate-200">
+            <div class="flex items-center gap-2 mb-3 text-slate-400">
+                <i data-lucide="layers" class="w-3.5 h-3.5 stroke-[2]"></i>
+                <h2 class="text-[10px] font-bold tracking-wider uppercase">Live Item Consolidation</h2>
             </div>
 
-            <div class="relative z-10">
-                <div class="flex items-center gap-3 mb-6">
-                    <div class="bg-orange-600 p-1.5 rounded-lg">
-                        <i data-lucide="list-checks" class="text-white w-4 h-4"></i>
-                    </div>
-                    <h2 class="text-xs font-black text-gray-900 uppercase tracking-[0.2em]">Total Items to Prepare</h2>
+            <div class="flex flex-wrap gap-2 overflow-x-auto no-scrollbar">
+                {% for summary in item_summary %}
+                <div class="bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg flex items-center gap-2.5 transition-colors shrink-0">
+                    <span class="inline-flex items-center justify-center bg-slate-900 text-white text-xs font-mono font-bold px-2 py-0.5 rounded shadow-xs min-w-[24px]">
+                        {{ summary.total_qty }}
+                    </span>
+                    <span class="text-slate-700 font-bold text-xs uppercase tracking-wide">{{ summary.menu_item__name }}</span>
                 </div>
-
-                <div class="flex flex-wrap gap-3">
-                    {% for summary in item_summary %}
-                    <div class="bg-white border-2 border-gray-100 px-6 py-4 rounded-[1.5rem] flex items-center gap-4 shadow-sm">
-                        <span class="text-3xl font-black text-orange-600">{{ summary.total_qty }}</span>
-                        <span class="text-gray-900 font-black uppercase text-xs tracking-wider">{{ summary.menu_item__name }}</span>
-                    </div>
-                    {% empty %}
-                    <div class="flex items-center gap-2 text-gray-400 italic text-sm">
-                        <i data-lucide="check-circle-2" class="w-4 h-4"></i>
-                        No active items to cook
-                    </div>
-                    {% endfor %}
+                {% empty %}
+                <div class="flex items-center gap-2 text-slate-400 font-medium text-xs py-0.5">
+                    <i data-lucide="check-check" class="w-4 h-4 text-emerald-500"></i>
+                    No active dishes currently in preparation.
                 </div>
+                {% endfor %}
             </div>
         </div>
 
-        <div class="flex items-center gap-4 mb-8">
-            <h1 class="text-4xl font-black text-gray-900 tracking-tight">Live Orders</h1>
-            <span class="bg-orange-100 text-orange-600 px-4 py-1 rounded-full text-sm font-black">{{ orders|length }} ACTIVE</span>
+        <!-- Section Identifier Header -->
+        <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+            <div class="flex items-center gap-2.5">
+                <h1 class="text-xl font-bold tracking-tight text-slate-900">Active Order</h1>
+                <span class="bg-slate-200 text-slate-700 px-2 py-0.5 rounded text-xs font-bold font-mono">
+                    {{ orders|length }} Orders
+                </span>
+            </div>
         </div>
 
-        <!-- 2. LIVE ORDERS GRID -->
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+        <!-- 2. PRODUCTION LIVE ORDERS GRID MATRIX -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {% for order in orders %}
-            <div class="order-card bg-white rounded-[2.5rem] shadow-xl border-2 flex flex-col h-full transition-all duration-500
-                {% if order.status == 'received' %} border-orange-200 {% else %} border-blue-200 {% endif %}"
+            <div class="order-card bg-white rounded-xl shadow-xs border flex flex-col h-full relative overflow-hidden
+                {% if order.status == 'received' %} border-t-4 border-t-amber-500 border-slate-200 {% else %} border-t-4 border-t-blue-500 border-slate-200 {% endif %}"
                 data-order-id="{{ order.id }}"
-                data-created="{{ order.created_at|date:'c' }}">
+                data-created="{{ order.created_at|localtime|date:'c' }}">
 
-                <!-- Card Header -->
-                <div class="p-6 border-b border-gray-50 flex justify-between items-start">
-                    <div>
-                        <h3 class="text-3xl font-black text-gray-900 leading-none">Table {{ order.table_number }}</h3>
-                        <p class="text-[10px] font-black text-gray-400 uppercase mt-2 tracking-widest italic">#{{ order.id }}</p>
+                <!-- Ticket Control Cap Sheet -->
+                <div class="p-4 bg-slate-50/80 border-b border-slate-100 flex justify-between items-start gap-3">
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-2">
+                            <h3 class="text-xl font-bold text-slate-900 tracking-tight truncate">Table {{ order.table_number }}</h3>
+
+                            <!-- Precise Contextual Local Call Trigger Hook -->
+                            <button onclick="executeWaiterSummon('{{ order.table_number }}', 'food_ready')"
+                                    class="p-1 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-md transition-all active:scale-90"
+                                    title="Call Waiter to Table {{ order.table_number }}">
+                                <i data-lucide="bell-ring" class="w-4 h-4 stroke-[2]"></i>
+                            </button>
+                        </div>
+                        <p class="text-[9px] font-mono text-slate-400 mt-0.5 font-bold tracking-wider uppercase">ID #{{ order.id }}</p>
                     </div>
-                    <div class="text-right">
-                        <span class="wait-timer text-2xl font-black text-orange-600 font-mono">0m</span>
-                        <p class="text-[10px] font-black text-gray-400 uppercase tracking-widest">Wait Time</p>
+                    <div class="text-right shrink-0">
+                        <div class="inline-flex items-center gap-1 bg-white border border-slate-200 px-1.5 py-0.5 rounded">
+                            <i data-lucide="clock" class="w-3 h-3 text-slate-400"></i>
+                            <span class="wait-timer text-xs font-bold font-mono text-slate-700">0m</span>
+                        </div>
                     </div>
                 </div>
 
-                <!-- Items List -->
-                <ul class="p-6 space-y-5 flex-grow">
+                <!-- Ticket Content Parameters -->
+                <div class="p-4 flex-grow divide-y divide-slate-100 space-y-2.5 overflow-y-auto max-h-[380px]">
                     {% for item in order.items.all %}
-                    <li class="flex items-start gap-4">
-                        <div class="bg-gray-900 text-white font-black w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0">
+                    <div class="flex items-start gap-3 pt-2.5 first:pt-0">
+                        <div class="bg-slate-800 text-white font-mono font-bold text-xs w-6 h-6 rounded flex items-center justify-center shrink-0 shadow-2xs mt-0.5">
                             {{ item.quantity }}
                         </div>
-                        <div class="flex-grow">
-                            <p class="font-black text-xl text-gray-800 leading-tight uppercase">{{ item.menu_item.name }}</p>
+                        <div class="min-w-0 flex-1">
+                            <p class="font-bold text-slate-800 text-sm leading-tight tracking-wide uppercase">{{ item.menu_item.name }}</p>
+
+                            <!-- Allergy Context Scanning Matrix Hook -->
                             {% if item.notes %}
-                            <div class="mt-2 p-3 bg-yellow-50 border border-yellow-100 rounded-2xl">
-                                <p class="text-xs font-black text-yellow-700 uppercase flex items-center gap-2">
-                                    <i data-lucide="message-square" class="w-4 h-4"></i>
-                                    {{ item.notes }}
-                                </p>
+                            <div class="item-note-wrapper mt-1.5" data-note-text="{{ item.notes|escapejs }}">
+                                <div class="p-2 bg-slate-50 border border-slate-200 rounded-md flex items-start gap-1.5">
+                                    <i data-lucide="message-square" class="w-3 h-3 text-slate-400 shrink-0 mt-0.5"></i>
+                                    <p class="text-xs font-semibold text-slate-600 leading-normal">{{ item.notes }}</p>
+                                </div>
                             </div>
                             {% endif %}
                         </div>
-                    </li>
+                    </div>
                     {% endfor %}
-                </ul>
+                </div>
 
-                <!-- Action Footer -->
-                <div class="p-6 bg-gray-50 rounded-b-[2.5rem] border-t border-gray-100">
-                    <form method="POST" action="{% url 'update_order_status' order.id %}">
+                <!-- Action Execution Pipeline Footnotes -->
+                <div class="p-4 bg-slate-50/40 border-t border-slate-100">
+                    <form method="POST" action="{% url 'update_order_status' order.id %}" class="m-0">
                         {% csrf_token %}
                         {% if order.status == 'received' %}
                             <input type="hidden" name="status" value="preparing">
-                            <button class="w-full bg-blue-600 text-white py-5 rounded-[1.5rem] font-black uppercase tracking-widest hover:bg-blue-700 transition-all shadow-lg shadow-blue-100 active:scale-95 flex items-center justify-center gap-3">
-                                <i data-lucide="play" class="w-6 h-6"></i>
-                                Start Cooking
+                            <button class="w-full bg-blue-600 text-white py-2.5 rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-blue-700 active:scale-[0.98] transition-all shadow-2xs flex items-center justify-center gap-1.5">
+                                <i data-lucide="play" class="w-3.5 h-3.5 stroke-[2.5]"></i>
+                                Accept Order
                             </button>
                         {% elif order.status == 'preparing' %}
                             <input type="hidden" name="status" value="ready">
-                            <button class="w-full bg-green-600 text-white py-5 rounded-[1.5rem] font-black uppercase tracking-widest hover:bg-green-700 transition-all shadow-lg shadow-green-100 active:scale-95 flex items-center justify-center gap-3">
-                                <i data-lucide="check-circle" class="w-6 h-6"></i>
-                                Mark Ready
+                            <button class="w-full bg-emerald-600 text-white py-2.5 rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-emerald-700 active:scale-[0.98] transition-all shadow-2xs flex items-center justify-center gap-1.5">
+                                <i data-lucide="check" class="w-3.5 h-3.5 stroke-[2.5]"></i>
+                                Ready for Pickup
                             </button>
                         {% endif %}
                     </form>
                 </div>
             </div>
             {% empty %}
-            <div class="col-span-full py-32 text-center">
-                <div class="bg-white w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 shadow-sm border border-gray-100">
-                    <i data-lucide="coffee" class="w-12 h-12 text-gray-200"></i>
+            <!-- Idle Vector Configuration View -->
+            <div class="col-span-full py-20 text-center border-2 border-dashed border-slate-200 rounded-xl bg-white max-w-sm mx-auto px-4">
+                <div class="bg-slate-50 w-12 h-12 rounded-lg flex items-center justify-center mx-auto mb-3 border border-slate-100 text-slate-300">
+                    <i data-lucide="clipboard-check" class="w-5 h-5"></i>
                 </div>
-                <h3 class="text-gray-400 font-black text-2xl uppercase tracking-widest">Kitchen is currently clear</h3>
+                <h3 class="text-slate-800 font-bold text-xs tracking-wide uppercase">All Stations Clear</h3>
+                <p class="text-slate-400 text-[11px] font-medium mt-0.5">Incoming digital QR table selections display here automatically.</p>
             </div>
             {% endfor %}
         </div>
-
-        <script>
-            // --- 1. LIVE WAIT TIMERS ---
-            function updateTimers() {
-                document.querySelectorAll('.order-card').forEach(card => {
-                    const createdTime = new Date(card.dataset.created);
-                    const now = new Date();
-                    const diffMs = now - createdTime;
-                    const diffMins = Math.floor(diffMs / 60000);
-
-                    const timerEl = card.querySelector('.wait-timer');
-                    timerEl.innerText = `${diffMins}m`;
-
-                    // URGENCY LOGIC: Turn red and pulse if > 15 minutes
-                    if (diffMins >= 15) {
-                        card.classList.add('urgent-card');
-                        timerEl.classList.replace('text-orange-600', 'text-red-600');
-                    }
-                });
-            }
-
-            // --- 2. NEW ORDER CHIME LOGIC ---
-            let currentOrderCount = {{ orders|length }};
-
-            function checkNewOrders() {
-                // We compare the current rendered length with the server
-                // This reloads the page to get the new data
-                location.reload();
-            }
-
-            // Refresh every 15 seconds to check for new orders
-            setTimeout(checkNewOrders, 15000);
-
-            // Initial timer run and then every minute
-            updateTimers();
-            setInterval(updateTimers, 60000);
-
-            // Lucide need to be re-run after any DOM changes (though not needed for reload)
-            lucide.createIcons();
-
-            // System clock
-            setInterval(() => {
-                document.getElementById('system-clock').innerText = new Date().toLocaleTimeString('en-GB');
-            }, 1000);
-        </script>
     </main>
 
+    <!-- Operating System Control Diagnostics -->
+    <script>
+        const CURRENT_NOTICE_TEXT = "{{ broadcast_message|escapejs }}";
+
+        // --- 1. PERSISTENT NOTICE SYSTEM ---
+        function dismissBroadcast() {
+            const banner = document.getElementById('broadcast-banner');
+            if (banner) {
+                if (CURRENT_NOTICE_TEXT) {
+                    localStorage.setItem('kds_dismissed_notice', CURRENT_NOTICE_TEXT);
+                }
+                banner.style.height = '0px';
+                banner.style.paddingTop = '0px';
+                banner.style.paddingBottom = '0px';
+                banner.style.opacity = '0';
+                setTimeout(() => banner.remove(), 250);
+            }
+        }
+
+        if (CURRENT_NOTICE_TEXT && localStorage.getItem('kds_dismissed_notice') === CURRENT_NOTICE_TEXT) {
+            document.getElementById('broadcast-banner')?.remove();
+        }
+
+        // --- 2. RESTAURANT INTER-DEPARTMENTAL CALL WAITER PIPELINE ---
+        function executeWaiterSummon(tableNumber, reasonCode = "help") {
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+
+            fetch('/api/call-waiter/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({
+                    table_number: tableNumber, // Sends 'KITCHEN' (or change to '0' if your model is an IntegerField)
+                    reason: reasonCode
+                })
+            })
+            .then(async response => {
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.message || 'Transmission failed.');
+                }
+
+                // Context-aware success notification alert
+                const alertMsg = (tableNumber === 'KITCHEN' || tableNumber === '0')
+                    ? "Summons broadcasted: Waiter called to Kitchen!"
+                    : `Waiter dispatched to Table ${tableNumber}`;
+
+                showKitchenToast(alertMsg, 'success');
+            })
+            .catch(error => {
+                showKitchenToast(error.message, 'error');
+            });
+        }
+
+        // Global Summon Controls
+        function openGlobalSummonModal() {
+            const modal = document.getElementById('global-summon-modal');
+            const box = document.getElementById('summon-modal-box');
+            modal.classList.replace('hidden', 'flex');
+            setTimeout(() => box.classList.replace('scale-95', 'scale-100'), 10);
+        }
+
+        function closeGlobalSummonModal() {
+            const modal = document.getElementById('global-summon-modal');
+            const box = document.getElementById('summon-modal-box');
+            box.classList.replace('scale-100', 'scale-95');
+            setTimeout(() => modal.classList.replace('flex', 'hidden'), 150);
+        }
+
+        function submitGlobalSummon() {
+            const tableVal = document.getElementById('summon-table-input').value.trim();
+            const reasonVal = document.getElementById('summon-reason-input').value;
+
+            if (!tableVal) {
+                showKitchenToast("Please input a valid table identifier", "error");
+                return;
+            }
+
+            executeWaiterSummon(tableVal, reasonVal);
+            closeGlobalSummonModal();
+            document.getElementById('summon-table-input').value = '';
+        }
+
+        // Minimalist Dynamic Dashboard System Toast UI Notifications
+        function showKitchenToast(message, type = 'success') {
+            const container = document.getElementById('kds-toast-container');
+            if (!container) return;
+
+            const el = document.createElement('div');
+            el.className = `p-3 text-xs font-bold rounded-lg border shadow-lg flex items-center gap-2 transition-all duration-300 transform translate-x-12 opacity-0 pointer-events-auto ${
+                type === 'success' ? 'bg-slate-900 border-slate-800 text-white' : 'bg-red-50 border-red-200 text-red-700'
+            }`;
+
+            const icon = type === 'success' ? 'check-circle-2' : 'alert-triangle';
+            el.innerHTML = `<i data-lucide="${icon}" class="w-4 h-4 shrink-0"></i> <span>${message}</span>`;
+
+            container.appendChild(el);
+            lucide.createIcons();
+
+            setTimeout(() => {
+                el.classList.replace('translate-x-12', 'translate-x-0');
+                el.classList.replace('opacity-0', 'opacity-100');
+            }, 10);
+
+            setTimeout(() => {
+                el.classList.replace('translate-x-0', 'translate-x-12');
+                el.classList.replace('opacity-100', 'opacity-0');
+                setTimeout(() => el.remove(), 300);
+            }, 4000);
+        }
+
+        // --- 3. ALLERGY SCANNERS & TIMERS CONTROL PIPELINE ---
+        function runAllergyAnalysis() {
+            document.querySelectorAll('.item-note-wrapper').forEach(wrapper => {
+                const rawText = wrapper.getAttribute('data-note-text').toLowerCase();
+                if (rawText.includes('allergy') || rawText.includes('allergic') || rawText.includes('no ') || rawText.includes('without')) {
+                    const txt = wrapper.querySelector('p').innerText;
+                    wrapper.innerHTML = `
+                        <div class="p-2 bg-red-600 border border-red-700 text-white rounded-md flex items-start gap-1.5 shadow-2xs animate-pulse">
+                            <i data-lucide="shield-alert" class="w-3.5 h-3.5 text-white shrink-0 mt-0.5"></i>
+                            <p class="text-xs font-bold leading-normal tracking-wide uppercase">${txt}</p>
+                        </div>
+                    `;
+                }
+            });
+        }
+
+        function updateTimers() {
+            document.querySelectorAll('.order-card').forEach(card => {
+                const createdTime = new Date(card.dataset.created);
+                const now = new Date();
+                const diffMs = now - createdTime;
+                const diffMins = Math.floor(diffMs / 60000);
+
+                const timerEl = card.querySelector('.wait-timer');
+                if (timerEl) {
+                    timerEl.innerText = `${diffMins}m`;
+                    if (diffMins >= 15) {
+                        card.classList.add('urgent-card');
+                        timerEl.classList.replace('text-slate-700', 'text-red-600');
+                    }
+                }
+            });
+        }
+
+        // Initialization Run
+        runAllergyAnalysis();
+        updateTimers();
+        setInterval(updateTimers, 60000);
+
+        // Automated Background Page Synchronization (15s)
+        setTimeout(() => { location.reload(); }, 15000);
+
+        setInterval(() => {
+            const clockEl = document.getElementById('system-clock');
+            if (clockEl) clockEl.innerText = new Date().toLocaleTimeString('en-GB');
+        }, 1000);
+
+        lucide.createIcons();
+    </script>
 </body>
 </html>
