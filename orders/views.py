@@ -31,6 +31,7 @@ from .ai_utils import analyze_note_sentiment
 from collections import Counter, defaultdict
 from itertools import combinations
 from datetime import timezone as dt_timezone
+from django.views.decorators.csrf import csrf_exempt
 from .models import (
     Order,
     OrderItem,
@@ -384,9 +385,9 @@ def place_order(request):
 
         try:
             table_num = int(raw_table_number)
-            if table_num < 1 or table_num > 10:
+            if table_num < 0 or table_num > 10:
                 return JsonResponse(
-                    {"status": "error", "message": "Table must be 1-10"}, status=400
+                    {"status": "error", "message": "Table must be 0-10"}, status=400
                 )
         except ValueError:
             return JsonResponse(
@@ -516,9 +517,8 @@ def management_dashboard(request):
     # --- 2. LOGIC FOR TABLES TAB ---
     if current_tab in ["tables", "qr"]:
         for i in range(1, 11):
-            active_orders = Order.objects.filter(table_number=i).exclude(
-                status="completed"
-            )
+            active_orders = Order.objects.filter(table_number=i).exclude(status="completed")
+            walkin_orders = Order.objects.filter(table_number=0).exclude(status="completed").order_by('-created_at')
             if active_orders.exists():
                 total_bill = (
                     active_orders.aggregate(Sum("total_price"))["total_price__sum"] or 0
@@ -541,6 +541,7 @@ def management_dashboard(request):
                 table_data.append(
                     {"number": i, "status": "empty", "total": 0, "has_orders": False}
                 )
+        context.update({"walkin_orders": walkin_orders})
 
     # --- 3. LOGIC FOR INSIGHTS TAB ---
     elif current_tab == "insights":
@@ -1303,3 +1304,158 @@ def unified_delete(request, model_type, object_id):
         print(f"Deletion error: {e}")
 
     return redirect(f"{reverse('management_dashboard')}?tab={return_tab}")
+
+@user_passes_test(is_staff)
+def staff_place_order(request):
+    """API for staff to instantly create walk-in / manual orders"""
+    if request.method == "POST":
+        data = json.loads(request.body)
+        table_num = int(data.get("table_number", 0))
+        cart = data.get("cart", [])
+
+        if not cart:
+            return JsonResponse({"status": "error", "message": "Cart is empty"}, status=400)
+
+        new_order = Order.objects.create(
+            table_number=table_num,
+            status="received",
+            total_price=Decimal("0.00")
+        )
+
+        running_total = Decimal("0.00")
+        for item in cart:
+            menu_item = MenuItem.objects.get(id=item["id"])
+            qty = int(item["qty"])
+            OrderItem.objects.create(
+                order=new_order,
+                menu_item=menu_item,
+                quantity=qty,
+                notes=item.get("notes", "")
+            )
+            running_total += Decimal(str(menu_item.price)) * qty
+
+        new_order.total_price = running_total
+        new_order.save()
+        return JsonResponse({"status": "success"})
+
+
+@user_passes_test(is_staff)
+def get_table_orders(request, table_num):
+    """API to fetch live items for the Slide-Out Drawer"""
+    active_orders = Order.objects.filter(table_number=table_num).exclude(status="completed")
+    items_data = []
+
+    for order in active_orders:
+        for item in order.items.all():
+            items_data.append({
+                "item_id": item.id,
+                "name": item.menu_item.name,
+                "qty": item.quantity,
+                "price": float(item.menu_item.price),
+                "notes": item.notes,
+                "order_status": order.status,
+                "order_id": order.id
+            })
+
+    return JsonResponse({"items": items_data, "table": table_num})
+
+
+@user_passes_test(is_staff)
+def modify_order_item(request, item_id):
+    """API to increment, decrement, or delete an item directly from the drawer"""
+    if request.method == "POST":
+        data = json.loads(request.body)
+        action = data.get("action")
+
+        try:
+            item = OrderItem.objects.get(id=item_id)
+            order = item.order
+            item_price = Decimal(str(item.menu_item.price))
+
+            if action == "increase":
+                item.quantity += 1
+                item.save()
+                order.total_price += item_price
+            elif action == "decrease":
+                if item.quantity > 1:
+                    item.quantity -= 1
+                    item.save()
+                    order.total_price -= item_price
+                else:
+                    order.total_price -= item_price
+                    item.delete()
+            elif action == "delete":
+                order.total_price -= (item_price * item.quantity)
+                item.delete()
+
+            order.save()
+
+            # If order is empty, delete it completely
+            if order.items.count() == 0:
+                order.delete()
+
+            return JsonResponse({"status": "success"})
+        except OrderItem.DoesNotExist:
+            return JsonResponse({"status": "error", "message": "Item not found"}, status=404)
+
+@user_passes_test(is_staff)
+def mark_order_paid(request, order_id):
+    """Settles a single walk-in order"""
+    if request.method == "POST":
+        order = get_object_or_404(Order, id=order_id)
+        order.is_paid = True
+        order.paid_at = timezone.now()
+        order.status = "completed"
+        order.save()
+    return redirect("management_dashboard")
+
+@user_passes_test(is_staff)
+def single_order_bill(request, order_id):
+    """Prints the thermal bill for a single walk-in order"""
+    order = get_object_or_404(Order, id=order_id)
+    items = order.items.all()
+    total = order.total_price
+
+    qr_code = generate_bill_qr({
+        "amount": f"{total:,.2f}",
+        "order_id": order.id,
+        "table_number": "Counter",
+        "timestamp": timezone.localtime(timezone.now()).strftime("%Y-%m-%d %I:%M %p"),
+    })
+
+    context = {
+        "table_num": f"Walk-In #{order.id}",
+        "items": items,
+        "total": total,
+        "date": timezone.localtime(timezone.now()),
+        "bill_id": order.id,
+        "qr_code": qr_code,
+    }
+    return render(request, "orders/bill_print.html", context)
+
+@user_passes_test(is_staff)
+def get_drawer_items(request):
+    """Handles Drawer fetching for BOTH Tables AND individual Walk-In Orders"""
+    table_num = request.GET.get('table')
+    order_id = request.GET.get('order')
+
+    if order_id:
+        active_orders = Order.objects.filter(id=order_id)
+    elif table_num:
+        active_orders = Order.objects.filter(table_number=table_num).exclude(status="completed")
+    else:
+        return JsonResponse({"items": []})
+
+    items_data = []
+    for order in active_orders:
+        for item in order.items.all():
+            items_data.append({
+                "item_id": item.id,
+                "name": item.menu_item.name,
+                "qty": item.quantity,
+                "price": float(item.menu_item.price),
+                "notes": item.notes,
+                "order_status": order.status,
+                "order_id": order.id
+            })
+    return JsonResponse({"items": items_data})

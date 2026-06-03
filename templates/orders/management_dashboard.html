@@ -80,7 +80,7 @@
         <!-- 3. TAB NAVIGATION -->
         <div class="flex gap-8 mb-8 border-b border-gray-200 overflow-x-auto no-scrollbar">
             <a href="?tab=tables" class="pb-4 whitespace-nowrap font-black text-xs transition-all border-b-2 tracking-widest {% if current_tab == 'tables' %} border-orange-600 text-orange-600 {% else %} border-transparent text-gray-400 hover:text-gray-600 {% endif %}">
-                TABLE OVERVIEW
+                SERVICE DESK
             </a>
             <a href="?tab=menu" class="pb-4 whitespace-nowrap font-black text-xs transition-all border-b-2 tracking-widest {% if current_tab == 'menu' %} border-orange-600 text-orange-600 {% else %} border-transparent text-gray-400 hover:text-gray-600 {% endif %}">
                 MENU & STOCK
@@ -99,10 +99,24 @@
         <!-- 4. CONTENT SECTIONS -->
 
         {% if current_tab == 'tables' %}
-            <!-- LIVE TABLES GRID -->
+
+            <!-- Walk-In Order Header & Customer Kiosk Mode -->
+            <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4 animate-in fade-in duration-500">
+                <h2 class="text-xl font-black text-gray-900">Table Overview</h2>
+                <div class="flex gap-2">
+                    <a href="{% url 'menu' %}?table=0" target="_blank" class="bg-white border border-gray-200 text-gray-900 hover:bg-gray-50 px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-sm">
+                        <i data-lucide="monitor-smartphone" class="w-4 h-4 text-orange-500"></i> Customer Display
+                    </a>
+                    <button onclick="openWalkInModal()" class="bg-orange-600 hover:bg-gray-900 text-white px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-lg">
+                        <i data-lucide="plus" class="w-4 h-4"></i> Staff POS
+                    </button>
+                </div>
+            </div>
+
+            <!-- REGULAR TABLES GRID (1-10) -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 animate-in fade-in duration-500">
                 {% for table in tables %}
-                <div class="rounded-[2.5rem] p-6 border-2 transition-all flex flex-col justify-between min-h-[220px] relative overflow-hidden
+                <div onclick="openTableDrawer({{ table.number }})" class="rounded-[2.5rem] p-6 border-2 transition-all flex flex-col justify-between min-h-[220px] relative overflow-hidden cursor-pointer hover:border-orange-400
                     {% if table.status == 'empty' %} bg-white border-gray-50 opacity-60
                     {% elif table.status == 'received' %} bg-orange-50 border-orange-200
                     {% elif table.status == 'preparing' %} bg-blue-50 border-blue-200
@@ -128,11 +142,11 @@
                         </div>
 
                         <div class="flex flex-col gap-2 z-10">
-                            <a href="{% url 'table_bill' table.number %}" target="_blank"
+                            <a href="{% url 'table_bill' table.number %}" target="_blank" onclick="event.stopPropagation();"
                                 class="w-full py-2 bg-white/80 backdrop-blur-sm border border-gray-200 text-gray-900 text-[10px] font-black rounded-xl hover:bg-white flex items-center justify-center gap-1 transition-all">
                                 <i data-lucide="printer" class="w-3 h-3"></i> BILL
                             </a>
-                            <form action="{% url 'mark_table_paid' table.number %}" method="POST" class="w-full">
+                            <form action="{% url 'mark_table_paid' table.number %}" method="POST" class="w-full" onclick="event.stopPropagation();">
                                 {% csrf_token %}
                                 <button class="w-full py-2.5 bg-gray-900 text-white text-[10px] font-black rounded-xl shadow-lg hover:bg-black transition-all">SETTLE & CLEAR</button>
                             </form>
@@ -147,9 +161,54 @@
                 {% endfor %}
             </div>
 
-            <!-- FIX 4: MANAGER BROADCAST INPUT moved INSIDE the tables tab conditional -->
-            <!-- (was placed after the closing endif, so it rendered on every tab) -->
-            <div class="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm mt-8 mb-6">
+            <!-- WALK-IN / COUNTER ORDERS GRID -->
+            <div class="mt-12 mb-6 flex items-center gap-4 animate-in fade-in duration-500">
+                <h2 class="text-sm font-black text-gray-400 uppercase tracking-widest shrink-0">Counter / Walk-In Orders</h2>
+                <div class="flex-grow h-px bg-gray-200"></div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 animate-in fade-in duration-500">
+                {% for order in walkin_orders %}
+                <div onclick="openOrderDrawer({{ order.id }})" class="rounded-[2.5rem] p-6 border-2 transition-all flex flex-col justify-between min-h-[220px] relative overflow-hidden cursor-pointer hover:border-purple-400
+                    {% if order.status == 'received' %} bg-purple-50 border-purple-200
+                    {% elif order.status == 'preparing' %} bg-blue-50 border-blue-200
+                    {% elif order.status == 'ready' %} bg-green-50 border-green-200 shadow-xl shadow-green-100
+                    {% endif %}">
+
+                    <div class="flex justify-between items-start z-10">
+                        <span class="text-[10px] font-black px-2 py-1 rounded-lg uppercase bg-purple-600 text-white shadow-sm flex items-center gap-1">
+                            <i data-lucide="shopping-bag" class="w-3 h-3"></i> #{{ order.id }}
+                        </span>
+                        <span class="animate-pulse w-2 h-2 rounded-full
+                            {% if order.status == 'ready' %} bg-green-500 {% elif order.status == 'preparing' %} bg-blue-500 {% else %} bg-purple-500 {% endif %}"></span>
+                    </div>
+
+                    <div class="my-4 z-10">
+                        <p class="text-2xl font-black text-gray-900 leading-none">Rs. {{ order.total_price }}</p>
+                        <p class="text-[10px] font-black uppercase text-gray-500 mt-1 tracking-widest">{{ order.status }}</p>
+                    </div>
+
+                    <div class="flex flex-col gap-2 z-10">
+                        <a href="{% url 'single_order_bill' order.id %}" target="_blank" onclick="event.stopPropagation();"
+                            class="w-full py-2 bg-white/80 backdrop-blur-sm border border-gray-200 text-gray-900 text-[10px] font-black rounded-xl hover:bg-white flex items-center justify-center gap-1 transition-all">
+                            <i data-lucide="printer" class="w-3 h-3"></i> PRINT BILL
+                        </a>
+                        <form action="{% url 'mark_order_paid' order.id %}" method="POST" class="w-full" onclick="event.stopPropagation();">
+                            {% csrf_token %}
+                            <button class="w-full py-2.5 bg-gray-900 text-white text-[10px] font-black rounded-xl shadow-lg hover:bg-black transition-all">SETTLE & CLEAR</button>
+                        </form>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="col-span-full py-10 text-center bg-white rounded-[2.5rem] border border-dashed border-gray-200">
+                    <i data-lucide="shopping-cart" class="w-8 h-8 text-gray-300 mx-auto mb-2"></i>
+                    <p class="text-xs font-bold text-gray-400 uppercase tracking-widest">No active walk-in orders</p>
+                </div>
+                {% endfor %}
+            </div>
+
+            <!-- KITCHEN BROADCAST -->
+            <div class="bg-white p-6 rounded-[2.5rem] border border-gray-100 shadow-sm mt-10 mb-6">
                 <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest mb-2">Kitchen Broadcast</h3>
                 <form action="{% url 'update_kitchen_broadcast' %}" method="POST" class="flex gap-2">
                     {% csrf_token %}
@@ -358,7 +417,6 @@
                         </div>
                     </div>
 
-                    <!-- FIX 5a: added missing canvas for top items chart -->
                     <div class="bg-white p-6 md:p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
                         <div class="flex justify-between items-center mb-6">
                             <div>
@@ -450,7 +508,6 @@
                         </div>
                     </div>
 
-                    <!-- FIX 5b: added missing canvas for waiter telemetry chart -->
                     <div class="bg-white p-6 md:p-8 rounded-[2.5rem] border border-gray-100 shadow-sm">
                         <div class="flex justify-between items-center mb-6">
                             <div>
@@ -554,9 +611,6 @@
                     <div class="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col sm:flex-row justify-between gap-4 transition-all hover:shadow-md">
                         <div class="flex-grow">
                             <div class="flex items-center gap-3 mb-2">
-                                <!-- FIX 3 (template): use review.order_id as the identifier
-                                     since Review may not have a direct menu_item FK.
-                                     Adjust this field to match your actual Review model. -->
                                 <h4 class="font-black text-gray-900">Order #{{ review.order_id }}</h4>
                                 <span class="text-[9px] font-black px-2 py-1 rounded-md uppercase tracking-widest
                                     {% if review.sentiment == 'positive' %} bg-green-50 text-green-600
@@ -600,9 +654,10 @@
             <div class="divide-y divide-gray-100 border-t border-gray-100">
                 {% for table in tables %}
                 <div class="flex justify-between items-center py-3.5">
-
                     <div class="flex items-center gap-2.5">
-                        <span class="text-sm font-bold text-gray-900">Table {{ table.number }}</span>
+                        <span class="text-sm font-bold text-gray-900">
+                            {% if table.number == 0 %} Counter / Walk-In {% else %} Table {{ table.number }} {% endif %}
+                        </span>
                         {% if table.status != 'empty' %}
                             <span class="text-[9px] font-black bg-orange-50 text-orange-600 px-2 py-0.5 rounded-md uppercase tracking-wide flex items-center gap-1">
                                 <span class="w-1 h-1 rounded-full bg-orange-500 animate-pulse"></span> Occupied
@@ -611,8 +666,8 @@
                             <span class="text-[9px] font-black bg-gray-50 text-gray-400 px-2 py-0.5 rounded-md uppercase tracking-wide">Empty</span>
                         {% endif %}
                     </div>
-
                     <div class="flex items-center gap-2">
+                        {% if table.number != 0 %}
                         <button onclick="copyTableUrl(this, '{{ table.number }}')"
                                 data-base-url="{{ request.scheme }}://{{ request.get_host }}"
                                 class="p-2 text-gray-400 hover:text-gray-900 rounded-xl hover:bg-gray-50 transition-all flex items-center justify-center"
@@ -624,6 +679,7 @@
                            class="px-4 py-2 bg-gray-900 text-white text-[11px] font-black uppercase tracking-wider rounded-xl hover:bg-orange-600 transition-all flex items-center gap-1.5 shadow-sm">
                             <i data-lucide="external-link" class="w-3.5 h-3.5"></i> View QR
                         </a>
+                        {% endif %}
                     </div>
                 </div>
                 {% endfor %}
@@ -631,6 +687,7 @@
         </div>
         {% endif %}
 
+        <!-- MENU & CATEGORY EDITOR MODALS -->
         <div id="menu-editor-modal" class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
             <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md border border-gray-100 overflow-hidden transform scale-95 transition-transform duration-200" id="menu-modal-box">
                 <div class="p-5 border-b border-gray-100 flex justify-between items-center bg-gray-50">
@@ -718,12 +775,95 @@
             </div>
         </div>
 
+        <!-- SLIDE-OUT DRAWER FOR TABLES AND WALK-IN ORDERS -->
+        <div id="table-drawer-backdrop" class="fixed inset-0 bg-gray-900/60 backdrop-blur-sm z-[110] hidden transition-opacity" onclick="closeTableDrawer()"></div>
+        <div id="table-drawer" class="fixed top-0 right-0 h-full w-full max-w-md bg-white shadow-2xl z-[120] transform translate-x-full transition-transform duration-300 flex flex-col">
+            <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                <div>
+                    <h2 id="drawer-title" class="text-xl font-black text-gray-900 uppercase">Table Details</h2>
+                    <p class="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Modify Live Orders</p>
+                </div>
+                <button onclick="closeTableDrawer()" class="bg-white p-2 rounded-xl border border-gray-200 text-gray-400 hover:text-gray-900"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="p-6 flex-grow overflow-y-auto space-y-4" id="drawer-items-list">
+                <!-- Injected via JS -->
+            </div>
+        </div>
+
+        <!-- WALK-IN ORDER MODAL (POS STYLE) -->
+        <div id="walkin-modal" class="fixed inset-0 bg-gray-900/80 backdrop-blur-sm z-[150] hidden items-center justify-center p-4">
+            <div class="bg-white rounded-[2rem] w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden shadow-2xl transform scale-95 transition-all" id="walkin-box">
+                <!-- Header -->
+                <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-900 text-white">
+                    <h2 class="text-lg font-black uppercase tracking-widest flex items-center gap-2">
+                        <i data-lucide="monitor" class="w-5 h-5 text-orange-500"></i> POS Terminal
+                    </h2>
+                    <div class="flex gap-4 items-center">
+                        <select id="pos-table-select" class="bg-gray-800 border-none text-sm font-bold rounded-lg px-4 py-2 text-white outline-none cursor-pointer">
+                            <option value="0">🛒 Counter / Walk-in</option>
+                            <option value="1">Table 1</option>
+                            <option value="2">Table 2</option>
+                            <option value="3">Table 3</option>
+                            <option value="4">Table 4</option>
+                            <option value="5">Table 5</option>
+                            <option value="6">Table 6</option>
+                            <option value="7">Table 7</option>
+                            <option value="8">Table 8</option>
+                            <option value="9">Table 9</option>
+                            <option value="10">Table 10</option>
+                        </select>
+                        <button onclick="closeWalkInModal()" class="text-gray-400 hover:text-white transition-colors"><i data-lucide="x" class="w-6 h-6"></i></button>
+                    </div>
+                </div>
+
+                <!-- Body (Split screen) -->
+                <div class="flex-grow flex overflow-hidden">
+                    <!-- Left: Menu Items -->
+                    <div class="w-2/3 border-r border-gray-100 bg-gray-50 p-4 overflow-y-auto grid grid-cols-2 lg:grid-cols-3 gap-3">
+                        {% for category in categories %}
+                            {% for item in category.items.all %}
+                                {% if item.is_available %}
+                                <div onclick="addWalkInItem('{{ item.id }}', '{{ item.name|escapejs }}', {{ item.price }})"
+                                     class="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm cursor-pointer hover:border-orange-400 transition-all active:scale-95 flex flex-col justify-between h-24">
+                                    <p class="text-xs font-black text-gray-800 leading-tight">{{ item.name }}</p>
+                                    <p class="text-[10px] font-black text-orange-600 bg-orange-50 w-fit px-2 py-0.5 rounded uppercase mt-2">Rs. {{ item.price }}</p>
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        {% endfor %}
+                    </div>
+
+                    <!-- Right: Cart -->
+                    <div class="w-1/3 flex flex-col bg-white relative">
+                        <div class="p-4 bg-gray-50 border-b border-gray-100">
+                            <h3 class="text-xs font-black text-gray-400 uppercase tracking-widest">Current Order</h3>
+                        </div>
+                        <div id="pos-cart-list" class="flex-grow p-4 overflow-y-auto space-y-3 pb-24">
+                            <p class="text-xs font-bold text-gray-400 text-center mt-10">Cart is empty.</p>
+                        </div>
+                        <div class="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-100 bg-gray-50 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                            <div class="flex justify-between items-center mb-4">
+                                <span class="text-sm font-black text-gray-500 uppercase">Total</span>
+                                <span id="pos-total" class="text-2xl font-black text-gray-900">Rs. 0.00</span>
+                            </div>
+                            <button onclick="submitWalkInOrder()" class="w-full py-3.5 bg-green-500 hover:bg-green-600 text-white font-black uppercase tracking-widest rounded-2xl shadow-lg transition-all text-sm">
+                                Send to Kitchen
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </main>
 
+    {% if current_tab == 'insights' %}
     {{ insights.top_items|json_script:"top-items-data" }}
     {{ insights.hourly_data|json_script:"hourly-data" }}
     {{ insights.diet_shares|json_script:"diet-shares-data" }}
     {{ insights.waiter_telemetry|json_script:"waiter-telemetry-data" }}
+    {% endif %}
+
     <script>
         lucide.createIcons();
         function updateClock() {
@@ -752,10 +892,6 @@
 
         // --- WAITER CALL POLLING ---
         let lastCallCount = 0;
-
-        // FIX 6: use a Map of id -> timeoutHandle instead of a plain Set.
-        // This lets us clearTimeout() on manual resolve, preventing a stale
-        // auto-resolve from firing after a manager has already dismissed the alert.
         const autoResolvingTimers = new Map();
 
         async function pollWaiterCalls() {
@@ -765,7 +901,7 @@
                 const container = document.getElementById('service-alerts-container');
                 const list = document.getElementById('alerts-list');
 
-                if (data.calls.length > 0) {
+                if (data.calls && data.calls.length > 0) {
                     container.classList.remove('hidden');
 
                     if (data.calls.length > lastCallCount) {
@@ -777,8 +913,6 @@
                     list.innerHTML = data.calls.map(call => {
                         const isPayment = (call.reason === "Payment Done");
 
-                        // FIX 6 (continued): only register the timer once per call id,
-                        // and store the handle so resolveCall() can cancel it.
                         if (isPayment && !autoResolvingTimers.has(call.id)) {
                             const handle = setTimeout(() => {
                                 autoResolvingTimers.delete(call.id);
@@ -809,10 +943,8 @@
 
                     lucide.createIcons();
                 } else {
-                    container.classList.add('hidden');
+                    if(container) container.classList.add('hidden');
                     lastCallCount = 0;
-                    // FIX 6: clear all pending timers when the list empties, so no
-                    // ghost resolveCall() can fire against a now-vanished record.
                     autoResolvingTimers.forEach(handle => clearTimeout(handle));
                     autoResolvingTimers.clear();
                 }
@@ -820,15 +952,11 @@
         }
 
         async function resolveCall(id) {
-            // FIX 6: cancel the auto-resolve timer for this id before the POST,
-            // so the timeout can never double-fire after a manual dismiss.
             if (autoResolvingTimers.has(id)) {
                 clearTimeout(autoResolvingTimers.get(id));
                 autoResolvingTimers.delete(id);
             }
             try {
-                // FIX 7: read CSRF token from the cookie rather than inlining the
-                // Django template tag inside a JS string — more robust and idiomatic.
                 const csrfToken = document.cookie
                     .split('; ')
                     .find(row => row.startsWith('csrftoken='))
@@ -850,7 +978,6 @@
             const dietSharesRaw  = JSON.parse(document.getElementById('diet-shares-data').textContent);
             const waiterCallsRaw = JSON.parse(document.getElementById('waiter-telemetry-data').textContent);
 
-            // FIX 5a: topItemsChart canvas now exists in the HTML above
             new Chart(document.getElementById('topItemsChart'), {
                 type: 'bar',
                 data: {
@@ -907,7 +1034,6 @@
                 }
             });
 
-            // FIX 5b: waiterTelemetryChart canvas now exists in the HTML above
             new Chart(document.getElementById('waiterTelemetryChart'), {
                 type: 'bar',
                 data: {
@@ -941,6 +1067,7 @@
             });
         }
 
+        // --- MENU EDITOR MODALS ---
         function openMenuModal(id = null, name = '', price = '', category = '', veg = 'false', spice = 'neutral', prep = '15', desc = '') {
             const modal = document.getElementById('menu-editor-modal');
             const box = document.getElementById('menu-modal-box');
@@ -1002,14 +1129,211 @@
             setTimeout(() => modal.classList.replace('flex', 'hidden'), 150);
         }
 
-        // FIX 8: add reviews tab to the auto-refresh exclusion list so the
-        // page doesn't reload every 15 s and lose the manager's scroll position
-        // or active sentiment filter.
+        // --- POS WALK-IN LOGIC ---
+        let walkInCart = [];
+
+        function openWalkInModal() {
+            document.getElementById('walkin-modal').classList.replace('hidden', 'flex');
+            setTimeout(() => document.getElementById('walkin-box').classList.replace('scale-95', 'scale-100'), 10);
+        }
+
+        function closeWalkInModal() {
+            document.getElementById('walkin-box').classList.replace('scale-100', 'scale-95');
+            setTimeout(() => document.getElementById('walkin-modal').classList.replace('flex', 'hidden'), 150);
+        }
+
+        function addWalkInItem(id, name, price) {
+            const parsedPrice = parseFloat(price);
+            const existing = walkInCart.find(i => i.id === id);
+            if (existing) {
+                existing.qty++;
+            } else {
+                walkInCart.push({ id, name, price: parsedPrice, qty: 1, notes: "" });
+            }
+            renderWalkInCart();
+        }
+
+        function updateWalkInQty(id, delta) {
+            const item = walkInCart.find(i => i.id === id);
+            if (!item) return;
+            item.qty += delta;
+            if (item.qty <= 0) walkInCart = walkInCart.filter(i => i.id !== id);
+            renderWalkInCart();
+        }
+
+        function updateWalkInNote(id, note) {
+            const item = walkInCart.find(i => i.id === id);
+            if (item) item.notes = note;
+        }
+
+        function renderWalkInCart() {
+            const container = document.getElementById('pos-cart-list');
+            const totalEl = document.getElementById('pos-total');
+            let total = 0;
+
+            if (walkInCart.length === 0) {
+                container.innerHTML = `<p class="text-xs font-bold text-gray-400 text-center mt-10">Cart is empty.</p>`;
+                totalEl.innerText = "Rs. 0.00";
+                return;
+            }
+
+            container.innerHTML = walkInCart.map(item => {
+                total += item.price * item.qty;
+                return `
+                    <div class="bg-white border border-gray-100 p-3 rounded-xl shadow-sm relative">
+                        <button onclick="updateWalkInQty('${item.id}', -999)" class="absolute -top-2 -right-2 bg-red-100 text-red-600 rounded-full p-1 hover:bg-red-500 hover:text-white transition-colors">
+                            <i data-lucide="x" class="w-3 h-3"></i>
+                        </button>
+                        <div class="flex justify-between items-start mb-2 pr-4">
+                            <span class="text-xs font-black text-gray-800">${item.name}</span>
+                            <span class="text-xs font-black text-gray-500 whitespace-nowrap">Rs. ${(item.price * item.qty).toFixed(2)}</span>
+                        </div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <button onclick="updateWalkInQty('${item.id}', -1)" class="w-6 h-6 bg-gray-100 rounded flex items-center justify-center font-bold text-gray-600 hover:bg-gray-200">-</button>
+                            <span class="text-xs font-black w-4 text-center">${item.qty}</span>
+                            <button onclick="updateWalkInQty('${item.id}', 1)" class="w-6 h-6 bg-gray-100 rounded flex items-center justify-center font-bold text-gray-600 hover:bg-gray-200">+</button>
+                        </div>
+                        <input type="text" placeholder="Add note..." value="${item.notes}" onchange="updateWalkInNote('${item.id}', this.value)"
+                            class="w-full text-[10px] p-1.5 bg-gray-50 border border-gray-100 rounded outline-none focus:border-orange-300 font-medium">
+                    </div>
+                `;
+            }).join('');
+
+            totalEl.innerText = `Rs. ${total.toFixed(2)}`;
+            lucide.createIcons();
+        }
+
+        async function submitWalkInOrder() {
+            if (walkInCart.length === 0) return alert("Add items to the cart first!");
+
+            const btn = event.currentTarget;
+            btn.disabled = true;
+            btn.innerHTML = `<div class="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full inline-block mr-2"></div> Sending...`;
+
+            const tableNum = document.getElementById('pos-table-select').value;
+            const csrf = document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1];
+
+            try {
+                const res = await fetch('{% url "staff_place_order" %}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+                    body: JSON.stringify({ table_number: tableNum, cart: walkInCart })
+                });
+
+                if (res.ok) {
+                    walkInCart = [];
+                    renderWalkInCart();
+                    closeWalkInModal();
+                    window.location.reload();
+                } else {
+                    const data = await res.json();
+                    alert(data.message || "Something went wrong.");
+                    btn.disabled = false;
+                    btn.innerHTML = "Send to Kitchen";
+                }
+            } catch(e) {
+                console.error(e);
+                btn.disabled = false;
+                btn.innerHTML = "Send to Kitchen";
+            }
+        }
+
+        // --- ACTIVE DRAWER LOGIC (Handles both Tables and Orders) ---
+        let currentDrawerQuery = null;
+
+        async function openTableDrawer(tableNum) {
+            currentDrawerQuery = `table=${tableNum}`;
+            document.getElementById('drawer-title').innerText = `Table ${tableNum}`;
+            showDrawer();
+            fetchDrawerItems(currentDrawerQuery);
+        }
+
+        async function openOrderDrawer(orderId) {
+            currentDrawerQuery = `order=${orderId}`;
+            document.getElementById('drawer-title').innerText = `Order #${orderId}`;
+            showDrawer();
+            fetchDrawerItems(currentDrawerQuery);
+        }
+
+        function showDrawer() {
+            document.getElementById('table-drawer-backdrop').classList.replace('hidden', 'block');
+            setTimeout(() => { document.getElementById('table-drawer').classList.remove('translate-x-full'); }, 10);
+        }
+
+        function closeTableDrawer() {
+            document.getElementById('table-drawer').classList.add('translate-x-full');
+            setTimeout(() => {
+                document.getElementById('table-drawer-backdrop').classList.replace('block', 'hidden');
+                window.location.reload(); // Refresh background to show updated totals
+            }, 300);
+        }
+
+        async function fetchDrawerItems(queryParam) {
+            const list = document.getElementById('drawer-items-list');
+            list.innerHTML = `<div class="flex justify-center p-10"><div class="animate-spin w-6 h-6 border-4 border-orange-500 border-t-transparent rounded-full"></div></div>`;
+
+            try {
+                const res = await fetch(`/management/api/drawer/?${queryParam}`);
+                const data = await res.json();
+
+                if (data.items.length === 0) {
+                    list.innerHTML = `<p class="text-center text-xs font-bold text-gray-400 mt-10">No active items.</p>`;
+                    return;
+                }
+
+                list.innerHTML = data.items.map(item => `
+                    <div class="border border-gray-100 rounded-2xl p-4 bg-white shadow-sm flex flex-col">
+                        <div class="flex justify-between items-start mb-2">
+                            <div>
+                                <p class="text-sm font-black text-gray-900">${item.name}</p>
+                                <p class="text-[10px] text-gray-400 uppercase font-bold">Status: <span class="text-orange-500">${item.order_status}</span></p>
+                            </div>
+                            <span class="text-xs font-black bg-gray-50 px-2 py-1 rounded border border-gray-100">Rs. ${(item.price * item.qty).toFixed(2)}</span>
+                        </div>
+                        ${item.notes ? `<p class="text-[10px] text-red-500 italic mb-3 bg-red-50 p-2 rounded-lg border border-red-100 flex items-start gap-1"><i data-lucide="message-square" class="w-3 h-3 mt-0.5"></i> "${item.notes}"</p>` : ''}
+
+                        <div class="flex justify-between items-center mt-auto border-t border-gray-50 pt-3">
+                            <div class="flex items-center gap-1">
+                                <button onclick="modifyDrawerItem(${item.item_id}, 'decrease')" class="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-lg font-black text-gray-600 transition-colors">-</button>
+                                <span class="w-8 text-center text-xs font-black">${item.qty}</span>
+                                <button onclick="modifyDrawerItem(${item.item_id}, 'increase')" class="w-8 h-8 bg-gray-100 hover:bg-gray-200 rounded-lg font-black text-gray-600 transition-colors">+</button>
+                            </div>
+                            <button onclick="modifyDrawerItem(${item.item_id}, 'delete')" class="p-2 text-gray-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors" title="Delete Item">
+                                <i data-lucide="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+                lucide.createIcons();
+            } catch(e) { console.error(e); }
+        }
+
+        async function modifyDrawerItem(itemId, action) {
+            const csrf = document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1];
+            try {
+                // Temporarily disable the drawer so they don't spam click
+                document.getElementById('drawer-items-list').style.opacity = '0.5';
+
+                const res = await fetch(`/management/api/modify-item/${itemId}/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+                    body: JSON.stringify({ action })
+                });
+
+                if (res.ok) fetchDrawerItems(currentDrawerQuery);
+                document.getElementById('drawer-items-list').style.opacity = '1';
+            } catch(e) {
+                console.error(e);
+                document.getElementById('drawer-items-list').style.opacity = '1';
+            }
+        }
+
+        // Prevent auto-refreshing on specific tabs so users don't lose their place
         if (!window.location.search.includes('tab=menu') &&
             !window.location.search.includes('tab=insights') &&
             !window.location.search.includes('tab=reviews') &&
             !window.location.search.includes('tab=qr')) {
-            setInterval(() => { location.reload(); }, 15000);
+            setInterval(() => { location.reload(); }, 25000); // 25 seconds
         }
 
         setInterval(pollWaiterCalls, 5000);
