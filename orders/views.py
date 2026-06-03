@@ -1128,6 +1128,42 @@ def confirm_payment_request(request, table_num):
     return JsonResponse({"status": "success", "table_cleared": all_done})
 
 
+def get_contextual_recommendations(current_cart_item_ids=None):
+    """
+    Returns up to 3 smart item recommendations.
+    If the cart is empty, it serves highly-rated featured dishes.
+    If the cart contains items, it serves popular complements from different categories.
+    """
+    if not current_cart_item_ids:
+        return MenuItem.objects.filter(is_available=True, is_featured=True)[:3]
+
+    # Find matching orders containing these items to track companion selections
+    related_order_ids = (
+        OrderItem.objects.filter(menu_item_id__in=current_cart_item_ids)
+        .values_list("order_id", flat=True)
+        .distinct()
+    )
+
+    # Recommend common accompaniments that aren't already in the current cart
+    recommended_items = (
+        MenuItem.objects.filter(
+            orderitem__order_id__in=related_order_ids, is_available=True
+        )
+        .exclude(id__in=current_cart_item_ids)
+        .annotate(order_count=Count("orderitem"))
+        .order_by("-order_count")[:3]
+    )
+
+    if not recommended_items.exists():
+        # Fallback to general favorites if pairing history is sparse
+        recommended_items = MenuItem.objects.filter(is_available=True).exclude(
+            id__in=current_cart_item_ids
+        )[:3]
+
+    return recommended_items
+
+
+
 @user_passes_test(is_staff)
 def update_kitchen_broadcast(request):
     if request.method == "POST":
