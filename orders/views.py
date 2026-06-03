@@ -1,19 +1,35 @@
 import json
 import difflib
-from decimal import Decimal
-from datetime import timedelta
-from django.utils import timezone
-from django.http import JsonResponse
-from django.shortcuts import render, redirect
-from django.urls import reverse
-from django.db.models import Sum, Q, Avg, Count
-from django.contrib.auth.decorators import user_passes_test
-from django.conf import settings
+import re
 import qrcode
 import io
 import base64
-
-
+from decimal import Decimal
+from datetime import datetime, timedelta
+from django.utils import timezone
+from django.http import JsonResponse, HttpResponse
+from django.shortcuts import render, redirect
+from django.urls import reverse
+from django.db.models import (
+    Sum,
+    Q,
+    Avg,
+    Count,
+    Case,
+    When,
+    IntegerField,
+    Prefetch,
+    F,
+    ExpressionWrapper,
+    DurationField,
+)
+from django.db.models.functions import ExtractWeekDay
+from django.contrib.auth.decorators import user_passes_test
+from django.conf import settings
+from collections import defaultdict
+from .ai_utils import analyze_note_sentiment
+from collections import Counter, defaultdict
+from itertools import combinations
 from .models import (
     Order,
     OrderItem,
@@ -22,8 +38,8 @@ from .models import (
     Review,
     WaiterCall,
     TableSession,
+    KitchenBroadcast,
 )
-from .ai_utils import analyze_note_sentiment
 
 
 def is_owner(user):
@@ -34,56 +50,249 @@ def is_staff(user):
     return user.groups.filter(name="Staff").exists() or user.is_superuser
 
 
+SEARCH_SYNONYMS = {
+    "momo": ["mo:mo", "momos", "dumplings", "dumpling"],
+    "mo:mo": ["momo", "momos", "dumplings", "dumpling"],
+    "sweet": [
+        "dessert",
+        "desserts",
+        "sweets",
+        "pudding",
+        "ice cream",
+        "cake",
+        "pastry",
+    ],
+    "dessert": ["sweet", "sweets", "desserts", "pudding", "ice cream", "cake"],
+    "drink": [
+        "beverage",
+        "beverages",
+        "drinks",
+        "soda",
+        "juice",
+        "coke",
+        "cold drink",
+        "water",
+    ],
+    "beverage": ["drink", "drinks", "beverages", "soda", "juice", "cold drink"],
+    "chowmein": ["chow mein", "noodles", "noodle"],
+    "noodle": ["chowmein", "chow mein", "noodles"],
+    "burger": ["burgers", "hamburger", "buns"],
+}
+
+
+def expand_search_query(raw_query):
+    """Takes a raw query and returns a list of synonymous terms."""
+    expanded_terms = set([raw_query])
+    words = raw_query.split()
+
+    for word in words:
+        # Check if the word is a key or a value in our dictionary
+        for root_term, related_terms in SEARCH_SYNONYMS.items():
+            if word == root_term or word in related_terms:
+                expanded_terms.add(root_term)
+                expanded_terms.update(related_terms)
+
+    return list(expanded_terms)
+
+
 def menu_view(request):
     query = request.GET.get("search", "").lower().strip()
-    items = MenuItem.objects.all()
+
+    # Base querysets - default to only showing available items to customers
+    items = MenuItem.objects.filter(is_available=True)
     categories = Category.objects.all()
+    recommended_items = None  # Explicit container for fallback recommendations
+    zero_results = False
 
     if query:
-        matched_categories = categories.filter(name__icontains=query)
-
-        # Intent detection
+        # 1. Intent Detection
         is_veg = "veg" in query and "non" not in query
         is_spicy = any(w in query for w in ["spicy", "hot", "chili", "spice"])
         is_mild = any(w in query for w in ["mild", "not spicy", "not hot"])
+        is_featured = "featured" in query or "special" in query
 
-        if is_spicy:
-            # Pure intent query — skip text search entirely
-            items = items.filter(spice_level__in=["medium", "hot"])
-        elif is_mild:
-            items = items.filter(spice_level="mild")
-        elif "featured" in query or "special" in query:
-            items = items.filter(is_featured=True)
-        else:
-            # Strip punctuation for fuzzy matching
-            import re
+        # Tokenize query string into clean alphanumeric lowercase words
+        words = re.findall(r"[a-z0-9:]+", query)
 
-            clean_names = [
-                re.sub(r"[^a-z0-9 ]", "", item.name.lower()) for item in items
-            ]
-            close_matches = difflib.get_close_matches(
-                query, clean_names, n=5, cutoff=0.5
-            )
+        intent_keywords = {
+            "veg",
+            "spicy",
+            "hot",
+            "chili",
+            "spice",
+            "mild",
+            "not",
+            "featured",
+            "special",
+        }
+        is_pure_intent = (
+            all(word in intent_keywords for word in words) if words else False
+        )
 
-            lookup = (
-                Q(name__icontains=query)
-                | Q(description__icontains=query)
-                | Q(category__in=matched_categories)
-            )
+        if not is_pure_intent:
+            # 2. Synonym Expansion
+            search_terms = set([query])
+            for word in words:
+                search_terms.add(word)
+                if word in SEARCH_SYNONYMS:
+                    search_terms.update(SEARCH_SYNONYMS[word])
 
-            # Add ALL close matches, not just [0]
-            for match in close_matches:
-                lookup |= Q(name__icontains=match.replace(" ", ""))
+            # 3. Optimized Fuzzy Word Matching
+            all_item_words = set()
+            for name in MenuItem.objects.filter(is_available=True).values_list(
+                "name", flat=True
+            ):
+                all_item_words.update(re.findall(r"[a-z0-9:]+", name.lower()))
+
+            all_cat_words = set()
+            for name in Category.objects.values_list("name", flat=True):
+                all_cat_words.update(re.findall(r"[a-z0-9:]+", name.lower()))
+
+            fuzzy_matches = []
+            for word in words:
+                fuzzy_matches.extend(
+                    difflib.get_close_matches(
+                        word, list(all_item_words), n=2, cutoff=0.6
+                    )
+                )
+                fuzzy_matches.extend(
+                    difflib.get_close_matches(
+                        word, list(all_cat_words), n=2, cutoff=0.6
+                    )
+                )
+
+            search_terms.update([match.lower() for match in fuzzy_matches])
+
+            # 4. Text Index Lookup Execution
+            lookup = Q()
+            for term in search_terms:
+                lookup |= Q(name__icontains=term)
+                lookup |= Q(description__icontains=term)
+                lookup |= Q(category__name__icontains=term)
 
             items = items.filter(lookup)
 
+        # 5. Intent Intersecting Filters
+        if is_spicy:
+            items = items.filter(spice_level__in=["medium", "hot"])
+        if is_mild:
+            items = items.filter(spice_level="mild")
+        if is_featured:
+            items = items.filter(is_featured=True)
         if is_veg:
             items = items.filter(veg=True)
 
-    category_ids = items.values_list("category_id", flat=True)
-    categories = categories.filter(id__in=category_ids)
+        # 6. Check if search found nothing
+        if not items.exists():
+            zero_results = True
+            # Safely build recommendation slices completely separate from standard items
+            recommended_items = MenuItem.objects.filter(
+                is_available=True, is_featured=True
+            )[:6]
+            items = MenuItem.objects.none()
+            categories = (
+                Category.objects.none()
+            )  # Hides sticky category headers when empty
+        else:
+            # Advanced Scoring Metric Sorting
+            if not is_pure_intent:
+                items = items.annotate(
+                    relevance=Case(
+                        When(name__iexact=query, then=1),
+                        When(name__icontains=query, then=2),
+                        When(category__name__icontains=query, then=3),
+                        default=4,
+                        output_field=IntegerField(),
+                    )
+                ).order_by("relevance", "-is_featured", "name")
+            else:
+                items = items.order_by("-is_featured", "name")
 
-    context = {"items": items, "categories": categories, "query": query}
+    # 7. Safe Category Sticky-Bar Prefetch (Only runs when results exist)
+    if not zero_results:
+        if query:
+            category_ids = items.values_list("category_id", flat=True).distinct()
+            categories = Category.objects.filter(id__in=category_ids).prefetch_related(
+                Prefetch("items", queryset=items)
+            )
+        else:
+            categories = Category.objects.all().prefetch_related(
+                Prefetch("items", queryset=items)
+            )
+
+    # Feature 1: Get the top 5 highest-selling item IDs to light up the "TRENDING" UI badge
+    popular_ids = list(
+        OrderItem.objects.filter(order__is_paid=True)
+        .values("menu_item_id")
+        .annotate(total_sold=Sum("quantity"))
+        .order_by("-total_sold")
+        .values_list("menu_item_id", flat=True)[:5]
+    )
+
+    # Feature 2: Market Basket Analysis (Frequent Companions)
+    historical_orders = OrderItem.objects.filter(order__is_paid=True).values(
+        "order_id", "menu_item_id"
+    )
+    order_baskets = defaultdict(list)
+    for row in historical_orders:
+        order_baskets[row["order_id"]].append(row["menu_item_id"])
+
+    pairing_matrix = defaultdict(lambda: defaultdict(int))
+    for basket in order_baskets.values():
+        for item_a in basket:
+            for item_b in basket:
+                if item_a != item_b:
+                    pairing_matrix[item_a][item_b] += 1
+
+    top_companion_map = {}
+    for item_id, companions in pairing_matrix.items():
+        if companions:
+            # CHANGE: Filter companions to only keep pairings ordered 5 times or more
+            valid_companions = {k: v for k, v in companions.items() if v >= 5}
+            if valid_companions:
+                top_companion_map[item_id] = max(
+                    valid_companions, key=valid_companions.get
+                )
+
+    # Convert queryset to a list so we can dynamically attach the companion object
+    items_list = list(items)
+    for item in items_list:
+        comp_id = top_companion_map.get(item.id)
+        if comp_id:
+            try:
+                item.frequent_companion = MenuItem.objects.get(
+                    id=comp_id, is_available=True
+                )
+            except MenuItem.DoesNotExist:
+                item.frequent_companion = None
+        else:
+            item.frequent_companion = None
+
+    items = items_list
+
+    # ==========================================================
+    # 9. CONTEXT-AWARE GREETING ENGINE
+    # ==========================================================
+    current_hour = timezone.localtime(timezone.now()).hour
+    if 5 <= current_hour < 12:
+        greeting = "Good Morning ☕"
+    elif 12 <= current_hour < 17:
+        greeting = "Good Afternoon 🍛"
+    elif 17 <= current_hour < 22:
+        greeting = "Good Evening 🍽️"
+    else:
+        greeting = "Late Night Cravings? 🌙"
+    # ==========================================================
+
+    context = {
+        "items": items,
+        "categories": categories,
+        "query": query,
+        "zero_results": zero_results,
+        "recommended_items": recommended_items,
+        "popular_ids": popular_ids,
+        "greeting": greeting,
+    }
     return render(request, "orders/menu.html", context)
 
 
@@ -154,7 +363,6 @@ def cart_detail(request):
             "popular_items": popular_items,  # Sent to template context
         },
     )
-
 
 
 def place_order(request):
@@ -566,32 +774,52 @@ def management_dashboard(request):
     return render(request, "orders/management_dashboard.html", context)
 
 
-
 def order_review_page(request, order_id):
     try:
-        order = Order.objects.get(id=order_id)
+        current_order = Order.objects.get(id=order_id)
+        # Fetch all orders for this specific table that are active or recently filled
+        orders_to_review = Order.objects.filter(
+            table_number=current_order.table_number,
+            status__in=["received", "cooking", "ready", "completed"],
+        ).prefetch_related("items__menu_item")
+
     except Order.DoesNotExist:
-        # If the order is missing, go back to menu
         return redirect("menu")
 
     if request.method == "POST":
-        for item in order.items.all():
-            rating = request.POST.get(f"rating_{item.id}")
-            comment = request.POST.get(f"comment_{item.id}", "")
-            ai_result = analyze_note_sentiment(comment)
+        # Process reviews inside a loop for items across all retrieved orders
+        for order in orders_to_review:
+            for item in order.items.all():
+                rating_val = request.POST.get(f"rating_{item.menu_item.id}")
+                comment_val = request.POST.get(
+                    f"comment_{item.menu_item.id}", ""
+                ).strip()
+                if rating_val:
+                    Review.objects.create(
+                        order=order,
+                        menu_item=item.menu_item,
+                        rating=int(rating_val),
+                        comment=comment_val,
+                        sentiment=analyze_note_sentiment(comment_val)
+                        if comment_val
+                        else "neutral",
+                    )
+        return redirect(f"{reverse('menu')}?table={current_order.table_number}")
 
-            Review.objects.create(
-                order=order,
-                menu_item=item.menu_item,
-                rating=rating,
-                comment=comment,
-                sentiment=ai_result,
-            )
-        # Redirect back to cart with the table number in the URL
-        return redirect(f"{reverse('cart_detail')}?table={order.table_number}")
+    # Gather unique menu items from all current session orders to present in template
+    items_to_review = []
+    seen_items = set()
+    for o in orders_to_review:
+        for i in o.items.all():
+            if i.menu_item.id not in seen_items:
+                items_to_review.append(i.menu_item)
+                seen_items.add(i.menu_item.id)
 
-    # For a normal click (GET request), just show the form
-    return render(request, "orders/review_form.html", {"order": order})
+    return render(
+        request,
+        "orders/order_review.html",
+        {"order": current_order, "items_to_review": items_to_review},
+    )
 
 
 @user_passes_test(is_staff)
@@ -608,10 +836,18 @@ def kitchen_dashboard(request):
         .annotate(total_qty=Sum("quantity"))
     )
 
+    # Grab the single newest active broadcast notice if it exists
+    latest_broadcast = KitchenBroadcast.objects.last()
+    broadcast_message = latest_broadcast.message if latest_broadcast else None
+
     return render(
         request,
         "orders/kitchen.html",
-        {"orders": active_orders, "item_summary": item_summary},
+        {
+            "orders": active_orders,
+            "item_summary": item_summary,
+            "broadcast_message": broadcast_message,
+        },
     )
 
 
@@ -632,11 +868,18 @@ def mark_table_paid(request, table_num):
 
 @user_passes_test(is_staff)
 def toggle_item_availability(request, item_id):
-    if request.method == "POST":
+    if not (is_owner(request.user) or is_staff(request.user)):
+        return redirect("menu")
+
+    try:
         item = MenuItem.objects.get(id=item_id)
         item.is_available = not item.is_available
         item.save()
-    return redirect(f"{request.META.get('HTTP_REFERER', '/management/')}?tab=menu")
+    except MenuItem.DoesNotExist:
+        pass
+
+    # FIX: Clean parameter mapping prevents duplicate "?tab=menu?tab=menu" strings
+    return redirect(f"{reverse('management_dashboard')}?tab=menu")
 
 
 def table_bill(request, table_num):
@@ -819,10 +1062,28 @@ def confirm_payment_request(request, table_num):
 
         items_to_pay = data.get("items", [])
         manual_amount = Decimal(str(data.get("amount", 0)))
+        payment_method = data.get("payment_method", "qr")  # Track payment source
     except:
         manual_amount = Decimal("0")
         items_to_pay = []
+        payment_method = "qr"
 
+    # --- CASH MODE FLOW ---
+    if payment_method == "cash":
+        # Create a waiter notification beacon for manual desk clearance
+        WaiterCall.objects.create(
+            table_number=table_num, reason="paid", is_resolved=False
+        )
+        # Keep table_cleared=False so the client stays on screen until staff verifies from dashboard
+        return JsonResponse(
+            {
+                "status": "success",
+                "table_cleared": False,
+                "message": "Waiter is on the way with the bill.",
+            }
+        )
+
+    # --- QR DEMO FLOW (AUTO VERIFY) ---
     # MODE 1: ITEM-BASED PAY
     if items_to_pay:
         for entry in items_to_pay:
