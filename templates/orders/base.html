@@ -14,4 +14,213 @@
         body { padding-bottom: 90px; }
     </style>
 </head>
+<body class="bg-white text-gray-900 relative min-h-screen font-sans antialiased overflow-x-hidden w-full">
+    {% csrf_token %}
+
+    <!-- Header -->
+    <nav class="bg-white/95 backdrop-blur-md sticky top-0 z-40 border-b border-gray-100 transition-all">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <a id="logo-link" href="{% url 'menu' %}" class="text-xl font-serif font-bold text-gray-900 tracking-tight flex items-center gap-2">
+                <div class="bg-gray-900 text-white p-1.5 rounded-lg shadow-sm">
+                    <i data-lucide="utensils" class="w-4 h-4"></i>
+                </div>
+                <span>dineQR</span>
+            </a>
+
+            <div id="nav-table-badge" class="hidden bg-gray-50 border border-gray-200 text-gray-700 px-3 py-1 rounded-xl text-xs font-bold tracking-wider uppercase">
+                Table <span id="nav-table-num"></span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 animate-in fade-in duration-300">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="fixed bottom-24 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- Bottom Navigation -->
+    <div class="fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur-md border-t border-gray-100 z-40 pb-safe shadow-lg">
+        <div class="flex justify-around items-center h-16 max-w-md mx-auto px-4">
+
+            <a id="nav-menu" href="{% url 'menu' %}" class="flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-gray-900 transition-colors">
+                <i data-lucide="book-open" class="w-5 h-5 mb-1"></i>
+                <span class="text-[9px] font-bold uppercase tracking-widest">Menu</span>
+            </a>
+
+            <!-- Cart Trigger -->
+            <a id="nav-cart" href="{% url 'cart_detail' %}" class="relative -top-4 bg-gray-900 text-white p-4 rounded-xl shadow-md hover:bg-gray-800 transition-all hover:scale-105 transform flex items-center justify-center">
+                <i data-lucide="shopping-bag" class="w-5 h-5"></i>
+                <span id="cart-count" class="absolute -top-1.5 -right-1.5 bg-gray-950 text-white text-[9px] font-extrabold rounded-md h-5 w-5 flex items-center justify-center border border-white shadow-sm transition-all duration-200">
+                    0
+                </span>
+            </a>
+
+            <button onclick="openWaiterModal()" class="flex flex-col items-center justify-center w-full h-full text-gray-400 hover:text-gray-900 transition-colors focus:outline-none">
+                <i data-lucide="bell-ring" class="w-5 h-5 mb-1"></i>
+                <span class="text-[9px] font-bold uppercase tracking-widest">Waiter</span>
+            </button>
+
+        </div>
+    </div>
+
+    <!-- Waiter Assistance Modal -->
+    <div id="waiter-modal" class="fixed inset-0 z-[70] hidden pointer-events-none transition-all">
+        <div id="waiter-backdrop" onclick="closeWaiterModal()" class="absolute inset-0 bg-gray-900/40 backdrop-blur-sm opacity-0 transition-opacity duration-300 pointer-events-auto"></div>
+
+        <div id="waiter-content" class="absolute bottom-0 w-full bg-white rounded-t-2xl transform translate-y-full transition-transform duration-300 shadow-xl border-t border-gray-100 pointer-events-auto pb-safe">
+            <div class="p-6 max-w-md mx-auto">
+                <div class="flex justify-between items-start mb-6">
+                    <div>
+                        <h2 class="text-lg font-serif font-bold text-gray-900 tracking-tight">Call a Waiter</h2>
+                        <p class="text-gray-400 text-xs mt-0.5">Select a service below and our staff will assist you shortly.</p>
+                    </div>
+                    <button onclick="closeWaiterModal()" class="p-1.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-100 active:scale-95 transition-all">
+                        <i data-lucide="x" class="w-4 h-4"></i>
+                    </button>
+                </div>
+
+                <!-- Waiter Request Grid Section with Colored Icons -->
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <!-- Refill Water (Blue) -->
+                    <button onclick="sendWaiterRequest('water')" class="bg-white border border-gray-200/80 p-4 rounded-2xl flex flex-col items-center justify-center gap-2.5 hover:bg-gray-50 hover:border-gray-300 active:scale-98 transition-all group">
+                        <div class="p-2.5 rounded-xl bg-blue-50 text-blue-600 group-hover:bg-blue-100 transition-colors">
+                            <i data-lucide="glass-water" class="w-5 h-5 stroke-[1.5]"></i>
+                        </div>
+                        <span class="font-bold text-gray-800 text-xs uppercase tracking-wider">Refill Water</span>
+                    </button>
+
+                    <!-- Clean Table (Amber) -->
+                    <button onclick="sendWaiterRequest('clean')" class="bg-white border border-gray-200/80 p-4 rounded-2xl flex flex-col items-center justify-center gap-2.5 hover:bg-gray-50 hover:border-gray-300 active:scale-98 transition-all group">
+                        <div class="p-2.5 rounded-xl bg-amber-50 text-amber-600 group-hover:bg-amber-100 transition-colors">
+                            <i data-lucide="sparkles" class="w-5 h-5 stroke-[1.5]"></i>
+                        </div>
+                        <span class="font-bold text-gray-800 text-xs uppercase tracking-wider">Clean Table</span>
+                    </button>
+
+                    <!-- Request Bill (Emerald Green) -->
+                    <button onclick="sendWaiterRequest('bill')" class="bg-white border border-gray-200/80 p-4 rounded-2xl flex flex-col items-center justify-center gap-2.5 hover:bg-gray-50 hover:border-gray-300 active:scale-98 transition-all group">
+                        <div class="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100 transition-colors">
+                            <i data-lucide="receipt" class="w-5 h-5 stroke-[1.5]"></i>
+                        </div>
+                        <span class="font-bold text-gray-800 text-xs uppercase tracking-wider">Request Bill</span>
+                    </button>
+
+                    <!-- Other Request / Call Waiter (Indigo) -->
+                    <button onclick="sendWaiterRequest('help')" class="bg-white border border-gray-200/80 p-4 rounded-2xl flex flex-col items-center justify-center gap-2.5 hover:bg-gray-50 hover:border-gray-300 active:scale-98 transition-all group">
+                        <div class="p-2.5 rounded-xl bg-indigo-50 text-indigo-600 group-hover:bg-indigo-100 transition-colors">
+                            <i data-lucide="bell" class="w-5 h-5 stroke-[1.5]"></i>
+                        </div>
+                        <span class="font-bold text-gray-800 text-xs uppercase tracking-wider">Call Waiter</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        document.addEventListener("DOMContentLoaded", () => {
+            const params = new URLSearchParams(window.location.search);
+            const table = params.get('table') || localStorage.getItem('dineqr_table');
+
+            if (table) {
+                localStorage.setItem('dineqr_table', table);
+                const badge = document.getElementById('nav-table-badge');
+                const num = document.getElementById('nav-table-num');
+                if (badge && num) {
+                    badge.classList.remove('hidden');
+                    num.innerText = table;
+                }
+
+                const appendTable = (id) => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        const url = new URL(el.href, window.location.origin);
+                        url.searchParams.set('table', table);
+                        el.href = url.toString();
+                    }
+                }
+                appendTable('nav-menu');
+                appendTable('nav-cart');
+            }
+
+            const logo = document.getElementById('logo-link');
+            if (logo) {
+                logo.addEventListener('click', (e) => {
+                    const currentPath = window.location.pathname;
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const hasSearch = urlParams.has('search');
+
+                    if ((currentPath === '{% url "menu" %}' || currentPath === '/') && !hasSearch) {
+                        e.preventDefault();
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                    } else if (table) {
+                        e.preventDefault();
+                        window.location.href = `{% url 'menu' %}?table=${table}`;
+                    }
+                });
+            }
+        });
+
+        function showToast(message) {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `bg-gray-900/95 backdrop-blur-sm text-white px-5 py-3 rounded-xl shadow-xl flex items-center gap-2.5 transform transition-all duration-300 translate-y-10 opacity-0 font-bold text-xs border border-gray-800`;
+            toast.innerHTML = `<i data-lucide="check-circle" class="w-4 h-4 text-white"></i><span>${message}</span>`;
+
+            container.appendChild(toast);
+            lucide.createIcons();
+
+            setTimeout(() => toast.classList.remove('translate-y-10', 'opacity-0'), 10);
+            setTimeout(() => {
+                toast.classList.add('translate-y-10', 'opacity-0');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function openWaiterModal() {
+            if (!localStorage.getItem('dineqr_table')) {
+                alert("Please scan a valid table QR code first.");
+                return;
+            }
+            const modal = document.getElementById('waiter-modal');
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                document.getElementById('waiter-backdrop').classList.remove('opacity-0');
+                document.getElementById('waiter-content').classList.remove('translate-y-full');
+            }, 10);
+        }
+
+        function closeWaiterModal() {
+            document.getElementById('waiter-backdrop').classList.add('opacity-0');
+            document.getElementById('waiter-content').classList.add('translate-y-full');
+            setTimeout(() => document.getElementById('waiter-modal').classList.add('hidden'), 250);
+        }
+
+        async function sendWaiterRequest(reason) {
+            const table = localStorage.getItem('dineqr_table');
+            try {
+                const response = await fetch('/api/call-waiter/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}' },
+                    body: JSON.stringify({ table_number: table, reason: reason })
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    closeWaiterModal();
+                    if (typeof showToast === "function") showToast("Request sent to staff.");
+                } else {
+                    alert(data.message);
+                }
+            } catch (error) {
+                console.error("Waiter Request Error:", error);
+                alert("Could not connect. Please call a waiter directly.");
+            }
+        }
+    </script>
+</body>
 </html>
