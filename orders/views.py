@@ -1498,3 +1498,63 @@ def get_drawer_items(request):
                 "order_id": order.id
             })
     return JsonResponse({"items": items_data})
+
+@never_cache
+def login_view(request):
+    # If the user is already logged in
+    if request.user.is_authenticated:
+        is_management = (
+            request.user.is_superuser
+            or request.user.groups.filter(name__iexact='Management').exists()
+            or request.user.username.lower() == 'management'
+        )
+        is_kitchen = (
+            request.user.groups.filter(name__iexact='Kitchen').exists()
+            or request.user.username.lower() == 'kitchen'
+        )
+
+        if is_management:
+            return redirect('management_dashboard')
+        elif is_kitchen:
+            return redirect('kitchen_dashboard')
+        else:
+            # SAFELY BREAK THE LOOP: Send regular authenticated accounts/customers to the public menu
+            return redirect('menu')
+
+    # Processing the login form submission
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+
+        user = authenticate(request, username=username, password=password)
+
+        if user is not None:
+            login(request, user)
+
+            is_management = (
+                user.is_superuser
+                or user.groups.filter(name__iexact='Management').exists()
+                or user.username.lower() == 'management'
+            )
+            is_kitchen = (
+                user.groups.filter(name__iexact='Kitchen').exists()
+                or user.username.lower() == 'kitchen'
+            )
+
+            if is_management:
+                return redirect('management_dashboard')
+            elif is_kitchen:
+                return redirect('kitchen_dashboard')
+            else:
+                return redirect('menu')
+        else:
+            messages.error(request, "Invalid username or password.")
+
+    return render(request, 'orders/login.html')
+
+
+@never_cache
+def logout_view(request):
+    logout(request)
+    # Clear session data and send them cleanly back to the login screen
+    return redirect('login')
