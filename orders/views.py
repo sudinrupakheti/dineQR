@@ -7,8 +7,8 @@ import base64
 from decimal import Decimal
 from datetime import datetime, timedelta
 from django.utils import timezone
-from django.http import JsonResponse, HttpResponse
-from django.shortcuts import render, redirect
+from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
+from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.db.models import (
     Sum,
@@ -23,13 +23,19 @@ from django.db.models import (
     ExpressionWrapper,
     DurationField,
 )
-from django.db.models.functions import ExtractWeekDay
-from django.contrib.auth.decorators import user_passes_test
+from django.db.models.functions import ExtractWeekDay, ExtractHour
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required, user_passes_test
+from django.views.decorators.cache import never_cache
 from django.conf import settings
 from collections import defaultdict
 from .ai_utils import analyze_note_sentiment
 from collections import Counter, defaultdict
 from itertools import combinations
+from datetime import timezone as dt_timezone
+from django.views.decorators.csrf import csrf_exempt
+from django.contrib import messages
+from django.core.exceptions import PermissionDenied
 from .models import (
     Order,
     OrderItem,
@@ -43,11 +49,18 @@ from .models import (
 
 
 def is_owner(user):
-    return user.groups.filter(name="Owner").exists() or user.is_superuser
+    return user.groups.filter(name__iexact="Owner").exists() or user.is_superuser
 
 
 def is_staff(user):
-    return user.groups.filter(name="Staff").exists() or user.is_superuser
+    # Allow superusers, Staff, Management, or Kitchen groups to pass the initial gate
+    return (
+        user.is_superuser
+        or user.groups.filter(name__iexact="Staff").exists()
+        or user.groups.filter(name__iexact="Management").exists()
+        or user.groups.filter(name__iexact="Kitchen").exists()
+        or user.username.lower() in ['kitchen', 'management']
+    )
 
 
 SEARCH_SYNONYMS = {
@@ -250,9 +263,7 @@ def menu_view(request):
             # CHANGE: Filter companions to only keep pairings ordered 5 times or more
             valid_companions = {k: v for k, v in companions.items() if v >= 5}
             if valid_companions:
-                top_companion_map[item_id] = max(
-                    valid_companions, key=valid_companions.get
-                )
+                top_companion_map[item_id] = max(valid_companions, key=valid_companions.get)
 
     # Convert queryset to a list so we can dynamically attach the companion object
     items_list = list(items)
@@ -298,71 +309,60 @@ def menu_view(request):
 
 def cart_detail(request):
     table_num = request.GET.get("table")
+    order_id = request.GET.get("order")
+
     previous_orders = []
     running_total = Decimal("0.00")
-    any_ready = False
     show_thanks = False
 
-    if table_num:
-        previous_orders = (
-            Order.objects.filter(table_number=table_num)
-            .exclude(status__in=["completed", "cancelled"])
-            .order_by("-created_at")
-        )
-
+    if order_id:
+        previous_orders = Order.objects.filter(id=order_id).exclude(status__in=["completed", "cancelled"])
+        if not previous_orders.exists() and Order.objects.filter(id=order_id, status="completed").exists():
+            show_thanks = True
+    elif table_num:
+        previous_orders = Order.objects.filter(table_number=table_num).exclude(status__in=["completed", "cancelled"]).order_by("-created_at")
         recently_settled = Order.objects.filter(
-            table_number=table_num,
-            status="completed",
-            paid_at__gte=timezone.now() - timedelta(minutes=10),
+            table_number=table_num, status="completed", paid_at__gte=timezone.now() - timedelta(minutes=10)
         ).exists()
-
         if not previous_orders.exists() and recently_settled:
             show_thanks = True
 
-        for order in previous_orders:
-            running_total += order.total_price
-            if order.status == "ready":
-                any_ready = True
+    # DYNAMIC AUTO-HEALING RECALCULATION (Fixes the 0.00 Price Bug)
+    for order in previous_orders:
+        order_calc_total = Decimal("0.00")
+        for item in order.items.all():
+            order_calc_total += Decimal(str(item.menu_item.price)) * item.quantity
+
+        # If DB went out of sync, fix it instantly!
+        if order.total_price != order_calc_total:
+            order.total_price = order_calc_total
+            order.save()
+
+        running_total += order_calc_total
 
     qr_code = None
-    if previous_orders.exists():
-        first_order = previous_orders.first()
+    if previous_orders:
+        first_order = previous_orders[0]
         local_time = timezone.localtime(timezone.now()).strftime("%Y-%m-%d %I:%M %p")
+        qr_code = generate_bill_qr({
+            "amount": f"{running_total:,.2f}",
+            "order_id": first_order.id,
+            "table_number": table_num if table_num else f"WalkIn-{first_order.id}",
+            "timestamp": local_time,
+        })
 
-        qr_code = generate_bill_qr(
-            {
-                "amount": f"{running_total:,.2f}",
-                "order_id": first_order.id,
-                "table_number": table_num,
-                "timestamp": local_time,
-            }
-        )
-
-    # ADDED: Get popular item recommendations for the Cart page
-    popular_item_ids = (
-        OrderItem.objects.filter(order__is_paid=True)
-        .values("menu_item_id")
-        .annotate(total_sold=Sum("quantity"))
-        .order_by("-total_sold")
-        .values_list("menu_item_id", flat=True)[:4]
-    )
-
+    popular_item_ids = OrderItem.objects.filter(order__is_paid=True).values("menu_item_id").annotate(total_sold=Sum("quantity")).order_by("-total_sold").values_list("menu_item_id", flat=True)[:4]
     popular_items = MenuItem.objects.filter(id__in=popular_item_ids, is_available=True)
     if not popular_items.exists():
         popular_items = MenuItem.objects.filter(is_available=True, is_featured=True)[:4]
 
-    return render(
-        request,
-        "orders/cart_detail.html",
-        {
-            "previous_orders": previous_orders,
-            "running_total": running_total,
-            "any_ready": any_ready,
-            "show_thanks": show_thanks,
-            "qr_code": qr_code,
-            "popular_items": popular_items,  # Sent to template context
-        },
-    )
+    return render(request, "orders/cart_detail.html", {
+        "previous_orders": previous_orders,
+        "running_total": running_total,
+        "show_thanks": show_thanks,
+        "qr_code": qr_code,
+        "popular_items": popular_items,
+    })
 
 
 def place_order(request):
@@ -383,9 +383,9 @@ def place_order(request):
 
         try:
             table_num = int(raw_table_number)
-            if table_num < 1 or table_num > 10:
+            if table_num < 0 or table_num > 10:
                 return JsonResponse(
-                    {"status": "error", "message": "Table must be 1-10"}, status=400
+                    {"status": "error", "message": "Table must be 0-10"}, status=400
                 )
         except ValueError:
             return JsonResponse(
@@ -488,7 +488,6 @@ def cancel_order_item(request, item_id):
         return JsonResponse({"status": "success"})
 
     except OrderItem.DoesNotExist:
-        # FIX: Return a clean 404 instead of a misleading 405 Method Not Allowed
         return JsonResponse(
             {"status": "error", "message": "Item not found or already being prepared"},
             status=404,
@@ -496,7 +495,18 @@ def cancel_order_item(request, item_id):
 
 
 @user_passes_test(is_staff)
+@login_required
 def management_dashboard(request):
+
+    is_management = (
+        request.user.is_superuser
+        or request.user.groups.filter(name__iexact='Management').exists()
+        or request.user.username.lower() == 'management'
+    )
+
+    if not is_management:
+        messages.error(request, "You do not have authorization to view the Management Dashboard.")
+        return redirect('kitchen_dashboard')
 
     current_tab = request.GET.get("tab", "tables")
     sentiment_filter = request.GET.get("sentiment", "all")
@@ -507,19 +517,17 @@ def management_dashboard(request):
         all_active_orders.aggregate(Sum("total_price"))["total_price__sum"] or 0
     )
     busy_tables_count = all_active_orders.values("table_number").distinct().count()
-
-    # --- INITIALIZE EMPTY VARIABLES ---
     table_data = []
     insights_data = {}
     recent_reviews = []
+
     context = {}
 
     # --- 2. LOGIC FOR TABLES TAB ---
     if current_tab in ["tables", "qr"]:
         for i in range(1, 11):
-            active_orders = Order.objects.filter(table_number=i).exclude(
-                status="completed"
-            )
+            active_orders = Order.objects.filter(table_number=i).exclude(status="completed")
+            walkin_orders = Order.objects.filter(table_number=0).exclude(status="completed").order_by('-created_at')
             if active_orders.exists():
                 total_bill = (
                     active_orders.aggregate(Sum("total_price"))["total_price__sum"] or 0
@@ -542,8 +550,9 @@ def management_dashboard(request):
                 table_data.append(
                     {"number": i, "status": "empty", "total": 0, "has_orders": False}
                 )
+        context.update({"walkin_orders": walkin_orders})
 
-    # --- 3. LOGIC FOR INSIGHTS TAB (REAL-TIME TODAY ONLY) ---
+    # --- 3. LOGIC FOR INSIGHTS TAB ---
     elif current_tab == "insights":
         # A. Core Metrics & Inventory Performance
         top_items = (
@@ -553,9 +562,10 @@ def management_dashboard(request):
             .order_by("-total_sold")[:5]
         )
         avg_rating = Review.objects.aggregate(Avg("rating"))["rating__avg"] or 0
+
         hourly_data = (
             Order.objects.filter(created_at__gte=timezone.now() - timedelta(days=7))
-            .extra(select={"hour": "strftime('%%H', created_at)"})
+            .annotate(hour=ExtractHour("created_at"))
             .values("hour")
             .annotate(count=Count("id"))
             .order_by("hour")
@@ -618,7 +628,11 @@ def management_dashboard(request):
         ]
 
         # F. Market Basket Analysis
-        order_item_groups = OrderItem.objects.values("order_id", "menu_item__name")
+        # (bounded to last 90 days to avoid loading unbounded history into Python)
+        order_item_groups = OrderItem.objects.filter(
+            order__created_at__gte=timezone.now() - timedelta(days=90)
+        ).values("order_id", "menu_item__name")
+
         orders_map = defaultdict(list)
         for entry in order_item_groups:
             orders_map[entry["order_id"]].append(entry["menu_item__name"])
@@ -643,6 +657,7 @@ def management_dashboard(request):
         )
 
         # H. Busiest Days Matrix (Trailing 30 Days)
+        # Django's ExtractWeekDay returns 1=Sunday … 7=Saturday (US convention).
         days_map = {
             1: "Sun",
             2: "Mon",
@@ -694,7 +709,7 @@ def management_dashboard(request):
             lost_cash=Sum("total_price"), lost_count=Count("id")
         )
 
-        # Recipe Quality Risk Index (Toxic Items causing negative sentiment reviews)
+        # Recipe Quality Risk Index
         negative_review_order_ids = Review.objects.filter(
             sentiment="negative"
         ).values_list("order_id", flat=True)
@@ -723,23 +738,26 @@ def management_dashboard(request):
             "toxic_dishes": list(toxic_dishes),
         }
 
-        # 🌟 NEW FORCED TIME WINDOW: From midnight local time to exactly right now
         now_local = timezone.localtime(timezone.now())
-        start_of_day = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+        start_of_day_local = now_local.replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+        start_of_day_utc = start_of_day_local.astimezone(dt_timezone.utc)
 
         shift_orders = Order.objects.filter(
-            status="completed", created_at__range=(start_of_day, timezone.now())
+            status="completed",
+            created_at__range=(start_of_day_utc, timezone.now()),
         )
         z_metrics = shift_orders.aggregate(
             gross=Sum("total_price"), count=Count("id"), avg_spend=Avg("total_price")
         )
         canceled_count = Order.objects.filter(
-            status="canceled", created_at__range=(start_of_day, timezone.now())
+            status="canceled",
+            created_at__range=(start_of_day_utc, timezone.now()),
         ).count()
 
         context.update(
             {
-                "insights": insights_data,
                 "z_gross_sales": z_metrics["gross"] or 0,
                 "z_ticket_count": z_metrics["count"] or 0,
                 "z_avg_ticket": round(z_metrics["avg_spend"] or 0, 2)
@@ -760,16 +778,18 @@ def management_dashboard(request):
 
     categories = Category.objects.prefetch_related("items").all()
 
-    context = {
-        "tables": table_data,
-        "categories": categories,
-        "current_tab": current_tab,
-        "total_live_revenue": total_live_revenue,
-        "busy_tables_count": busy_tables_count,
-        "insights": insights_data,
-        "recent_reviews": recent_reviews,
-        "current_sentiment": sentiment_filter,
-    }
+    context.update(
+        {
+            "tables": table_data,
+            "categories": categories,
+            "current_tab": current_tab,
+            "total_live_revenue": total_live_revenue,
+            "busy_tables_count": busy_tables_count,
+            "insights": insights_data,
+            "recent_reviews": recent_reviews,
+            "current_sentiment": sentiment_filter,
+        }
+    )
 
     return render(request, "orders/management_dashboard.html", context)
 
@@ -804,7 +824,7 @@ def order_review_page(request, order_id):
                         if comment_val
                         else "neutral",
                     )
-        return redirect(f"{reverse('menu')}?table={current_order.table_number}")
+        return redirect(f"{reverse('menu')}cart/?table={current_order.table_number}")
 
     # Gather unique menu items from all current session orders to present in template
     items_to_review = []
@@ -823,7 +843,23 @@ def order_review_page(request, order_id):
 
 
 @user_passes_test(is_staff)
+@login_required
 def kitchen_dashboard(request):
+
+    is_management = (
+        request.user.is_superuser
+        or request.user.groups.filter(name__iexact='Management').exists()
+        or request.user.username.lower() == 'management'
+    )
+    is_kitchen = (
+        request.user.groups.filter(name__iexact='Kitchen').exists()
+        or request.user.username.lower() == 'kitchen'
+    )
+
+    if not (is_management or is_kitchen):
+        raise PermissionDenied
+
+
     # Get active orders
     active_orders = Order.objects.filter(status__in=["received", "preparing"]).order_by(
         "created_at"
@@ -878,7 +914,6 @@ def toggle_item_availability(request, item_id):
     except MenuItem.DoesNotExist:
         pass
 
-    # FIX: Clean parameter mapping prevents duplicate "?tab=menu?tab=menu" strings
     return redirect(f"{reverse('management_dashboard')}?tab=menu")
 
 
@@ -1062,11 +1097,21 @@ def confirm_payment_request(request, table_num):
 
         items_to_pay = data.get("items", [])
         manual_amount = Decimal(str(data.get("amount", 0)))
-        payment_method = data.get("payment_method", "qr")  # Track payment source
+        payment_method = data.get("payment_method", "qr")
+        order_id = data.get("order_id")
     except:
         manual_amount = Decimal("0")
         items_to_pay = []
         payment_method = "qr"
+        order_id = None
+
+    if order_id:
+        active_orders = Order.objects.filter(id=order_id).exclude(status="completed")
+    else:
+        active_orders = Order.objects.filter(table_number=table_num).exclude(status="completed")
+
+    if not active_orders.exists():
+        return JsonResponse({"status": "error", "message": "No active orders"}, status=400)
 
     # --- CASH MODE FLOW ---
     if payment_method == "cash":
@@ -1224,3 +1269,232 @@ def update_kitchen_broadcast(request):
             KitchenBroadcast.objects.create(message=new_message)
 
     return redirect(request.META.get("HTTP_REFERER", "management_dashboard"))
+
+
+@user_passes_test(is_staff)
+def save_menu_item(request, item_id=None):
+    """Handles adding new dishes and editing existing ones."""
+    if request.method == "POST":
+        category_id = request.POST.get("category")
+        category = get_object_or_404(Category, id=category_id)
+
+        if item_id:
+            item = get_object_or_404(MenuItem, id=item_id)
+        else:
+            item = MenuItem()
+
+        item.name = request.POST.get("name")
+        item.category = category
+        item.price = request.POST.get("price")
+        item.description = request.POST.get("description", "")
+        item.preparation_time = request.POST.get("preparation_time", 15)
+        item.spice_level = request.POST.get("spice_level", "neutral")
+        item.veg = request.POST.get("veg") == "true"
+
+        if "image" in request.FILES:
+            item.image = request.FILES["image"]
+
+        item.save()
+    return redirect(f"{reverse('management_dashboard')}?tab=menu")
+
+
+@user_passes_test(is_staff)
+def save_category(request, category_id=None):
+    """Handles adding and renaming menu categories."""
+    if request.method == "POST":
+        if category_id:
+            category = get_object_or_404(Category, id=category_id)
+        else:
+            category = Category()
+
+        category.name = request.POST.get("name")
+        category.save()
+    return redirect(f"{reverse('management_dashboard')}?tab=menu")
+
+
+@user_passes_test(is_staff)
+def unified_delete(request, model_type, object_id):
+    """A single, secure endpoint to delete Menu Items, Categories, or Reviews."""
+    if request.method != "POST":
+        return HttpResponseForbidden("Must use POST to delete.")
+
+    return_tab = "menu"
+
+    try:
+        if model_type == "menu_item":
+            obj = get_object_or_404(MenuItem, id=object_id)
+        elif model_type == "category":
+            obj = get_object_or_404(Category, id=object_id)
+        elif model_type == "review":
+            obj = get_object_or_404(Review, id=object_id)
+            return_tab = "reviews"
+        elif model_type == "order":
+            obj = get_object_or_404(Order, id=object_id)
+            return_tab = "tables"
+        else:
+            return HttpResponseForbidden("Invalid model type.")
+
+        obj.delete()
+    except Exception as e:
+        print(f"Deletion error: {e}")
+
+    return redirect(f"{reverse('management_dashboard')}?tab={return_tab}")
+
+@user_passes_test(is_staff)
+def staff_place_order(request):
+    """API for staff to instantly create walk-in / manual orders"""
+    if request.method == "POST":
+        data = json.loads(request.body)
+        table_num = int(data.get("table_number", 0))
+        cart = data.get("cart", [])
+
+        if not cart:
+            return JsonResponse({"status": "error", "message": "Cart is empty"}, status=400)
+
+        new_order = Order.objects.create(
+            table_number=table_num,
+            status="received",
+            total_price=Decimal("0.00")
+        )
+
+        running_total = Decimal("0.00")
+        for item in cart:
+            try:
+                menu_item = MenuItem.objects.get(id=item.get("id"))
+                # Robust extraction just in case frontend sends 'qty' instead of 'quantity'
+                qty = int(item.get("qty", item.get("quantity", 1)))
+
+                OrderItem.objects.create(
+                    order=new_order,
+                    menu_item=menu_item,
+                    quantity=qty,
+                    notes=item.get("notes", "")
+                )
+                running_total += Decimal(str(menu_item.price)) * qty
+            except Exception as e:
+                print(f"Error parsing Walk-In item: {e}")
+
+        new_order.total_price = running_total
+        new_order.save()
+        return JsonResponse({"status": "success"})
+
+@user_passes_test(is_staff)
+def get_table_orders(request, table_num):
+    """API to fetch live items for the Slide-Out Drawer"""
+    active_orders = Order.objects.filter(table_number=table_num).exclude(status="completed")
+    items_data = []
+
+    for order in active_orders:
+        for item in order.items.all():
+            items_data.append({
+                "item_id": item.id,
+                "name": item.menu_item.name,
+                "qty": item.quantity,
+                "price": float(item.menu_item.price),
+                "notes": item.notes,
+                "order_status": order.status,
+                "order_id": order.id
+            })
+
+    return JsonResponse({"items": items_data, "table": table_num})
+
+
+@user_passes_test(is_staff)
+def modify_order_item(request, item_id):
+    """API to increment, decrement, or delete an item directly from the drawer"""
+    if request.method == "POST":
+        data = json.loads(request.body)
+        action = data.get("action")
+
+        try:
+            item = OrderItem.objects.get(id=item_id)
+            order = item.order
+            item_price = Decimal(str(item.menu_item.price))
+
+            if action == "increase":
+                item.quantity += 1
+                item.save()
+                order.total_price += item_price
+            elif action == "decrease":
+                if item.quantity > 1:
+                    item.quantity -= 1
+                    item.save()
+                    order.total_price -= item_price
+                else:
+                    order.total_price -= item_price
+                    item.delete()
+            elif action == "delete":
+                order.total_price -= (item_price * item.quantity)
+                item.delete()
+
+            order.save()
+
+            # If order is empty, delete it completely
+            if order.items.count() == 0:
+                order.delete()
+
+            return JsonResponse({"status": "success"})
+        except OrderItem.DoesNotExist:
+            return JsonResponse({"status": "error", "message": "Item not found"}, status=404)
+
+@user_passes_test(is_staff)
+def mark_order_paid(request, order_id):
+    """Settles a single walk-in order"""
+    if request.method == "POST":
+        order = get_object_or_404(Order, id=order_id)
+        order.is_paid = True
+        order.paid_at = timezone.now()
+        order.status = "completed"
+        order.save()
+    return redirect("management_dashboard")
+
+@user_passes_test(is_staff)
+def single_order_bill(request, order_id):
+    """Prints the thermal bill for a single walk-in order"""
+    order = get_object_or_404(Order, id=order_id)
+    items = order.items.all()
+    total = order.total_price
+
+    qr_code = generate_bill_qr({
+        "amount": f"{total:,.2f}",
+        "order_id": order.id,
+        "table_number": "Counter",
+        "timestamp": timezone.localtime(timezone.now()).strftime("%Y-%m-%d %I:%M %p"),
+    })
+
+    context = {
+        "table_num": f"Walk-In #{order.id}",
+        "items": items,
+        "total": total,
+        "date": timezone.localtime(timezone.now()),
+        "bill_id": order.id,
+        "qr_code": qr_code,
+    }
+    return render(request, "orders/bill_print.html", context)
+
+@user_passes_test(is_staff)
+def get_drawer_items(request):
+    """Handles Drawer fetching for BOTH Tables AND individual Walk-In Orders"""
+    table_num = request.GET.get('table')
+    order_id = request.GET.get('order')
+
+    if order_id:
+        active_orders = Order.objects.filter(id=order_id)
+    elif table_num:
+        active_orders = Order.objects.filter(table_number=table_num).exclude(status="completed")
+    else:
+        return JsonResponse({"items": []})
+
+    items_data = []
+    for order in active_orders:
+        for item in order.items.all():
+            items_data.append({
+                "item_id": item.id,
+                "name": item.menu_item.name,
+                "qty": item.quantity,
+                "price": float(item.menu_item.price),
+                "notes": item.notes,
+                "order_status": order.status,
+                "order_id": order.id
+            })
+    return JsonResponse({"items": items_data})
