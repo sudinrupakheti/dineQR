@@ -24,7 +24,7 @@ from django.db.models import (
     DurationField,
 )
 from django.db.models.functions import ExtractWeekDay, ExtractHour
-from django.contrib.auth.decorators import user_passes_test
+from django.contrib.auth.decorators import login_required, user_passes_test
 from django.conf import settings
 from collections import defaultdict
 from .ai_utils import analyze_note_sentiment
@@ -34,6 +34,7 @@ from datetime import timezone as dt_timezone
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib import messages
 from django.contrib.auth import authenticate, login, logout
+from django.core.exceptions import PermissionDenied
 from .models import (
     Order,
     OrderItem,
@@ -254,9 +255,7 @@ def menu_view(request):
             # CHANGE: Filter companions to only keep pairings ordered 5 times or more
             valid_companions = {k: v for k, v in companions.items() if v >= 5}
             if valid_companions:
-                top_companion_map[item_id] = max(
-                    valid_companions, key=valid_companions.get
-                )
+                top_companion_map[item_id] = max(valid_companions, key=valid_companions.get)
 
     # Convert queryset to a list so we can dynamically attach the companion object
     items_list = list(items)
@@ -488,7 +487,14 @@ def cancel_order_item(request, item_id):
 
 
 @user_passes_test(is_staff)
+@login_required
 def management_dashboard(request):
+
+    is_management = request.user.groups.filter(name='Management').exists() or request.user.is_superuser
+
+    if not is_management:
+        messages.error(request, "You do not have authorization to view the Management Dashboard.")
+        return redirect('kitchen_dashboard')
 
     current_tab = request.GET.get("tab", "tables")
     sentiment_filter = request.GET.get("sentiment", "all")
@@ -825,7 +831,16 @@ def order_review_page(request, order_id):
 
 
 @user_passes_test(is_staff)
+@login_required
 def kitchen_dashboard(request):
+
+    is_management = request.user.groups.filter(name='Management').exists() or request.user.is_superuser
+    is_kitchen = request.user.groups.filter(name='Kitchen').exists()
+
+    if not (is_management or is_kitchen):
+        raise PermissionDenied
+
+
     # Get active orders
     active_orders = Order.objects.filter(status__in=["received", "preparing"]).order_by(
         "created_at"
@@ -1466,9 +1481,10 @@ def get_drawer_items(request):
     return JsonResponse({"items": items_data})
 
 def login_view(request):
-    # If already logged in, send them straight to the dashboard
     if request.user.is_authenticated:
-        return redirect('management_dashboard')
+        if request.user.groups.filter(name='Management').exists() or request.user.is_superuser:
+            return redirect('management_dashboard')
+        return redirect('kitchen_dashboard')
 
     if request.method == 'POST':
         username = request.POST.get('username')
@@ -1478,9 +1494,12 @@ def login_view(request):
 
         if user is not None:
             login(request, user)
-            # Support redirecting back to where they tried to go via the 'next' parameter
-            next_url = request.GET.get('next', 'management_dashboard')
-            return redirect(next_url)
+            if user.groups.filter(name='Management').exists() or user.is_superuser:
+                return redirect('management_dashboard')
+            elif user.groups.filter(name='Kitchen').exists():
+                return redirect('kitchen_dashboard')
+            else:
+                return redirect('kitchen_dashboard')
         else:
             messages.error(request, "Invalid username or password.")
 
