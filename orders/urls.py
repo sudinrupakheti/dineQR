@@ -83,4 +83,6 @@ urlpatterns = [
     path('management/api/drawer/', views.get_drawer_items, name='get_drawer_items'),
     path('management/order/<int:order_id>/settle/', views.mark_order_paid, name='mark_order_paid'),
     path('management/order/<int:order_id>/bill/', views.single_order_bill, name='single_order_bill'),
+    path('login/', views.login_view, name='login'),
+    path('logout/', views.logout_view, name='logout'),
 ]

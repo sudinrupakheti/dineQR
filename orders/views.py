@@ -32,6 +32,8 @@ from collections import Counter, defaultdict
 from itertools import combinations
 from datetime import timezone as dt_timezone
 from django.views.decorators.csrf import csrf_exempt
+from django.contrib import messages
+from django.contrib.auth import authenticate, login, logout
 from .models import (
     Order,
     OrderItem,
@@ -1462,3 +1464,28 @@ def get_drawer_items(request):
                 "order_id": order.id
             })
     return JsonResponse({"items": items_data})
+
+def login_view(request):
+    # If already logged in, send them straight to the dashboard
+    if request.user.is_authenticated:
+        return redirect('management_dashboard')
+
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+
+        user = authenticate(request, username=username, password=password)
+
+        if user is not None:
+            login(request, user)
+            # Support redirecting back to where they tried to go via the 'next' parameter
+            next_url = request.GET.get('next', 'management_dashboard')
+            return redirect(next_url)
+        else:
+            messages.error(request, "Invalid username or password.")
+
+    return render(request, 'login.html')
+
+def logout_view(request):
+    logout(request)
+    return redirect('login')

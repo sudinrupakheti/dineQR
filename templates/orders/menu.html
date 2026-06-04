@@ -222,7 +222,7 @@
                     <div class="pt-1">
                         <button id="add-btn-{{ item.id }}"
                             {% if not item.is_available %}disabled{% endif %}
-                            onclick="event.stopPropagation(); handleAddToCart(event, '{{ item.id }}', '{{ item.name|escapejs }}', '{{ item.price }}')"
+                            onclick="event.stopPropagation(); openItemModal(this.closest('.food-card'))"
                             class="w-full py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-1.5
                             {% if not item.is_available %} bg-gray-100 text-gray-400 cursor-not-allowed {% else %} bg-gray-950 text-white hover:bg-gray-800 shadow-sm {% endif %}">
 
