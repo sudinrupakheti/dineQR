@@ -125,7 +125,7 @@
 </div>
 {% endif %}
 
-<!-- Main Menu Segment Grid (Updated with Scaling Responsive Grid Track Boundaries) -->
+<!-- Main Menu Segment Grid -->
 <div class="space-y-10 max-w-2xl md:max-w-5xl lg:max-w-7xl mx-auto px-4">
     {% for category in categories %}
     <section id="cat-{{ category.id }}" class="scroll-mt-32">
@@ -159,7 +159,6 @@
                     <div>
                         <div class="relative h-40 w-full rounded-xl overflow-hidden mb-3 bg-gray-50 border border-gray-100">
 
-                            <!-- Badge Container (Fixed position overlap bug) -->
                             <div class="absolute top-2.5 right-2.5 waves-effect z-20 flex flex-col gap-1.5 items-end">
                                 {% if item.is_featured %}
                                 <span class="bg-gray-950 text-white text-[8px] font-bold px-2 py-1 rounded shadow-sm border border-gray-800 tracking-wider uppercase flex items-center gap-1">
@@ -223,7 +222,7 @@
                     <div class="pt-1">
                         <button id="add-btn-{{ item.id }}"
                             {% if not item.is_available %}disabled{% endif %}
-                            onclick="event.stopPropagation(); handleAddToCart(event, '{{ item.id }}', '{{ item.name|escapejs }}', '{{ item.price }}')"
+                            onclick="event.stopPropagation(); openItemModal(this.closest('.food-card'))"
                             class="w-full py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-widest transition-all flex items-center justify-center gap-1.5
                             {% if not item.is_available %} bg-gray-100 text-gray-400 cursor-not-allowed {% else %} bg-gray-950 text-white hover:bg-gray-800 shadow-sm {% endif %}">
 
@@ -250,7 +249,9 @@
 </div>
 {% endif %}
 
-<!-- Selection Detail Overlay Modal View -->
+<!-- ================================================ -->
+<!-- ITEM DETAIL MODAL (combo section removed — handled by dedicated combo modal below) -->
+<!-- ================================================ -->
 <div id="item-modal" class="fixed inset-0 z-[60] hidden pointer-events-none">
     <div id="modal-backdrop" onclick="closeModal()" class="absolute inset-0 bg-gray-900/40 backdrop-blur-sm opacity-0 transition-opacity duration-300 pointer-events-auto"></div>
 
@@ -291,19 +292,6 @@
                 </div>
             </div>
 
-            <div id="modal-combo-container" class="hidden p-3.5 bg-gray-50 border border-gray-200 rounded-xl">
-                <p class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-2.5">Frequently Paired Together</p>
-                <div class="flex justify-between items-center gap-4">
-                    <div class="min-w-0">
-                        <span id="modal-combo-name" class="text-xs font-bold text-gray-900 truncate block"></span>
-                        <span id="modal-combo-price" class="text-xs font-serif font-bold text-gray-500 mt-0.5 block"></span>
-                    </div>
-                    <button type="button" id="modal-combo-add-btn" class="px-3 py-1.5 bg-gray-900 text-white rounded-lg text-[10px] font-bold uppercase tracking-wider hover:bg-gray-800 transition-colors shrink-0">
-                        Add Combo
-                    </button>
-                </div>
-            </div>
-
             <div class="flex items-center justify-between border-t border-gray-100 pt-4">
                 <span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Select Quantity</span>
                 <div class="flex items-center gap-3 bg-gray-50 border border-gray-200/60 rounded-lg p-0.5">
@@ -324,10 +312,62 @@
     </div>
 </div>
 
-<!-- Embedded DOM Interaction Pipelines Scripts -->
+<!-- ================================================ -->
+<!-- DEDICATED COMBO UPSELL MODAL                     -->
+<!-- ================================================ -->
+<div id="combo-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden z-[70] flex items-center justify-center p-4">
+    <div class="bg-white rounded-[2.5rem] max-w-md w-full overflow-hidden shadow-2xl transform scale-95 opacity-0 transition-all duration-300" id="combo-modal-content">
+
+        <!-- Header -->
+        <div class="p-6 text-center border-b border-gray-100">
+            <span class="bg-orange-100 text-orange-600 text-xs font-black px-3 py-1 rounded-full uppercase tracking-widest animate-pulse">
+                Perfect Match Found!
+            </span>
+            <h3 class="text-xl font-black text-gray-900 mt-2">Upgrade to a Combo?</h3>
+            <p class="text-xs text-gray-500 mt-1">Our customers highly recommend pairing these together.</p>
+        </div>
+
+        <!-- Options Grid -->
+        <div class="p-6 space-y-4 bg-gray-50">
+            <!-- Option 1: Solo -->
+            <button id="combo-option-solo" class="w-full bg-white p-4 rounded-2xl border-2 border-gray-200 hover:border-gray-400 transition-all text-left flex justify-between items-center group">
+                <div>
+                    <span class="text-[10px] font-black text-gray-400 uppercase tracking-wider block">Just the item</span>
+                    <span id="combo-solo-name" class="font-bold text-gray-900 text-sm">Item Name</span>
+                </div>
+                <span id="combo-solo-price" class="font-black text-gray-700 text-sm">Rs. 0</span>
+            </button>
+
+            <!-- Option 2: Combo -->
+            <button id="combo-option-pair" class="w-full bg-orange-50 p-4 rounded-2xl border-2 border-orange-500 hover:bg-orange-100 transition-all text-left flex justify-between items-center group relative overflow-hidden">
+                <div class="absolute top-0 right-0 bg-orange-500 text-white text-[9px] font-black px-2 py-0.5 uppercase tracking-wider rounded-bl-lg">
+                    Best Value
+                </div>
+                <div class="pr-6">
+                    <span class="text-[10px] font-black text-orange-600 uppercase tracking-wider block">Make it a Combo</span>
+                    <span id="combo-pair-names" class="font-bold text-gray-900 text-sm leading-tight block mt-0.5">Item + Companion</span>
+                </div>
+                <span id="combo-pair-price" class="font-black text-orange-600 text-sm whitespace-nowrap">Rs. 0</span>
+            </button>
+        </div>
+
+        <!-- Footer -->
+        <div class="p-4 bg-white flex justify-end gap-2 border-t border-gray-100">
+            <button onclick="closeComboModal()" class="px-5 py-2.5 text-xs font-black text-gray-400 uppercase tracking-wider hover:bg-gray-100 rounded-xl transition-colors">
+                Maybe Next Time
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- ================================================ -->
+<!-- SCRIPTS                                          -->
+<!-- ================================================ -->
 <script>
     let currentModalItem = null;
     let modalQuantity = 1;
+
+    // ── ITEM DETAIL MODAL ──────────────────────────────────────────────────────
 
     function openItemModal(element) {
         const data = {
@@ -353,34 +393,15 @@
 
         updateModalPriceDisplays();
 
-        const comboContainer = document.getElementById('modal-combo-container');
-        if (data.companionId && data.companionId !== "") {
-            comboContainer.classList.remove('hidden');
-            document.getElementById('modal-combo-name').innerText = `+ Pair with ${data.companionName}`;
-            document.getElementById('modal-combo-price').innerText = `Rs. ${parseInt(data.companionPrice).toLocaleString()}`;
-
-            document.getElementById('modal-combo-add-btn').onclick = function() {
-                if (typeof cart !== 'undefined' && !cart[currentModalItem.id]) {
-                    for(let q = 0; q < modalQuantity; q++) {
-                        addToCart(currentModalItem.id, currentModalItem.name, currentModalItem.price);
-                    }
-                }
-                addToCart(data.companionId, data.companionName, data.companionPrice);
-                if (typeof showToast === "function") showToast(`${data.companionName} added context package combo.`);
-                closeModal();
-            };
-        } else {
-            comboContainer.classList.add('hidden');
-        }
-
+        // Wire up the Add to Cart button (clone to remove stale listeners)
         const actionBtn = document.getElementById('modal-add-btn');
-        const coreReplacementNode = actionBtn.cloneNode(true);
-        actionBtn.parentNode.replaceChild(coreReplacementNode, actionBtn);
+        const freshBtn = actionBtn.cloneNode(true);
+        actionBtn.parentNode.replaceChild(freshBtn, actionBtn);
 
-        coreReplacementNode.addEventListener('click', function(e) {
+        freshBtn.addEventListener('click', function(e) {
             if (!currentModalItem) return;
 
-            for(let q = 0; q < modalQuantity; q++) {
+            for (let q = 0; q < modalQuantity; q++) {
                 addToCart(currentModalItem.id, currentModalItem.name, currentModalItem.price);
             }
 
@@ -389,19 +410,31 @@
             this.innerHTML = `<i data-lucide="check" class="w-4 h-4"></i> Added to Cart`;
             lucide.createIcons();
 
-            if (typeof showToast === "function") showToast(`${modalQuantity}x ${currentModalItem.name} items updated.`);
+            if (typeof showToast === "function") showToast(`${modalQuantity}x ${currentModalItem.name} added.`);
 
             setTimeout(() => {
                 this.className = "w-full bg-gray-950 text-white py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-gray-800 active:scale-98 transition-all flex justify-between items-center px-5 shadow-md";
                 this.innerHTML = originalContent;
                 lucide.createIcons();
                 closeModal();
+
+                // After closing item modal, offer combo if this item has a companion
+                if (currentModalItem && currentModalItem.companionId && currentModalItem.companionId !== "") {
+                    openComboModal(
+                        currentModalItem.id,
+                        currentModalItem.name,
+                        currentModalItem.price,
+                        currentModalItem.companionId,
+                        currentModalItem.companionName,
+                        currentModalItem.companionPrice
+                    );
+                }
             }, 600);
         });
 
+        // Image
         const imgEl = document.getElementById('modal-img');
         const noImgEl = document.getElementById('modal-no-img');
-
         if (data.image) {
             imgEl.src = data.image;
             imgEl.classList.remove('hidden');
@@ -411,6 +444,7 @@
             noImgEl.classList.remove('hidden');
         }
 
+        // Diet badge
         const dietText = document.getElementById('modal-diet-text');
         if (data.isVeg) {
             dietText.innerText = "VEGETARIAN";
@@ -433,6 +467,7 @@
             backdrop.classList.remove('opacity-0');
             content.classList.remove('translate-y-full');
         }, 10);
+        lucide.createIcons();
     }
 
     function updateModalQuantity(delta) {
@@ -443,39 +478,103 @@
     function updateModalPriceDisplays() {
         document.getElementById('modal-quantity').innerText = modalQuantity;
         if (currentModalItem) {
-            const calculatedTotal = currentModalItem.price * modalQuantity;
-            document.getElementById('modal-total-display').innerText = `Rs. ${calculatedTotal.toLocaleString(undefined, {minimumFractionDigits: 0})}`;
+            const total = currentModalItem.price * modalQuantity;
+            document.getElementById('modal-total-display').innerText = `Rs. ${total.toLocaleString(undefined, {minimumFractionDigits: 0})}`;
         }
     }
 
     function closeModal() {
         document.getElementById('modal-backdrop').classList.add('opacity-0');
         document.getElementById('modal-content').classList.add('translate-y-full');
-
         setTimeout(() => {
             document.getElementById('item-modal').classList.add('hidden');
-            currentModalItem = null;
             document.body.classList.remove('overflow-hidden');
         }, 300);
     }
 
+    // ── QUICK ADD (card button) ────────────────────────────────────────────────
+
     function handleAddToCart(event, id, name, price) {
         event.stopPropagation();
 
-        if (typeof addToCart === "function") {
-            addToCart(id, name, price);
+        if (typeof addToCart !== "function") return;
 
-            if (typeof showToast === "function") showToast(`${name} added to cart.`);
+        addToCart(id, name, price);
+        if (typeof showToast === "function") showToast(`${name} added to cart.`);
 
-            const card = document.getElementById(`food-card-${id}`);
-            if (card) {
-                const companionId = card.getAttribute('data-companion-id');
-                if (companionId && companionId !== "") {
-                    openItemModal(card);
-                }
+        // If item has a companion, show the dedicated combo modal
+        const card = document.getElementById(`food-card-${id}`);
+        if (card) {
+            const companionId = card.getAttribute('data-companion-id');
+            if (companionId && companionId !== "") {
+                openComboModal(
+                    id,
+                    name,
+                    parseFloat(price),
+                    companionId,
+                    card.getAttribute('data-companion-name'),
+                    parseFloat(card.getAttribute('data-companion-price') || 0)
+                );
             }
         }
     }
+
+    // ── DEDICATED COMBO UPSELL MODAL ──────────────────────────────────────────
+
+    let _comboData = null;
+
+    function openComboModal(itemId, itemName, itemPrice, companionId, companionName, companionPrice) {
+        _comboData = { itemId, itemName, itemPrice, companionId, companionName, companionPrice };
+
+        // Populate solo option
+        document.getElementById('combo-solo-name').innerText = itemName;
+        document.getElementById('combo-solo-price').innerText = `Rs. ${parseInt(itemPrice).toLocaleString()}`;
+
+        // Populate combo option
+        document.getElementById('combo-pair-names').innerText = `${itemName} + ${companionName}`;
+        document.getElementById('combo-pair-price').innerText = `Rs. ${(parseInt(itemPrice) + parseInt(companionPrice)).toLocaleString()}`;
+
+        // Solo button — just close
+        document.getElementById('combo-option-solo').onclick = function() {
+            closeComboModal();
+        };
+
+        // Combo button — add companion to cart
+        document.getElementById('combo-option-pair').onclick = function() {
+            if (typeof addToCart === "function" && _comboData) {
+                addToCart(_comboData.companionId, _comboData.companionName, _comboData.companionPrice);
+                if (typeof showToast === "function") showToast(`${_comboData.companionName} added as combo!`);
+            }
+            closeComboModal();
+        };
+
+        // Show modal and animate in
+        const modal = document.getElementById('combo-modal');
+        const content = document.getElementById('combo-modal-content');
+        modal.classList.remove('hidden');
+        document.body.classList.add('overflow-hidden');
+        // Trigger animation on next frame
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                content.classList.remove('scale-95', 'opacity-0');
+                content.classList.add('scale-100', 'opacity-100');
+            });
+        });
+    }
+
+    function closeComboModal() {
+        const modal = document.getElementById('combo-modal');
+        const content = document.getElementById('combo-modal-content');
+        content.classList.remove('scale-100', 'opacity-100');
+        content.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+            _comboData = null;
+        }, 300);
+    }
+
+    // ── REAL-TIME AVAILABILITY POLLING ────────────────────────────────────────
 
     async function pollMenuStatus() {
         try {
@@ -519,4 +618,3 @@
 </script>
 
 {% endblock %}
-
