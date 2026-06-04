@@ -1,22 +1,23 @@
 {% load tz %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KDS Hub | DineQR</title>
+    <title>Kitchen Display | DineQR</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        .order-card { transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); }
+        .order-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
 
         @keyframes border-flash {
-            0%, 100% { border-color: #ef4444; box-shadow: 0 0 0 0px rgba(239, 68, 68, 0.2); }
-            50% { border-color: #b91c1c; box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.1); }
+            0%, 100% { border-color: #f43f5e; box-shadow: 0 0 0 0px rgba(244, 63, 94, 0.2); }
+            50% { border-color: #be123c; box-shadow: 0 0 0 4px rgba(244, 63, 94, 0.1); }
         }
         .urgent-card {
             animation: border-flash 2s infinite;
-            background-color: #fef2f2 !important;
+            background-color: #fff1f2 !important;
+            border-left-color: #f43f5e !important;
         }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
@@ -34,79 +35,90 @@
         .hide-broadcast-initially #broadcast-banner { display: none !important; }
     </style>
 </head>
-<body class="bg-slate-100 text-slate-900 font-sans antialiased selection:bg-orange-500 selection:text-white">
+<body class="bg-gray-50 text-gray-900 font-sans antialiased min-h-screen selection:bg-orange-500 selection:text-white">
 
-    <!-- Toast Notification Container Workspace Layer -->
-    <div id="kds-toast-container" class="fixed top-20 right-6 z-[100] flex flex-col gap-3 pointer-events-none w-80"></div>
+    <!-- Toast Notification Container -->
+    <div id="kds-toast-container" class="fixed top-24 right-6 z-[100] flex flex-col gap-3 pointer-events-none w-80"></div>
 
-    <!-- Main Navigation Bar Platform -->
-    <nav class="bg-slate-900 text-white sticky top-0 z-50 shadow-sm">
-        <div class="max-w-[1800px] mx-auto px-6 h-16 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="bg-orange-500 text-white p-2 rounded-lg flex items-center justify-center">
-                    <i data-lucide="chef-hat" class="w-5 h-5 stroke-[2]"></i>
-                </div>
-                <div class="flex items-baseline gap-1.5">
-                    <span class="text-xl font-serif font-bold tracking-tight flex items-center gap-2">dineQR</span>
-                </div>
+    <!-- Main Navigation Bar -->
+    <nav class="bg-white/95 backdrop-blur-md shadow-sm sticky top-0 z-50 border-b border-gray-100 transition-all">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-4">
+                <a href="#" class="text-xl font-serif font-bold text-gray-900 tracking-tight flex items-center gap-2">
+                    <div class="bg-orange-600 text-white p-1.5 rounded-lg shadow-sm">
+                        <i data-lucide="chef-hat" class="w-4 h-4"></i>
+                    </div>
+                    <span>dineQR <span class="text-orange-600 font-sans text-sm tracking-normal ml-0.5">Kitchen</span></span>
+                </a>
             </div>
 
             <!-- Global Station Commands -->
-            <div class="flex items-center gap-4">
-                <button onclick="executeWaiterSummon('KITCHEN','')" class="bg-slate-800 hover:bg-slate-700 border border-slate-700/80 text-xs font-bold px-3 py-1.5 rounded-lg flex items-center gap-2 transition-all active:scale-95 text-slate-200">
-                    <i data-lucide="bell" class="w-3.5 h-3.5 text-orange-400"></i>
-                    Call Waiter
+            <div class="flex items-center gap-3 md:gap-5">
+                <button onclick="executeWaiterSummon('KITCHEN','')" class="bg-gray-900 hover:bg-orange-600 text-white text-[10px] font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all shadow-sm tracking-widest uppercase">
+                    <i data-lucide="bell" class="w-3.5 h-3.5"></i>
+                    <span class="hidden md:inline">Call Waiter</span>
                 </button>
 
-                <div class="flex items-center gap-2.5 bg-slate-800/60 px-3 py-1.5 rounded-lg border border-slate-700/50">
+                <div class="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-xl border border-gray-200/80 shadow-sm">
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span class="text-xs font-medium font-mono tracking-wide text-slate-300" id="system-clock">00:00:00</span>
+                    <span class="text-[10px] font-bold font-mono tracking-widest text-gray-700 uppercase" id="system-clock">00:00:00</span>
                 </div>
+                <form action="{% url 'logout' %}" method="POST" class="inline m-0 p-0" id="logout-form">
+                    {% csrf_token %}
+                    <button type="submit"
+                            onclick="event.stopPropagation();"
+                            class="flex items-center gap-2 px-4 py-2 text-sm text-rose-600 hover:bg-rose-50 rounded-xl transition-all font-medium w-full text-left">
+                        <i data-lucide="log-out" class="w-4 h-4"></i>
+                        <span>Log Out</span>
+                    </button>
+                </form>
             </div>
         </div>
     </nav>
 
     <!-- Permanent Broadcast Notice Layer -->
     {% if broadcast_message %}
-    <div id="broadcast-banner" class="bg-amber-500 text-slate-950 px-6 py-2.5 border-b border-amber-600 flex items-center justify-between transition-all duration-300 transform origin-top">
-        <div class="flex items-center gap-3 min-w-0">
-            <div class="bg-slate-950/10 p-1 rounded-md shrink-0">
-                <i data-lucide="megaphone" class="w-4 h-4 text-slate-950 stroke-[2.5]"></i>
+    <div id="broadcast-banner" class="bg-orange-50 text-orange-900 border-b border-orange-200 transition-all duration-300 transform origin-top shadow-sm">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="bg-orange-100 text-orange-600 p-1.5 rounded-lg shrink-0">
+                    <i data-lucide="megaphone" class="w-4 h-4"></i>
+                </div>
+                <p class="text-[10px] font-bold tracking-widest uppercase shrink-0 text-orange-600">Head Chef Notice:</p>
+                <p class="text-sm font-medium truncate text-orange-900">{{ broadcast_message }}</p>
             </div>
-            <p class="text-xs font-bold tracking-wide uppercase shrink-0">Notice:</p>
-            <p class="text-sm font-medium truncate text-slate-900">{{ broadcast_message }}</p>
+            <button onclick="dismissBroadcast()" class="p-1.5 hover:bg-orange-100 rounded-xl transition-colors text-orange-700 ml-4" title="Dismiss Message">
+                <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
         </div>
-        <button onclick="dismissBroadcast()" class="p-1 hover:bg-slate-950/10 rounded-md transition-colors text-slate-950" title="Dismiss Message">
-            <i data-lucide="x" class="w-4 h-4 stroke-[2.5]"></i>
-        </button>
     </div>
     {% endif %}
 
-    <!-- Hidden standard hidden forms to acquire core Django context protections -->
+    <!-- Hidden audio for alerts -->
     <div class="hidden">{% csrf_token %}</div>
     <audio id="order-chime" src="https://assets.mixkit.co/active_storage/sfx/1390/1390-preview.mp3" preload="auto"></audio>
 
     <!-- Master Grid Container Workspace -->
-    <main class="max-w-[1800px] mx-auto p-6 space-y-6">
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 space-y-8">
 
         <!-- 1. PRODUCTION LINE QUANTITY AGGREGATOR -->
-        <div class="bg-white rounded-xl p-4 shadow-xs border border-slate-200">
-            <div class="flex items-center gap-2 mb-3 text-slate-400">
-                <i data-lucide="layers" class="w-3.5 h-3.5 stroke-[2]"></i>
-                <h2 class="text-[10px] font-bold tracking-wider uppercase">Live Item Consolidation</h2>
+        <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-200/80 animate-in fade-in slide-in-from-top-4 duration-500">
+            <div class="flex items-center gap-2 mb-4">
+                <i data-lucide="layers" class="w-4 h-4 text-orange-500"></i>
+                <h2 class="text-[10px] font-bold tracking-widest text-gray-400 uppercase">Live Item Consolidation</h2>
             </div>
 
-            <div class="flex flex-wrap gap-2 overflow-x-auto no-scrollbar">
+            <div class="flex flex-wrap gap-2.5 overflow-x-auto no-scrollbar pb-1">
                 {% for summary in item_summary %}
-                <div class="bg-slate-50 border border-slate-200 px-3 py-2 rounded-lg flex items-center gap-2.5 transition-colors shrink-0">
-                    <span class="inline-flex items-center justify-center bg-slate-900 text-white text-xs font-mono font-bold px-2 py-0.5 rounded shadow-xs min-w-[24px]">
+                <div class="bg-gray-50 border border-gray-200/80 px-3 py-1.5 rounded-xl flex items-center gap-2 transition-colors shrink-0 hover:border-gray-300 cursor-default shadow-sm">
+                    <span class="inline-flex items-center justify-center bg-gray-900 text-white text-[10px] font-bold px-2 py-0.5 rounded-lg shadow-sm min-w-[24px]">
                         {{ summary.total_qty }}
                     </span>
-                    <span class="text-slate-700 font-bold text-xs uppercase tracking-wide">{{ summary.menu_item__name }}</span>
+                    <span class="text-gray-700 font-bold text-[10px] uppercase tracking-wider">{{ summary.menu_item__name }}</span>
                 </div>
                 {% empty %}
-                <div class="flex items-center gap-2 text-slate-400 font-medium text-xs py-0.5">
-                    <i data-lucide="check-check" class="w-4 h-4 text-emerald-500"></i>
+                <div class="flex items-center gap-2 text-gray-400 font-bold text-[10px] tracking-widest uppercase py-1">
+                    <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-500"></i>
                     No active dishes currently in preparation.
                 </div>
                 {% endfor %}
@@ -114,62 +126,64 @@
         </div>
 
         <!-- Section Identifier Header -->
-        <div class="flex items-center justify-between border-b border-slate-200 pb-3">
-            <div class="flex items-center gap-2.5">
-                <h1 class="text-xl font-bold tracking-tight text-slate-900">Active Order</h1>
-                <span class="bg-slate-200 text-slate-700 px-2 py-0.5 rounded text-xs font-bold font-mono">
-                    {{ orders|length }} Orders
+        <div class="flex items-center justify-between border-b border-gray-200 pb-3">
+            <div class="flex items-center gap-3">
+                <h1 class="text-xl font-serif font-bold tracking-tight text-gray-900">Active Station Orders</h1>
+                <span class="bg-gray-100 text-gray-500 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest border border-gray-200/60 shadow-sm">
+                    {{ orders|length }} Tickets
                 </span>
             </div>
         </div>
 
         <!-- 2. PRODUCTION LIVE ORDERS GRID MATRIX -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
             {% for order in orders %}
-            <div class="order-card bg-white rounded-xl shadow-xs border flex flex-col h-full relative overflow-hidden
-                {% if order.status == 'received' %} border-t-4 border-t-amber-500 border-slate-200 {% else %} border-t-4 border-t-blue-500 border-slate-200 {% endif %}"
+            <div class="order-card bg-white rounded-2xl shadow-sm border flex flex-col h-full relative overflow-hidden
+                {% if order.status == 'received' %} border-l-4 border-l-amber-500 border-gray-200/80
+                {% elif order.status == 'preparing' %} border-l-4 border-l-blue-500 border-gray-200/80
+                {% else %} border-gray-200/80 {% endif %}"
                 data-order-id="{{ order.id }}"
                 data-created="{{ order.created_at|localtime|date:'c' }}">
 
                 <!-- Ticket Control Cap Sheet -->
-                <div class="p-4 bg-slate-50/80 border-b border-slate-100 flex justify-between items-start gap-3">
+                <div class="p-5 bg-gray-50/50 border-b border-gray-100 flex justify-between items-start gap-3">
                     <div class="min-w-0 flex-1">
                         <div class="flex items-center gap-2">
-                            <h3 class="text-xl font-bold text-slate-900 tracking-tight truncate">Table {{ order.table_number }}</h3>
-
-                            <!-- Precise Contextual Local Call Trigger Hook -->
+                            <h3 class="text-xl font-serif font-bold text-gray-900 tracking-tight truncate">
+                                {% if order.table_number == '0' %} Counter {% else %} Table {{ order.table_number }} {% endif %}
+                            </h3>
                             <button onclick="executeWaiterSummon('{{ order.table_number }}', 'food_ready')"
-                                    class="p-1 text-slate-400 hover:text-orange-600 hover:bg-orange-50 rounded-md transition-all active:scale-90"
-                                    title="Call Waiter to Table {{ order.table_number }}">
-                                <i data-lucide="bell-ring" class="w-4 h-4 stroke-[2]"></i>
+                                    class="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-xl border border-transparent hover:border-orange-100 transition-all active:scale-95"
+                                    title="Call Waiter to this Table">
+                                <i data-lucide="bell-ring" class="w-4 h-4"></i>
                             </button>
                         </div>
-                        <p class="text-[9px] font-mono text-slate-400 mt-0.5 font-bold tracking-wider uppercase">ID #{{ order.id }}</p>
+                        <p class="text-[9px] font-bold text-gray-400 mt-1.5 tracking-widest uppercase">Order #{{ order.id }}</p>
                     </div>
                     <div class="text-right shrink-0">
-                        <div class="inline-flex items-center gap-1 bg-white border border-slate-200 px-1.5 py-0.5 rounded">
-                            <i data-lucide="clock" class="w-3 h-3 text-slate-400"></i>
-                            <span class="wait-timer text-xs font-bold font-mono text-slate-700">0m</span>
+                        <div class="inline-flex items-center gap-1.5 bg-white border border-gray-200/80 px-2 py-1 rounded-lg shadow-sm">
+                            <i data-lucide="clock" class="w-3 h-3 text-gray-400"></i>
+                            <span class="wait-timer text-[10px] font-bold tracking-widest uppercase text-gray-700">0m</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- Ticket Content Parameters -->
-                <div class="p-4 flex-grow divide-y divide-slate-100 space-y-2.5 overflow-y-auto max-h-[380px]">
+                <div class="p-5 flex-grow divide-y divide-gray-100 space-y-3 overflow-y-auto max-h-[380px] bg-white">
                     {% for item in order.items.all %}
-                    <div class="flex items-start gap-3 pt-2.5 first:pt-0">
-                        <div class="bg-slate-800 text-white font-mono font-bold text-xs w-6 h-6 rounded flex items-center justify-center shrink-0 shadow-2xs mt-0.5">
+                    <div class="flex items-start gap-3 pt-3 first:pt-0">
+                        <div class="bg-gray-900 text-white font-bold text-[10px] w-6 h-6 rounded-lg flex items-center justify-center shrink-0 shadow-sm mt-0.5">
                             {{ item.quantity }}
                         </div>
                         <div class="min-w-0 flex-1">
-                            <p class="font-bold text-slate-800 text-sm leading-tight tracking-wide uppercase">{{ item.menu_item.name }}</p>
+                            <p class="font-bold text-gray-900 text-xs leading-tight tracking-wide uppercase">{{ item.menu_item.name }}</p>
 
                             <!-- Allergy Context Scanning Matrix Hook -->
                             {% if item.notes %}
-                            <div class="item-note-wrapper mt-1.5" data-note-text="{{ item.notes|escapejs }}">
-                                <div class="p-2 bg-slate-50 border border-slate-200 rounded-md flex items-start gap-1.5">
-                                    <i data-lucide="message-square" class="w-3 h-3 text-slate-400 shrink-0 mt-0.5"></i>
-                                    <p class="text-xs font-semibold text-slate-600 leading-normal">{{ item.notes }}</p>
+                            <div class="item-note-wrapper mt-2" data-note-text="{{ item.notes|escapejs }}">
+                                <div class="p-2.5 bg-gray-50 border border-gray-200/60 rounded-xl flex items-start gap-2 shadow-sm">
+                                    <i data-lucide="message-square" class="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5"></i>
+                                    <p class="text-[10px] font-bold uppercase tracking-wide text-gray-600 leading-normal">{{ item.notes }}</p>
                                 </div>
                             </div>
                             {% endif %}
@@ -179,19 +193,19 @@
                 </div>
 
                 <!-- Action Execution Pipeline Footnotes -->
-                <div class="p-4 bg-slate-50/40 border-t border-slate-100">
+                <div class="p-4 bg-gray-50/80 border-t border-gray-100">
                     <form method="POST" action="{% url 'update_order_status' order.id %}" class="m-0">
                         {% csrf_token %}
                         {% if order.status == 'received' %}
                             <input type="hidden" name="status" value="preparing">
-                            <button class="w-full bg-blue-600 text-white py-2.5 rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-blue-700 active:scale-[0.98] transition-all shadow-2xs flex items-center justify-center gap-1.5">
-                                <i data-lucide="play" class="w-3.5 h-3.5 stroke-[2.5]"></i>
-                                Accept Order
+                            <button class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-blue-700 active:scale-[0.98] transition-all shadow-sm flex items-center justify-center gap-1.5">
+                                <i data-lucide="play" class="w-3.5 h-3.5"></i>
+                                Accept & Prepare
                             </button>
                         {% elif order.status == 'preparing' %}
                             <input type="hidden" name="status" value="ready">
-                            <button class="w-full bg-emerald-600 text-white py-2.5 rounded-lg font-bold text-xs uppercase tracking-wider hover:bg-emerald-700 active:scale-[0.98] transition-all shadow-2xs flex items-center justify-center gap-1.5">
-                                <i data-lucide="check" class="w-3.5 h-3.5 stroke-[2.5]"></i>
+                            <button class="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-emerald-700 active:scale-[0.98] transition-all shadow-sm flex items-center justify-center gap-1.5">
+                                <i data-lucide="check" class="w-3.5 h-3.5"></i>
                                 Ready for Pickup
                             </button>
                         {% endif %}
@@ -200,19 +214,17 @@
             </div>
             {% empty %}
             <!-- Idle Vector Configuration View -->
-            <div class="col-span-full py-20 text-center border-2 border-dashed border-slate-200 rounded-xl bg-white max-w-sm mx-auto px-4">
-                <div class="bg-slate-50 w-12 h-12 rounded-lg flex items-center justify-center mx-auto mb-3 border border-slate-100 text-slate-300">
+            <div class="col-span-full py-24 text-center border border-dashed border-gray-200 rounded-2xl bg-white max-w-lg mx-auto px-6 shadow-sm">
+                <div class="bg-gray-50 border border-gray-200/80 w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4 text-gray-400 shadow-sm">
                     <i data-lucide="clipboard-check" class="w-5 h-5"></i>
                 </div>
-                <h3 class="text-slate-800 font-bold text-xs tracking-wide uppercase">All Stations Clear</h3>
-                <p class="text-slate-400 text-[11px] font-medium mt-0.5">Incoming digital QR table selections display here automatically.</p>
+                <h3 class="text-gray-900 font-serif font-bold text-lg tracking-tight">All Stations Clear</h3>
+                <p class="text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-1.5">Incoming orders will appear here automatically.</p>
             </div>
             {% endfor %}
         </div>
     </main>
 
-
-    <!-- Operating System Control Diagnostics -->
     <script>
         const CURRENT_NOTICE_TEXT = "{{ broadcast_message|escapejs }}";
 
@@ -227,7 +239,7 @@
                 banner.style.paddingTop = '0px';
                 banner.style.paddingBottom = '0px';
                 banner.style.opacity = '0';
-                setTimeout(() => banner.remove(), 250);
+                setTimeout(() => banner.remove(), 300);
             }
         }
 
@@ -246,19 +258,16 @@
                     'X-CSRFToken': csrfToken
                 },
                 body: JSON.stringify({
-                    table_number: tableNumber, // Sends 'KITCHEN' (or change to '0' if your model is an IntegerField)
+                    table_number: tableNumber,
                     reason: reasonCode
                 })
             })
             .then(async response => {
                 const data = await response.json();
-                if (!response.ok) {
-                    throw new Error(data.message || 'Transmission failed.');
-                }
+                if (!response.ok) throw new Error(data.message || 'Transmission failed.');
 
-                // Context-aware success notification alert
                 const alertMsg = (tableNumber === 'KITCHEN' || tableNumber === '0')
-                    ? "Summons broadcasted: Waiter called to Kitchen!"
+                    ? "Waiter called to Kitchen!"
                     : `Waiter dispatched to Table ${tableNumber}`;
 
                 showKitchenToast(alertMsg, 'success');
@@ -268,43 +277,14 @@
             });
         }
 
-        // Global Summon Controls
-        function openGlobalSummonModal() {
-            const modal = document.getElementById('global-summon-modal');
-            const box = document.getElementById('summon-modal-box');
-            modal.classList.replace('hidden', 'flex');
-            setTimeout(() => box.classList.replace('scale-95', 'scale-100'), 10);
-        }
-
-        function closeGlobalSummonModal() {
-            const modal = document.getElementById('global-summon-modal');
-            const box = document.getElementById('summon-modal-box');
-            box.classList.replace('scale-100', 'scale-95');
-            setTimeout(() => modal.classList.replace('flex', 'hidden'), 150);
-        }
-
-        function submitGlobalSummon() {
-            const tableVal = document.getElementById('summon-table-input').value.trim();
-            const reasonVal = document.getElementById('summon-reason-input').value;
-
-            if (!tableVal) {
-                showKitchenToast("Please input a valid table identifier", "error");
-                return;
-            }
-
-            executeWaiterSummon(tableVal, reasonVal);
-            closeGlobalSummonModal();
-            document.getElementById('summon-table-input').value = '';
-        }
-
         // Minimalist Dynamic Dashboard System Toast UI Notifications
         function showKitchenToast(message, type = 'success') {
             const container = document.getElementById('kds-toast-container');
             if (!container) return;
 
             const el = document.createElement('div');
-            el.className = `p-3 text-xs font-bold rounded-lg border shadow-lg flex items-center gap-2 transition-all duration-300 transform translate-x-12 opacity-0 pointer-events-auto ${
-                type === 'success' ? 'bg-slate-900 border-slate-800 text-white' : 'bg-red-50 border-red-200 text-red-700'
+            el.className = `p-4 text-[10px] font-bold uppercase tracking-widest rounded-2xl border shadow-xl flex items-center gap-2.5 transition-all duration-300 transform translate-x-12 opacity-0 pointer-events-auto ${
+                type === 'success' ? 'bg-gray-900 border-gray-800 text-white' : 'bg-rose-50 border-rose-200 text-rose-700'
             }`;
 
             const icon = type === 'success' ? 'check-circle-2' : 'alert-triangle';
@@ -329,12 +309,13 @@
         function runAllergyAnalysis() {
             document.querySelectorAll('.item-note-wrapper').forEach(wrapper => {
                 const rawText = wrapper.getAttribute('data-note-text').toLowerCase();
+                // Flag items mentioning allergies or omissions
                 if (rawText.includes('allergy') || rawText.includes('allergic') || rawText.includes('no ') || rawText.includes('without')) {
                     const txt = wrapper.querySelector('p').innerText;
                     wrapper.innerHTML = `
-                        <div class="p-2 bg-red-600 border border-red-700 text-white rounded-md flex items-start gap-1.5 shadow-2xs animate-pulse">
-                            <i data-lucide="shield-alert" class="w-3.5 h-3.5 text-white shrink-0 mt-0.5"></i>
-                            <p class="text-xs font-bold leading-normal tracking-wide uppercase">${txt}</p>
+                        <div class="p-2.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl flex items-start gap-2 shadow-sm animate-pulse">
+                            <i data-lucide="shield-alert" class="w-3.5 h-3.5 shrink-0 mt-0.5"></i>
+                            <p class="text-[10px] font-bold tracking-widest uppercase leading-normal">${txt}</p>
                         </div>
                     `;
                 }
@@ -350,10 +331,11 @@
 
                 const timerEl = card.querySelector('.wait-timer');
                 if (timerEl) {
-                    timerEl.innerText = `${diffMins}m`;
+                    timerEl.innerText = `${diffMins} MINS`;
                     if (diffMins >= 15) {
                         card.classList.add('urgent-card');
-                        timerEl.classList.replace('text-slate-700', 'text-red-600');
+                        timerEl.classList.replace('text-gray-700', 'text-rose-600');
+                        timerEl.parentElement.classList.replace('border-gray-200/80', 'border-rose-200');
                     }
                 }
             });
@@ -367,9 +349,13 @@
         // Automated Background Page Synchronization (15s)
         setTimeout(() => { location.reload(); }, 15000);
 
+        // Header Clock updates
         setInterval(() => {
             const clockEl = document.getElementById('system-clock');
-            if (clockEl) clockEl.innerText = new Date().toLocaleTimeString('en-GB');
+            if (clockEl) {
+                const now = new Date();
+                clockEl.innerText = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+            }
         }, 1000);
 
         lucide.createIcons();
