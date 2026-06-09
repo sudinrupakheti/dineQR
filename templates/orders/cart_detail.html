@@ -431,6 +431,8 @@
                         document.getElementById('cart-main-content').classList.add('hidden');
                         document.getElementById('settled-thanks-section').classList.remove('hidden');
                         lucide.createIcons();
+                        handleFinalClear();
+                        if (typeof cartKey !== 'undefined') localStorage.removeItem(cartKey);
                         break;
                     }
 
@@ -655,10 +657,31 @@
     }
 
     document.addEventListener('DOMContentLoaded', () => {
+        const isThanksShowing = "{{ show_thanks|yesno:'true,false' }}" === "true";
+
+        // Check if the user has added new items to their local cart
+        const hasNewItems = typeof cart !== 'undefined' && Object.keys(cart).length > 0;
+
+        if (isThanksShowing) {
+            if (hasNewItems) {
+                // OVERRIDE: Hide the Thank You screen and reveal the cart
+                document.getElementById('settled-thanks-section').classList.add('hidden');
+                document.getElementById('cart-main-content').classList.remove('hidden');
+            } else {
+                // NORMAL: Clean up cache if they are just viewing the Thanks screen
+                handleFinalClear();
+                if (typeof cartKey !== 'undefined') {
+                    localStorage.removeItem(cartKey);
+                }
+            }
+        }
+
         renderCartPage();
         initPolling();
     });
 
-    function handleFinalClear() { localStorage.removeItem(`cart_table_${tableNum}`); }
+    function handleFinalClear() {
+        localStorage.removeItem(`cart_table_${tableNum}`);
+    }
 </script>
 {% endblock %}
