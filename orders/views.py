@@ -263,7 +263,7 @@ def menu_view(request):
             # CHANGE: Filter companions to only keep pairings ordered 5 times or more
             valid_companions = {k: v for k, v in companions.items() if v >= 5}
             if valid_companions:
-                top_companion_map[item_id] = max(valid_companions, key=valid_companions.get)
+                top_companion_map[item_id] = max(valid_companions, key=lambda k: valid_companions[k])
 
     # Convert queryset to a list so we can dynamically attach the companion object
     items_list = list(items)

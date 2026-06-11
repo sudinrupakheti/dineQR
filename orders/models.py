@@ -37,6 +37,8 @@ class MenuItem(models.Model):
         default=False, verbose_name="Featured/Recommended"
     )
 
+    id: int
+    frequent_companion: "MenuItem | None"
     def image_tag(self):
         if self.image:
             return format_html(
