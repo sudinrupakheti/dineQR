@@ -128,7 +128,7 @@
                     <i data-lucide="split-square-horizontal" class="w-4 h-4"></i> Split Bill
                 </button>
 
-                <button onclick="document.getElementById('qr-modal').classList.remove('hidden')" class="w-full bg-white border border-gray-900 text-gray-900 font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 text-xs uppercase tracking-widest hover:bg-gray-50 transition-all shadow-sm">
+                <button onclick="isSplitPayment = false; document.getElementById('qr-modal').classList.remove('hidden')" class="w-full bg-white border border-gray-900 text-gray-900 font-bold py-3.5 rounded-xl flex items-center justify-center gap-2 text-xs uppercase tracking-widest hover:bg-gray-50 transition-all shadow-sm">
                     <i data-lucide="qr-code" class="w-4 h-4"></i> Pay Full Amount
                 </button>
 
@@ -274,6 +274,7 @@
     let numPeople = 2;
     let currentPersonIdx = 1;
     let itemAssignments = {};
+    let isSplitPayment = false;
     const totalBill = backendRunningTotal;
 
     function renderCartPage() {
@@ -557,6 +558,8 @@
         }
 
         closeSplitModal();
+        isSplitPayment = true; // <-- SET TO TRUE HERE
+
         const modalAmountEl = document.getElementById('qr-modal-amount');
         if (modalAmountEl) modalAmountEl.innerText = `Rs. ${amount.toFixed(2)}`;
 
@@ -575,6 +578,8 @@
     }
 
     function resetAndCloseQR() {
+        isSplitPayment = false; // <-- RESET HERE
+
         const modalAmountEl = document.getElementById('qr-modal-amount');
         if (modalAmountEl) modalAmountEl.innerText = modalAmountEl.dataset.original;
 
@@ -588,9 +593,16 @@
     }
 
     async function handlePaymentConfirm(source = 'cash') {
-        let confirmMsg = source === 'cash'
-            ? "Mark this bill as paid with cash?"
-            : `Confirm payment for Guest ${currentPersonIdx}?`;
+        // Dynamically adjust confirmation text based on payment type
+        let confirmMsg = "";
+        if (source === 'cash') {
+            confirmMsg = "Mark this bill as paid with cash?";
+        } else if (isSplitPayment) {
+            confirmMsg = `Confirm payment for Guest ${currentPersonIdx}?`;
+        } else {
+            confirmMsg = "Confirm full payment via QR?";
+        }
+
         if (!confirm(confirmMsg)) return;
 
         try {
@@ -613,16 +625,14 @@
 
             if (data.status === 'success') {
                 if (source === 'cash') {
-                    // Check if Staff OR if it's a Walk-in (orderIdParam exists)
                     if (orderIdParam || "{{ user.is_staff }}" === "True") {
-                        // Instant refresh for Staff / Walk-in
                         window.location.reload();
                     } else {
-                        // Dine-in Customer logic
                         alert("A waiter will be with you shortly to collect cash.");
                     }
                 } else {
-                    if (currentPersonIdx < numPeople) {
+                    // FIX: Only proceed to the next guest if this is actively a split payment session
+                    if (isSplitPayment && currentPersonIdx < numPeople) {
                         if (typeof showToast === "function") {
                             showToast(`Guest ${currentPersonIdx} paid! Loading next share...`);
                         }
@@ -645,8 +655,9 @@
                         if (qrImg) qrImg.src = qrData.qr_code;
 
                     } else {
+                        // Full payment completes immediately and refreshes cleanly
                         resetAndCloseQR();
-                        window.location.reload(); // Force refresh to trigger Thank You page!
+                        window.location.reload();
                     }
                 }
             } else { alert("Payment error: " + data.message); }
