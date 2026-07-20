@@ -10,6 +10,7 @@ from django.utils import timezone   # type: ignore
 from django.http import JsonResponse, HttpResponse, HttpResponseForbidden   # type: ignore
 from django.shortcuts import render, redirect, get_object_or_404    # type: ignore
 from django.urls import reverse # type: ignore
+from django.core.cache import cache # type: ignore
 from django.db.models import (  # type: ignore
     Sum,
     Q,
@@ -35,6 +36,7 @@ from datetime import timezone as dt_timezone
 from django.views.decorators.csrf import csrf_exempt    # type: ignore
 from django.contrib import messages # type: ignore
 from django.core.exceptions import PermissionDenied # type: ignore
+from django.db import transaction   # type: ignore
 from .models import (
     Order,
     OrderItem,
@@ -253,28 +255,35 @@ def menu_view(request):
 
     # Feature 2: Market Basket Analysis (Frequent Companions)
     # OPTIMIZATION: Limit to order items from the last 30 days to save database memory overhead
-    historical_orders = OrderItem.objects.filter(
-        order__is_paid=True,
-        order__created_at__gte=timezone.now() - timedelta(days=30)
-    ).values("order_id", "menu_item_id")
+    top_companion_map = cache.get("dineqr_companion_map")
 
-    order_baskets = defaultdict(list)
-    for row in historical_orders:
-        order_baskets[row["order_id"]].append(row["menu_item_id"])
+    if top_companion_map is None:
+        # 2. If it's not in cache, calculate it (this will now only run once every 2 hours)
+        historical_orders = OrderItem.objects.filter(
+            order__is_paid=True,
+            order__created_at__gte=timezone.now() - timedelta(days=30)
+        ).values("order_id", "menu_item_id")
 
-    pairing_matrix = defaultdict(lambda: defaultdict(int))
-    for basket in order_baskets.values():
-        for item_a in basket:
-            for item_b in basket:
-                if item_a != item_b:
-                    pairing_matrix[item_a][item_b] += 1
+        order_baskets = defaultdict(list)
+        for row in historical_orders:
+            order_baskets[row["order_id"]].append(row["menu_item_id"])
 
-    top_companion_map = {}
-    for item_id, companions in pairing_matrix.items():
-        if companions:
-            valid_companions = {k: v for k, v in companions.items() if v >= 5}
-            if valid_companions:
-                top_companion_map[item_id] = max(valid_companions, key=lambda k: valid_companions[k])
+        pairing_matrix = defaultdict(lambda: defaultdict(int))
+        for basket in order_baskets.values():
+            for item_a in basket:
+                for item_b in basket:
+                    if item_a != item_b:
+                        pairing_matrix[item_a][item_b] += 1
+
+        top_companion_map = {}
+        for item_id, companions in pairing_matrix.items():
+            if companions:
+                valid_companions = {k: v for k, v in companions.items() if v >= 5}
+                if valid_companions:
+                    top_companion_map[item_id] = max(valid_companions, key=lambda k: valid_companions[k])
+
+        # 3. Save the math result into the Cache for 2 hours (7200 seconds) so we don't calculate it again
+        cache.set("dineqr_companion_map", top_companion_map, 7200)
 
     # OPTIMIZATION: Pre-fetch all companion MenuItems in a single query to eliminate the N+1 problem
     companion_ids = {comp_id for comp_id in top_companion_map.values() if comp_id}
@@ -322,16 +331,12 @@ def cart_detail(request):
     show_thanks = False
 
     if order_id:
-        # Changed "cancelled" to "canceled" to match the database status standard
         previous_orders = Order.objects.filter(id=order_id).exclude(status__in=["completed", "canceled"])
         if not previous_orders.exists() and Order.objects.filter(id=order_id, status="completed").exists():
             show_thanks = True
     elif table_num:
-        # Changed "cancelled" to "canceled" to match the database status standard
-        previous_orders = Order.objects.filter(table_number=table_num).exclude(status__in=["completed", "canceled"]).order_by("-created_at")
-        recently_settled = Order.objects.filter(
-            table_number=table_num, status="completed", paid_at__gte=timezone.now() - timedelta(minutes=10)
-        ).exists()
+        previous_orders = Order.objects.filter(table_number=table_num).exclude(status__in=["completed", "canceled"]).order_by("-created_at").prefetch_related("items__menu_item")
+        recently_settled = Order.objects.filter(table_number=table_num, status="completed", paid_at__gte=timezone.now() - timedelta(minutes=10)).exists()
         if not previous_orders.exists() and recently_settled:
             show_thanks = True
 
@@ -426,28 +431,29 @@ def place_order(request):
                 )
         # ==========================================
 
-        new_order = Order.objects.create(
-            table_number=table_num,
-            status="received",
-            total_price=Decimal("0.00"),
-        )
-
-        running_total = Decimal("0.00")
-
-        for item_id, item_data in cart.items():
-            menu_item = MenuItem.objects.get(id=item_id)
-            qty = int(item_data["quantity"])
-
-            OrderItem.objects.create(
-                order=new_order,
-                menu_item=menu_item,
-                quantity=qty,
-                notes=item_data.get("notes", ""),
+        with transaction.atomic():
+            new_order = Order.objects.create(
+                table_number=table_num,
+                status="received",
+                total_price=Decimal("0.00"),
             )
-            running_total += Decimal(str(menu_item.price)) * qty
 
-        new_order.total_price = running_total
-        new_order.save()
+            running_total = Decimal("0.00")
+
+            for item_id, item_data in cart.items():
+                menu_item = MenuItem.objects.get(id=item_id)
+                qty = int(item_data["quantity"])
+
+                OrderItem.objects.create(
+                    order=new_order,
+                    menu_item=menu_item,
+                    quantity=qty,
+                    notes=item_data.get("notes", ""),
+                )
+                running_total += Decimal(str(menu_item.price)) * qty
+
+            new_order.total_price = running_total
+            new_order.save()
 
         return JsonResponse({"status": "success", "order_id": new_order.id})
 
@@ -813,15 +819,19 @@ def management_dashboard(request):
     return render(request, "orders/management_dashboard.html", context)
 
 def order_review_page(request, order_id):
+
     try:
         current_order = Order.objects.get(id=order_id)
 
-        # FIX: Fetch orders for this table created within 3 hours of the current order
-        orders_to_review = Order.objects.filter(
-            table_number=current_order.table_number,
-            created_at__gte=current_order.created_at - timedelta(hours=3),
-            status__in=["received", "preparing", "ready", "completed"],
-        ).prefetch_related("items__menu_item")
+        # FIX: Walk-in tables (0) should only review their specific order to prevent leaking other customer bills
+        if current_order.table_number == 0:
+            orders_to_review = Order.objects.filter(id=current_order.id).prefetch_related("items__menu_item")
+        else:
+            orders_to_review = Order.objects.filter(
+                table_number=current_order.table_number,
+                created_at__gte=current_order.created_at - timedelta(hours=3),
+                status__in=["received", "preparing", "ready", "completed"],
+            ).prefetch_related("items__menu_item")
 
     except Order.DoesNotExist:
         return redirect("menu")

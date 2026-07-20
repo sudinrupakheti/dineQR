@@ -1,7 +1,7 @@
 {% extends 'orders/base.html' %}
 {% load humanize %}
 
-<!DOCTYPE html>
+<!-- <!DOCTYPE html>
 <html>
 <head>
     <title>Receipt_Table_{{ table_num }}</title>
@@ -51,7 +51,7 @@
         <p>Thank you for dining with us!</p>
     </div>
 </body>
-</html>
+</html> -->
 
 {% block content %}
 <div class="max-w-3xl mx-auto pb-16">
@@ -310,6 +310,11 @@
     let paidGuests = JSON.parse(localStorage.getItem(SESSION_PAID_KEY)) || [];
     let itemAssignments = JSON.parse(localStorage.getItem(SESSION_ASSIGN_KEY)) || {};
     let guestNames = JSON.parse(localStorage.getItem(SESSION_NAMES_KEY)) || [];
+
+    // FIX: Declare missing global variables to prevent script execution crashes
+    const totalBill = backendRunningTotal;
+    let isSplitPayment = false;
+    let currentPersonIdx = null;
 
     // Ensures guestNames is always initialized and matches headcount
     function checkGuestNames() {
@@ -740,7 +745,8 @@
         let confirmMsg = "";
         if (source === 'cash') {
             confirmMsg = "Mark this bill as paid with cash?";
-        } else if (isSplitPayment) {
+        } else if (isSplitPayment && currentPersonIdx !== null) {
+            const guestName = guestNames[currentPersonIdx - 1] || `Guest ${currentPersonIdx}`;
             confirmMsg = `Confirm payment for ${guestName}?`;
         } else {
             confirmMsg = "Confirm full payment via QR?";
