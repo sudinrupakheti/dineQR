@@ -60,6 +60,7 @@ class Order(models.Model):
         ("preparing", "Preparing"),
         ("ready", "Ready"),
         ("completed", "Completed"),
+        ("canceled", "Canceled"),
     ]
 
     table_number = models.IntegerField()
@@ -124,7 +125,7 @@ class WaiterCall(models.Model):
         ("paid", "Payment Done"),
     ]
 
-    table_number = models.CharField(max_length=10)
+    table_number = models.IntegerField()
     reason = models.CharField(max_length=20, choices=REASON_CHOICES, default="help")
     is_resolved = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)

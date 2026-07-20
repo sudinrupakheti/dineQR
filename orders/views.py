@@ -198,16 +198,12 @@ def menu_view(request):
         # 6. Check if search found nothing
         if not items.exists():
             zero_results = True
-            # Safely build recommendation slices completely separate from standard items
             recommended_items = MenuItem.objects.filter(
                 is_available=True, is_featured=True
             )[:6]
             items = MenuItem.objects.none()
-            categories = (
-                Category.objects.none()
-            )  # Hides sticky category headers when empty
+            categories = Category.objects.none()
         else:
-            # Advanced Scoring Metric Sorting
             if not is_pure_intent:
                 items = items.annotate(
                     relevance=Case(
@@ -221,7 +217,7 @@ def menu_view(request):
             else:
                 items = items.order_by("-is_featured", "name")
 
-    # 7. Safe Category Sticky-Bar Prefetch (Only runs when results exist)
+    # 7. Safe Category Sticky-Bar Prefetch
     if not zero_results:
         if query:
             category_ids = items.values_list("category_id", flat=True).distinct()
@@ -233,7 +229,7 @@ def menu_view(request):
                 Prefetch("items", queryset=items)
             )
 
-    # Feature 1: Get the top 5 highest-selling item IDs to light up the "TRENDING" UI badge
+    # Feature 1: Get the top 5 highest-selling item IDs
     popular_ids = list(
         OrderItem.objects.filter(order__is_paid=True)
         .values("menu_item_id")
@@ -243,9 +239,12 @@ def menu_view(request):
     )
 
     # Feature 2: Market Basket Analysis (Frequent Companions)
-    historical_orders = OrderItem.objects.filter(order__is_paid=True).values(
-        "order_id", "menu_item_id"
-    )
+    # OPTIMIZATION: Limit to order items from the last 30 days to save database memory overhead
+    historical_orders = OrderItem.objects.filter(
+        order__is_paid=True,
+        order__created_at__gte=timezone.now() - timedelta(days=30)
+    ).values("order_id", "menu_item_id")
+
     order_baskets = defaultdict(list)
     for row in historical_orders:
         order_baskets[row["order_id"]].append(row["menu_item_id"])
@@ -260,30 +259,25 @@ def menu_view(request):
     top_companion_map = {}
     for item_id, companions in pairing_matrix.items():
         if companions:
-            # CHANGE: Filter companions to only keep pairings ordered 5 times or more
             valid_companions = {k: v for k, v in companions.items() if v >= 5}
             if valid_companions:
                 top_companion_map[item_id] = max(valid_companions, key=lambda k: valid_companions[k])
 
-    # Convert queryset to a list so we can dynamically attach the companion object
+    # OPTIMIZATION: Pre-fetch all companion MenuItems in a single query to eliminate the N+1 problem
+    companion_ids = {comp_id for comp_id in top_companion_map.values() if comp_id}
+    companions_by_id = {
+        item.id: item for item in MenuItem.objects.filter(id__in=companion_ids, is_available=True)
+    }
+
     items_list = list(items)
     for item in items_list:
         comp_id = top_companion_map.get(item.id)
-        if comp_id:
-            try:
-                item.frequent_companion = MenuItem.objects.get(
-                    id=comp_id, is_available=True
-                )
-            except MenuItem.DoesNotExist:
-                item.frequent_companion = None
-        else:
-            item.frequent_companion = None
+        # Assign pre-fetched object directly from memory (0 secondary database hits)
+        item.frequent_companion = companions_by_id.get(comp_id) if comp_id else None
 
     items = items_list
 
-    # ==========================================================
-    # 9. CONTEXT-AWARE GREETING ENGINE
-    # ==========================================================
+    # 9. Context-aware greeting
     current_hour = timezone.localtime(timezone.now()).hour
     if 5 <= current_hour < 12:
         greeting = "Good Morning ☕"
@@ -293,7 +287,6 @@ def menu_view(request):
         greeting = "Good Evening 🍽️"
     else:
         greeting = "Late Night Cravings? 🌙"
-    # ==========================================================
 
     context = {
         "items": items,
@@ -316,11 +309,13 @@ def cart_detail(request):
     show_thanks = False
 
     if order_id:
-        previous_orders = Order.objects.filter(id=order_id).exclude(status__in=["completed", "cancelled"])
+        # Changed "cancelled" to "canceled" to match the database status standard
+        previous_orders = Order.objects.filter(id=order_id).exclude(status__in=["completed", "canceled"])
         if not previous_orders.exists() and Order.objects.filter(id=order_id, status="completed").exists():
             show_thanks = True
     elif table_num:
-        previous_orders = Order.objects.filter(table_number=table_num).exclude(status__in=["completed", "cancelled"]).order_by("-created_at")
+        # Changed "cancelled" to "canceled" to match the database status standard
+        previous_orders = Order.objects.filter(table_number=table_num).exclude(status__in=["completed", "canceled"]).order_by("-created_at")
         recently_settled = Order.objects.filter(
             table_number=table_num, status="completed", paid_at__gte=timezone.now() - timedelta(minutes=10)
         ).exists()
@@ -333,7 +328,6 @@ def cart_detail(request):
         for item in order.items.all():
             order_calc_total += Decimal(str(item.menu_item.price)) * item.quantity
 
-        # If DB went out of sync, fix it instantly!
         if order.total_price != order_calc_total:
             order.total_price = order_calc_total
             order.save()
@@ -383,9 +377,10 @@ def place_order(request):
 
         try:
             table_num = int(raw_table_number)
-            if table_num < 0 or table_num > 10:
+            # Removed the strict upper bound of 'table_num > 10' to support restaurants with more tables
+            if table_num < 0:
                 return JsonResponse(
-                    {"status": "error", "message": "Table must be 0-10"}, status=400
+                    {"status": "error", "message": "Table number cannot be negative"}, status=400
                 )
         except ValueError:
             return JsonResponse(
@@ -497,7 +492,6 @@ def cancel_order_item(request, item_id):
 @user_passes_test(is_staff)
 @login_required
 def management_dashboard(request):
-
     is_management = (
         request.user.is_superuser
         or request.user.groups.filter(name__iexact='Management').exists()
@@ -511,7 +505,7 @@ def management_dashboard(request):
     current_tab = request.GET.get("tab", "tables")
     sentiment_filter = request.GET.get("sentiment", "all")
 
-    # --- 1. GLOBAL STATS (For all tabs) ---
+    # --- 1. GLOBAL STATS ---
     all_active_orders = Order.objects.exclude(status="completed")
     total_live_revenue = (
         all_active_orders.aggregate(Sum("total_price"))["total_price__sum"] or 0
@@ -525,9 +519,11 @@ def management_dashboard(request):
 
     # --- 2. LOGIC FOR TABLES TAB ---
     if current_tab in ["tables", "qr"]:
+        # OPTIMIZATION: Moved Walk-In orders query OUTSIDE the loop (saves 9 redundant queries)
+        walkin_orders = Order.objects.filter(table_number=0).exclude(status="completed").order_by('-created_at')
+
         for i in range(1, 11):
             active_orders = Order.objects.filter(table_number=i).exclude(status="completed")
-            walkin_orders = Order.objects.filter(table_number=0).exclude(status="completed").order_by('-created_at')
             if active_orders.exists():
                 total_bill = (
                     active_orders.aggregate(Sum("total_price"))["total_price__sum"] or 0
@@ -554,7 +550,6 @@ def management_dashboard(request):
 
     # --- 3. LOGIC FOR INSIGHTS TAB ---
     elif current_tab == "insights":
-        # A. Core Metrics & Inventory Performance
         top_items = (
             OrderItem.objects.filter(order__is_paid=True)
             .values("menu_item__name")
@@ -571,7 +566,6 @@ def management_dashboard(request):
             .order_by("hour")
         )
 
-        # B. Dietary Segmentation Share
         diet_shares = (
             OrderItem.objects.filter(order__is_paid=True)
             .values("menu_item__veg")
@@ -585,7 +579,6 @@ def management_dashboard(request):
             for item in diet_shares
         ]
 
-        # C. Category Performance Pillars
         category_shares = (
             OrderItem.objects.filter(order__status="completed")
             .values("menu_item__category__name")
@@ -593,25 +586,17 @@ def management_dashboard(request):
             .order_by("-total_qty")
         )
 
-        # D. Sentiment Index Metrics
         sentiment_counts = Review.objects.values("sentiment").annotate(
             count=Count("id")
         )
         sentiment_dict = {item["sentiment"]: item["count"] for item in sentiment_counts}
         total_reviews = sum(sentiment_dict.values()) or 1
         sentiment_ratios = {
-            "positive": round(
-                (sentiment_dict.get("positive", 0) / total_reviews) * 100, 1
-            ),
-            "neutral": round(
-                (sentiment_dict.get("neutral", 0) / total_reviews) * 100, 1
-            ),
-            "negative": round(
-                (sentiment_dict.get("negative", 0) / total_reviews) * 100, 1
-            ),
+            "positive": round((sentiment_dict.get("positive", 0) / total_reviews) * 100, 1),
+            "neutral": round((sentiment_dict.get("neutral", 0) / total_reviews) * 100, 1),
+            "negative": round((sentiment_dict.get("negative", 0) / total_reviews) * 100, 1),
         }
 
-        # E. Operational Waiter Assist Telemetry
         waiter_telemetry = (
             WaiterCall.objects.values("reason")
             .annotate(total_calls=Count("id"))
@@ -619,16 +604,13 @@ def management_dashboard(request):
         )
         formatted_waiter_calls = [
             {
-                "reason": dict(WaiterCall.REASON_CHOICES).get(
-                    item["reason"], item["reason"]
-                ),
+                "reason": dict(WaiterCall.REASON_CHOICES).get(item["reason"], item["reason"]),
                 "count": item["total_calls"],
             }
             for item in waiter_telemetry
         ]
 
-        # F. Market Basket Analysis
-        # (bounded to last 90 days to avoid loading unbounded history into Python)
+        # Market Basket analysis limited to last 90 days
         order_item_groups = OrderItem.objects.filter(
             order__created_at__gte=timezone.now() - timedelta(days=90)
         ).values("order_id", "menu_item__name")
@@ -648,7 +630,6 @@ def management_dashboard(request):
             for p, c in pair_counter.most_common(4)
         ]
 
-        # G. Table Load Performance
         table_revenue = (
             Order.objects.filter(status="completed")
             .values("table_number")
@@ -656,17 +637,7 @@ def management_dashboard(request):
             .order_by("-total_earned")[:5]
         )
 
-        # H. Busiest Days Matrix (Trailing 30 Days)
-        # Django's ExtractWeekDay returns 1=Sunday … 7=Saturday (US convention).
-        days_map = {
-            1: "Sun",
-            2: "Mon",
-            3: "Tue",
-            4: "Wed",
-            5: "Thu",
-            6: "Fri",
-            7: "Sat",
-        }
+        days_map = {1: "Sun", 2: "Mon", 3: "Tue", 4: "Wed", 5: "Thu", 6: "Fri", 7: "Sat"}
         weekly_traffic = (
             Order.objects.filter(created_at__gte=timezone.now() - timedelta(days=30))
             .annotate(weekday=ExtractWeekDay("created_at"))
@@ -679,40 +650,26 @@ def management_dashboard(request):
             for item in weekly_traffic
         ]
 
-        # I. Operational Bill Settlement Ratio
         payment_audit = Order.objects.aggregate(
             collected=Count("id", filter=Q(is_paid=True)),
             unsettled=Count("id", filter=Q(is_paid=False)),
         )
 
-        # Service Latency Vector (Table Turnaround Velocity)
         timed_orders = (
-            Order.objects.filter(
-                status="completed", is_paid=True, paid_at__isnull=False
-            )
-            .annotate(
-                duration=ExpressionWrapper(
-                    F("paid_at") - F("created_at"), output_field=DurationField()
-                )
-            )
+            Order.objects.filter(status="completed", is_paid=True, paid_at__isnull=False)
+            .annotate(duration=ExpressionWrapper(F("paid_at") - F("created_at"), output_field=DurationField()))
             .aggregate(avg_time=Avg("duration"))
         )
 
         avg_turnaround_mins = 0
         if timed_orders["avg_time"]:
-            avg_turnaround_mins = round(
-                timed_orders["avg_time"].total_seconds() / 60, 1
-            )
+            avg_turnaround_mins = round(timed_orders["avg_time"].total_seconds() / 60, 1)
 
-        # Financial Leakage Metrics (Revenue Bleed)
         financial_bleed = Order.objects.filter(status="canceled").aggregate(
             lost_cash=Sum("total_price"), lost_count=Count("id")
         )
 
-        # Recipe Quality Risk Index
-        negative_review_order_ids = Review.objects.filter(
-            sentiment="negative"
-        ).values_list("order_id", flat=True)
+        negative_review_order_ids = Review.objects.filter(sentiment="negative").values_list("order_id", flat=True)
         toxic_dishes = (
             OrderItem.objects.filter(order_id__in=negative_review_order_ids)
             .values("menu_item__name")
@@ -738,31 +695,25 @@ def management_dashboard(request):
             "toxic_dishes": list(toxic_dishes),
         }
 
-        now_local = timezone.localtime(timezone.now())
-        start_of_day_local = now_local.replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
-        start_of_day_utc = start_of_day_local.astimezone(dt_timezone.utc)
-
+        # OPTIMIZATION: Used Django's native date filter to reliably calculate Shift metrics
+        today_local = timezone.localdate()
         shift_orders = Order.objects.filter(
             status="completed",
-            created_at__range=(start_of_day_utc, timezone.now()),
+            created_at__date=today_local,
         )
         z_metrics = shift_orders.aggregate(
             gross=Sum("total_price"), count=Count("id"), avg_spend=Avg("total_price")
         )
         canceled_count = Order.objects.filter(
             status="canceled",
-            created_at__range=(start_of_day_utc, timezone.now()),
+            created_at__date=today_local,
         ).count()
 
         context.update(
             {
                 "z_gross_sales": z_metrics["gross"] or 0,
                 "z_ticket_count": z_metrics["count"] or 0,
-                "z_avg_ticket": round(z_metrics["avg_spend"] or 0, 2)
-                if z_metrics["avg_spend"]
-                else 0,
+                "z_avg_ticket": round(z_metrics["avg_spend"] or 0, 2) if z_metrics["avg_spend"] else 0,
                 "z_canceled_count": canceled_count,
             }
         )
@@ -797,17 +748,16 @@ def management_dashboard(request):
 def order_review_page(request, order_id):
     try:
         current_order = Order.objects.get(id=order_id)
-        # Fetch all orders for this specific table that are active or recently filled
+        # Changed "cooking" to "preparing" to accurately match model status choices
         orders_to_review = Order.objects.filter(
             table_number=current_order.table_number,
-            status__in=["received", "cooking", "ready", "completed"],
+            status__in=["received", "preparing", "ready", "completed"],
         ).prefetch_related("items__menu_item")
 
     except Order.DoesNotExist:
         return redirect("menu")
 
     if request.method == "POST":
-        # Process reviews inside a loop for items across all retrieved orders
         for order in orders_to_review:
             for item in order.items.all():
                 rating_val = request.POST.get(f"rating_{item.menu_item.id}")
@@ -826,7 +776,6 @@ def order_review_page(request, order_id):
                     )
         return redirect(f"{reverse('menu')}cart/?table={current_order.table_number}")
 
-    # Gather unique menu items from all current session orders to present in template
     items_to_review = []
     seen_items = set()
     for o in orders_to_review:
@@ -959,16 +908,22 @@ def menu_status_api(request):
 
 def call_waiter_api(request):
     if request.method == "POST":
-        import json
-
         try:
             data = json.loads(request.body)
-            table_num = data.get("table_number")
+            raw_table_num = data.get("table_number")
             reason = data.get("reason", "help")
 
-            if not table_num:
+            if not raw_table_num:
                 return JsonResponse(
                     {"status": "error", "message": "Table number missing."}, status=400
+                )
+
+            # Ensure the table number is parsed as an integer to prevent type-mismatch crashes
+            try:
+                table_num = int(raw_table_num)
+            except ValueError:
+                return JsonResponse(
+                    {"status": "error", "message": "Table number must be a valid integer."}, status=400
                 )
 
             # Anti-Spam protection: Check if this table already has an active request
@@ -984,7 +939,7 @@ def call_waiter_api(request):
                     status=400,
                 )
 
-            # Create the call
+            # Create the call safely using the cast integer
             WaiterCall.objects.create(table_number=table_num, reason=reason)
             return JsonResponse({"status": "success"})
 
@@ -1080,15 +1035,6 @@ def generate_bill_qr(data):
 
 def confirm_payment_request(request, table_num):
     """Handles equal split, item-based split, and full payment."""
-    active_orders = Order.objects.filter(table_number=table_num).exclude(
-        status="completed"
-    )
-
-    if not active_orders.exists():
-        return JsonResponse(
-            {"status": "error", "message": "No active orders"}, status=400
-        )
-
     try:
         if request.method == "POST":
             data = json.loads(request.body)
@@ -1099,12 +1045,13 @@ def confirm_payment_request(request, table_num):
         manual_amount = Decimal(str(data.get("amount", 0)))
         payment_method = data.get("payment_method", "qr")
         order_id = data.get("order_id")
-    except:
+    except Exception:
         manual_amount = Decimal("0")
         items_to_pay = []
         payment_method = "qr"
         order_id = None
 
+    # OPTIMIZATION: Parse parameter state first, then make only one database query
     if order_id:
         active_orders = Order.objects.filter(id=order_id).exclude(status="completed")
     else:
@@ -1115,11 +1062,9 @@ def confirm_payment_request(request, table_num):
 
     # --- CASH MODE FLOW ---
     if payment_method == "cash":
-        # Create a waiter notification beacon for manual desk clearance
         WaiterCall.objects.create(
             table_number=table_num, reason="paid", is_resolved=False
         )
-        # Keep table_cleared=False so the client stays on screen until staff verifies from dashboard
         return JsonResponse(
             {
                 "status": "success",
@@ -1128,13 +1073,21 @@ def confirm_payment_request(request, table_num):
             }
         )
 
-    # --- QR DEMO FLOW (AUTO VERIFY) ---
+    # --- QR FLOW ---
     # MODE 1: ITEM-BASED PAY
     if items_to_pay:
         for entry in items_to_pay:
             try:
                 order_item = OrderItem.objects.get(id=entry["id"])
                 qty = int(entry.get("qty", 1))
+
+                # INTEGRITY CHECK: Limit payments to unpaid quantity bounds
+                unpaid_qty = order_item.quantity - (order_item.paid_quantity or 0)
+                qty = min(qty, unpaid_qty)
+
+                if qty <= 0:
+                    continue
+
                 order_item.paid_quantity = (order_item.paid_quantity or 0) + qty
                 order_item.save()
 
