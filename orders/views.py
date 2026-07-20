@@ -1,16 +1,16 @@
 import json
 import difflib
 import re
-import qrcode
+import qrcode   # type: ignore
 import io
 import base64
 from decimal import Decimal
 from datetime import datetime, timedelta
-from django.utils import timezone
-from django.http import JsonResponse, HttpResponse, HttpResponseForbidden
-from django.shortcuts import render, redirect, get_object_or_404
-from django.urls import reverse
-from django.db.models import (
+from django.utils import timezone   # type: ignore
+from django.http import JsonResponse, HttpResponse, HttpResponseForbidden   # type: ignore
+from django.shortcuts import render, redirect, get_object_or_404    # type: ignore
+from django.urls import reverse # type: ignore
+from django.db.models import (  # type: ignore
     Sum,
     Q,
     Avg,
@@ -23,19 +23,19 @@ from django.db.models import (
     ExpressionWrapper,
     DurationField,
 )
-from django.db.models.functions import ExtractWeekDay, ExtractHour
-from django.contrib.auth import authenticate, login, logout
-from django.contrib.auth.decorators import login_required, user_passes_test
-from django.views.decorators.cache import never_cache
-from django.conf import settings
+from django.db.models.functions import ExtractWeekDay, ExtractHour  # type: ignore
+from django.contrib.auth import authenticate, login, logout # type: ignore
+from django.contrib.auth.decorators import login_required, user_passes_test # type: ignore
+from django.views.decorators.cache import never_cache   # type: ignore
+from django.conf import settings    # type: ignore
 from collections import defaultdict
 from .ai_utils import analyze_note_sentiment
 from collections import Counter, defaultdict
 from itertools import combinations
 from datetime import timezone as dt_timezone
-from django.views.decorators.csrf import csrf_exempt
-from django.contrib import messages
-from django.core.exceptions import PermissionDenied
+from django.views.decorators.csrf import csrf_exempt    # type: ignore
+from django.contrib import messages # type: ignore
+from django.core.exceptions import PermissionDenied # type: ignore
 from .models import (
     Order,
     OrderItem,
@@ -377,7 +377,6 @@ def place_order(request):
 
         try:
             table_num = int(raw_table_number)
-            # Removed the strict upper bound of 'table_num > 10' to support restaurants with more tables
             if table_num < 0:
                 return JsonResponse(
                     {"status": "error", "message": "Table number cannot be negative"}, status=400
@@ -386,6 +385,28 @@ def place_order(request):
             return JsonResponse(
                 {"status": "error", "message": "Invalid table format"}, status=400
             )
+
+        if table_num != 0:
+            client_token = request.headers.get("X-Session-Token")
+            if not client_token:
+                return JsonResponse(
+                    {"status": "error", "message": "Session token missing. Please scan the QR code again."},
+                    status=401
+                )
+
+            # Check if this token matches an active session for the claimed table
+            session_exists = TableSession.objects.filter(
+                table_number=table_num,
+                session_token=client_token,
+                is_active=True
+            ).exists()
+
+            if not session_exists:
+                return JsonResponse(
+                    {"status": "error", "message": "Invalid session for this table. Please re-scan your table QR code."},
+                    status=403
+                )
+        # ==========================================
 
         new_order = Order.objects.create(
             table_number=table_num,
@@ -1294,7 +1315,7 @@ def unified_delete(request, model_type, object_id):
 
     return redirect(f"{reverse('management_dashboard')}?tab={return_tab}")
 
-@user_passes_test(is_staff)
+@user_passes_test(is_staff) # type: ignore
 def staff_place_order(request):
     """API for staff to instantly create walk-in / manual orders"""
     if request.method == "POST":
@@ -1353,7 +1374,7 @@ def get_table_orders(request, table_num):
     return JsonResponse({"items": items_data, "table": table_num})
 
 
-@user_passes_test(is_staff)
+@user_passes_test(is_staff) # type: ignore
 def modify_order_item(request, item_id):
     """API to increment, decrement, or delete an item directly from the drawer"""
     if request.method == "POST":

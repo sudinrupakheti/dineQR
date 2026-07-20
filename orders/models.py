@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models    # type: ignore
 from django.utils.html import format_html
 import uuid
 

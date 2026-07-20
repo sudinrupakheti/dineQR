@@ -36,7 +36,7 @@ urlpatterns = [
         name="cancel_order_item",
     ),
     path("api/menu-status/", views.menu_status_api, name="menu_status_api"),
-    path("api/call-waiter/", views.call_waiter_api, name="call_waiter_api"),
+    path("api/call-waiter/", views.call_waiter_api, name="call_waiter_api"), # type: ignore
     path(
         "api/active-waiter-calls/",
         views.get_active_waiter_calls,
@@ -77,12 +77,17 @@ urlpatterns = [
     path('management/category/add/', views.save_category, name='add_category'),
     path('management/category/edit/<int:category_id>/', views.save_category, name='edit_category'),
     path('management/delete/<str:model_type>/<int:object_id>/', views.unified_delete, name='unified_delete'),
-    path('management/api/staff-order/', views.staff_place_order, name='staff_place_order'),
+    path('management/api/staff-order/', views.staff_place_order, name='staff_place_order'), # type: ignore
     path('management/api/table/<int:table_num>/', views.get_table_orders, name='get_table_orders'),
-    path('management/api/modify-item/<int:item_id>/', views.modify_order_item, name='modify_order_item'),
+    path('management/api/modify-item/<int:item_id>/', views.modify_order_item, name='modify_order_item'),   # type: ignore
     path('management/api/drawer/', views.get_drawer_items, name='get_drawer_items'),
     path('management/order/<int:order_id>/settle/', views.mark_order_paid, name='mark_order_paid'),
     path('management/order/<int:order_id>/bill/', views.single_order_bill, name='single_order_bill'),
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
+    path(
+        "api/verify-session/",
+        views.verify_table_session,
+        name="verify_table_session",
+    ),
 ]

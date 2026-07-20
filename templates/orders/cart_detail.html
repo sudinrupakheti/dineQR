@@ -363,7 +363,11 @@
         try {
             const response = await fetch("{% url 'place_order' %}", {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': "{{ csrf_token }}" },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': "{{ csrf_token }}",
+                    'X-Session-Token': getSessionToken() // NEW: Sends the verified table session token
+                },
                 body: JSON.stringify({ cart: cart, table_number: tableNum })
             });
             const result = await response.json();
@@ -394,7 +398,10 @@
         try {
             const response = await fetch(`/api/cancel-item/${itemId}/`, {
                 method: 'POST',
-                headers: { 'X-CSRFToken': "{{ csrf_token }}" }
+                headers: {
+                    'X-CSRFToken': "{{ csrf_token }}",
+                    'X-Session-Token': getSessionToken() // NEW: Send token for cancel-verification
+                }
             });
             const result = await response.json();
             if (result.status === 'success') window.location.reload();
@@ -618,7 +625,11 @@
 
             const response = await fetch(`/payment/confirm/${tableNum}/`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': "{{ csrf_token }}" },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': "{{ csrf_token }}",
+                    'X-Session-Token': getSessionToken()
+                },
                 body: JSON.stringify(payload)
             });
             const data = await response.json();

@@ -1,3 +1,5 @@
+// static/js/cart.js
+
 function getActiveTable() {
     const urlParams = new URLSearchParams(window.location.search);
     let table = urlParams.get('table');
@@ -8,7 +10,6 @@ function getActiveTable() {
         table = localStorage.getItem('dineqr_table');
     }
 
-    // FIX: Dynamically adapt the main logo anchor link to keep the table context alive
     if (table) {
         const logoLink = document.getElementById('logo-link');
         if (logoLink) {
@@ -19,27 +20,66 @@ function getActiveTable() {
 }
 
 let tableNumber = getActiveTable();
-// Use the table number to find the right cart, or 'cart_guest' if truly unknown
 const cartKey = (tableNumber && tableNumber !== "null") ? `cart_table_${tableNumber}` : 'cart_guest';
 let cart = JSON.parse(localStorage.getItem(cartKey)) || {};
+
+// =======================================================
+// NEW: NEGOTIATE TABLE SESSION TOKEN
+// =======================================================
+async function initializeTableSession() {
+    if (!tableNumber || tableNumber === "null" || tableNumber === "") {
+        return;
+    }
+
+    const sessionKey = `dineqr_session_table_${tableNumber}`;
+    let sessionToken = localStorage.getItem(sessionKey);
+
+    // Call the verification API with our existing token (if we have one)
+    try {
+        const headers = {};
+        if (sessionToken) {
+            headers['X-Session-Token'] = sessionToken;
+        }
+
+        const response = await fetch(`/api/verify-session/?table=${tableNumber}`, {
+            method: 'GET',
+            headers: headers
+        });
+
+        const data = await response.json();
+        if (data.status === 'success' && data.token) {
+            // Save the verified or newly issued token
+            localStorage.setItem(sessionKey, data.token);
+            console.log("Table session authenticated:", data.token);
+        } else {
+            console.warn("Could not authenticate table session:", data.message);
+        }
+    } catch (error) {
+        console.error("Error establishing table session:", error);
+    }
+}
+
+// Retrieve the session token from local storage when making requests
+function getSessionToken() {
+    if (!tableNumber) return null;
+    return localStorage.getItem(`dineqr_session_table_${tableNumber}`);
+}
+// =======================================================
 
 function addToCart(id, name, price) {
     console.log("Attempting to add:", name, "Table is:", tableNumber);
 
-    // If no table is found in the URL
     if (!tableNumber || tableNumber === "null" || tableNumber === "") {
         console.log("No table detected. Triggering prompt...");
         const userTable = prompt("Please enter your table number to start ordering:");
 
         if (userTable && userTable.trim() !== "") {
-            // Redirect to the URL with the table number
             const currentUrl = window.location.pathname;
             window.location.href = `${currentUrl}?table=${userTable.trim()}`;
         }
-        return; // Stop the function until the page reloads with a table
+        return;
     }
 
-    // Normal add to cart logic
     if (cart[id]) {
         cart[id].quantity += 1;
     } else {
@@ -68,7 +108,6 @@ function updateCartUI() {
         const totalItems = Object.values(cart).reduce((sum, item) => sum + item.quantity, 0);
         badge.innerText = totalItems;
 
-        // UX Enhancement: Add pulse animation loops on modification
         badge.classList.remove('scale-100');
         badge.classList.add('scale-125', 'bg-orange-500', 'animate-bounce');
         setTimeout(() => {
@@ -77,7 +116,6 @@ function updateCartUI() {
         }, 600);
     }
 
-    // Explicitly update text instructions near floating action triggers if present
     if (floatingCartText) {
         floatingCartText.innerText = "View Your Order/Cart";
     }
@@ -113,4 +151,8 @@ function updateNote(id, note) {
     }
 }
 
-document.addEventListener('DOMContentLoaded', updateCartUI);
+// Initialize session and UI on page load
+document.addEventListener('DOMContentLoaded', () => {
+    updateCartUI();
+    initializeTableSession();
+});
