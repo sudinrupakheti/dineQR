@@ -90,4 +90,5 @@ urlpatterns = [
         views.verify_table_session,
         name="verify_table_session",
     ),
+    path('management/reviews/clear/', views.clear_old_reviews, name='clear_old_reviews'),
 ]

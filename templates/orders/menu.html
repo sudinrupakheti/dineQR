@@ -28,24 +28,6 @@
     </form>
 </div>
 
-<!-- Fast Filters -->
-<div class="flex gap-2 overflow-x-auto no-scrollbar pb-2 max-w-2xl md:max-w-5xl lg:max-w-7xl mx-auto px-4 mb-4">
-    <a href="?search=veg{% if request.GET.table %}&table={{ request.GET.table }}{% endif %}"
-       class="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border transition-all whitespace-nowrap {% if query == 'veg' %}bg-gray-950 border-gray-950 text-white shadow-sm{% else %}bg-white border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50 shadow-sm{% endif %}">
-        🥬 Vegetarian
-    </a>
-
-    <a href="?search=spicy{% if request.GET.table %}&table={{ request.GET.table }}{% endif %}"
-       class="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border transition-all whitespace-nowrap {% if query == 'spicy' %}bg-gray-950 border-gray-950 text-white shadow-sm{% else %}bg-white border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50 shadow-sm{% endif %}">
-        🔥 Spicy Hits
-    </a>
-
-    <a href="?search=quick{% if request.GET.table %}&table={{ request.GET.table }}{% endif %}"
-       class="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold border transition-all whitespace-nowrap {% if query == 'quick' %}bg-gray-950 border-gray-950 text-white shadow-sm{% else %}bg-white border-gray-200 text-gray-600 hover:text-gray-900 hover:bg-gray-50 shadow-sm{% endif %}">
-        ⚡ Express Menu
-    </a>
-</div>
-
 {% if zero_results %}
     <div class="text-center py-12 max-w-md mx-auto px-4 bg-gray-50 rounded-2xl border border-gray-200 my-6">
         <div class="bg-white border border-gray-200 text-gray-400 w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-sm">
