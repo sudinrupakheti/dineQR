@@ -401,9 +401,7 @@
         freshBtn.addEventListener('click', function(e) {
             if (!currentModalItem) return;
 
-            for (let q = 0; q < modalQuantity; q++) {
-                addToCart(currentModalItem.id, currentModalItem.name, currentModalItem.price);
-            }
+            addToCart(currentModalItem.id, currentModalItem.name, currentModalItem.price, modalQuantity);
 
             const originalContent = this.innerHTML;
             this.className = "w-full bg-gray-900 text-white py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center justify-center gap-1.5 shadow-md";
@@ -492,32 +490,6 @@
         }, 300);
     }
 
-    // ── QUICK ADD (card button) ────────────────────────────────────────────────
-
-    function handleAddToCart(event, id, name, price) {
-        event.stopPropagation();
-
-        if (typeof addToCart !== "function") return;
-
-        addToCart(id, name, price);
-        if (typeof showToast === "function") showToast(`${name} added to cart.`);
-
-        // If item has a companion, show the dedicated combo modal
-        const card = document.getElementById(`food-card-${id}`);
-        if (card) {
-            const companionId = card.getAttribute('data-companion-id');
-            if (companionId && companionId !== "") {
-                openComboModal(
-                    id,
-                    name,
-                    parseFloat(price),
-                    companionId,
-                    card.getAttribute('data-companion-name'),
-                    parseFloat(card.getAttribute('data-companion-price') || 0)
-                );
-            }
-        }
-    }
 
     // ── DEDICATED COMBO UPSELL MODAL ──────────────────────────────────────────
 

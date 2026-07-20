@@ -66,34 +66,27 @@ function getSessionToken() {
 }
 // =======================================================
 
-function addToCart(id, name, price) {
+function addToCart(id, name, price, quantity = 1) { // Added quantity parameter
     console.log("Attempting to add:", name, "Table is:", tableNumber);
 
     if (!tableNumber || tableNumber === "null" || tableNumber === "") {
-        console.log("No table detected. Triggering prompt...");
-        const userTable = prompt("Please enter your table number to start ordering:");
-
-        if (userTable && userTable.trim() !== "") {
-            const currentUrl = window.location.pathname;
-            window.location.href = `${currentUrl}?table=${userTable.trim()}`;
-        }
+        // ... (keep table prompt logic) ...
         return;
     }
 
     if (cart[id]) {
-        cart[id].quantity += 1;
+        cart[id].quantity += quantity; // Increment by requested quantity
     } else {
         cart[id] = {
             name: name,
             price: parseFloat(price),
-            quantity: 1,
+            quantity: quantity,
             notes: ""
         };
     }
 
     saveCart();
     updateCartUI();
-    console.log("Cart updated:", cart);
 }
 
 function saveCart() {

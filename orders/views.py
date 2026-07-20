@@ -800,22 +800,29 @@ def order_review_page(request, order_id):
         return redirect("menu")
 
     if request.method == "POST":
+        reviewed_menu_item_ids = set()  # Track processed dish IDs
+
         for order in orders_to_review:
-            for item in order.items.all():  # type: ignore
-                rating_val = request.POST.get(f"rating_{item.menu_item.id}")
-                comment_val = request.POST.get(
-                    f"comment_{item.menu_item.id}", ""
-                ).strip()
+            for item in order.items.all():
+                menu_item_id = item.menu_item.id
+
+                # If we already recorded a review for this item ID, skip duplicates
+                if menu_item_id in reviewed_menu_item_ids:
+                    continue
+
+                rating_val = request.POST.get(f"rating_{menu_item_id}")
+                comment_val = request.POST.get(f"comment_{menu_item_id}", "").strip()
+
                 if rating_val:
                     Review.objects.create(
                         order=order,
                         menu_item=item.menu_item,
                         rating=int(rating_val),
                         comment=comment_val,
-                        sentiment=analyze_note_sentiment(comment_val)
-                        if comment_val
-                        else "neutral",
+                        sentiment=analyze_note_sentiment(comment_val) if comment_val else "neutral",
                     )
+                    reviewed_menu_item_ids.add(menu_item_id)  # Mark as reviewed
+
         return redirect(f"{reverse('menu')}cart/?table={current_order.table_number}")
 
     items_to_review = []
