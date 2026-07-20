@@ -748,9 +748,11 @@ def management_dashboard(request):
 def order_review_page(request, order_id):
     try:
         current_order = Order.objects.get(id=order_id)
-        # Changed "cooking" to "preparing" to accurately match model status choices
+
+        # FIX: Fetch orders for this table created within 3 hours of the current order
         orders_to_review = Order.objects.filter(
             table_number=current_order.table_number,
+            created_at__gte=current_order.created_at - timedelta(hours=3),
             status__in=["received", "preparing", "ready", "completed"],
         ).prefetch_related("items__menu_item")
 
@@ -789,7 +791,6 @@ def order_review_page(request, order_id):
         "orders/order_review.html",
         {"order": current_order, "items_to_review": items_to_review},
     )
-
 
 @user_passes_test(is_staff)
 @login_required

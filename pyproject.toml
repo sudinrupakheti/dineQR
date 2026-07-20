@@ -16,4 +16,5 @@ dependencies = [
     "django-stubs",
     "requests",
     "numpy",
+    "psycopg2-binary>=2.9.12",
 ]
