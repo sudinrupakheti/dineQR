@@ -9,6 +9,11 @@
     <style>
         body { font-family: 'Courier New', Courier, monospace; width: 80mm; margin: 0 auto; color: #000; }
         @media print { .no-print { display: none; } body { width: 100%; padding: 0; } }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .fonepay-gradient {
+        background: linear-gradient(135deg, #1b803a 0%, #115725 100%);
+        }
     </style>
 </head>
 <body class="bg-white p-4 antialiased">
@@ -108,7 +113,7 @@
 
         <!-- Settlement Section -->
         {% if previous_orders and not show_thanks %}
-        <div id="bill-review-section" class="pt-6 border-t border-gray-100 space-y-4">
+        <div id="bill-review-section" class="pt-6 border-t border-gray-100 space-y-4 {% if not has_ready_orders %}hidden{% endif %}">
 
             <div class="grid grid-cols-2 gap-2">
                 <a href="{% if request.GET.order %}{% url 'single_order_bill' request.GET.order %}{% else %}{% url 'table_bill' request.GET.table|default:0 %}{% endif %}" target="_blank" class="bg-white border border-gray-200 text-gray-700 font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 text-xs uppercase tracking-wider hover:bg-gray-50 transition-colors shadow-sm">
@@ -143,78 +148,101 @@
             <div class="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" onclick="closeSplitModal()"></div>
 
             <div class="absolute bottom-0 w-full bg-white rounded-t-2xl md:relative md:w-full md:max-w-md md:mx-auto md:top-1/2 md:-translate-y-1/2 shadow-xl border border-gray-100 overflow-hidden flex flex-col max-h-[88vh] pointer-events-auto pb-safe">
+
+                <!-- Modal Header -->
                 <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-white shrink-0">
                     <h2 class="text-sm font-serif font-bold text-gray-900 uppercase tracking-wider">Split Bill</h2>
-                    <button onclick="closeSplitModal()" class="p-1.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-400 hover:text-gray-900 transition-colors"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
+                    <button onclick="closeSplitModal()" class="p-1.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-400 hover:text-gray-900 transition-colors">
+                        <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                    </button>
                 </div>
 
+                <!-- Tab Selectors -->
                 <div class="p-2 bg-gray-50 border-b border-gray-100 flex gap-1 shrink-0">
                     <button onclick="switchSplitMode('equal')" id="tab-equal" class="flex-1 py-2 rounded-lg font-bold text-[10px] uppercase tracking-wider bg-gray-900 text-white transition-all">Split Equally</button>
                     <button onclick="switchSplitMode('items')" id="tab-items" class="flex-1 py-2 rounded-lg font-bold text-[10px] uppercase tracking-wider text-gray-400 hover:text-gray-900 transition-all">Split by Items</button>
                 </div>
 
-                <!-- Equal Split View -->
-                <div id="split-equal-content" class="p-6 flex flex-col items-center gap-4 bg-white">
-                    <span class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Number of People</span>
-                    <div class="flex items-center gap-6">
-                        <button onclick="adjustPeople(-1)" class="w-9 h-9 rounded-xl border border-gray-200 flex items-center justify-center text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors">-</button>
-                        <span id="people-count" class="text-4xl font-serif font-bold text-gray-900">2</span>
-                        <button onclick="adjustPeople(1)" class="w-9 h-9 rounded-xl border border-gray-200 flex items-center justify-center text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors">+</button>
+                <!-- NEW: Persistent Headcount Adjuster (Visible across BOTH tabs) -->
+                <div class="p-4 bg-gray-50/40 border-b border-gray-100 flex justify-between items-center shrink-0">
+                    <span class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Number of Guests</span>
+                    <div class="flex items-center gap-4">
+                        <button onclick="adjustPeople(-1)" class="w-8 h-8 rounded-lg border border-gray-200 bg-white flex items-center justify-center text-xs font-bold text-gray-600 hover:bg-gray-50 transition-colors">-</button>
+                        <span id="people-count" class="text-sm font-bold text-gray-900">2</span>
+                        <button onclick="adjustPeople(1)" class="w-8 h-8 rounded-lg border border-gray-200 bg-white flex items-center justify-center text-xs font-bold text-gray-600 hover:bg-gray-50 transition-colors">+</button>
                     </div>
-                    <p class="text-xs text-gray-400 font-medium">Per Person: <span id="equal-share-text" class="text-gray-900 font-bold underline">Rs. 0</span></p>
                 </div>
 
-                <!-- Item Split View -->
-                <div id="split-items-content" class="hidden flex-grow overflow-y-auto p-4 space-y-2 bg-white no-scrollbar">
-                    <p class="text-[9px] font-bold text-gray-400 uppercase tracking-widest px-1 mb-2">Select guests to divide item costs</p>
-                    {% for order in previous_orders %}
-                        {% for item in order.items.all %}
-                        <div class="bg-gray-50 p-3 rounded-xl border border-gray-200/60 flex justify-between items-center gap-4">
-                            <div class="min-w-0 flex-1">
-                                <p class="font-bold text-gray-900 text-xs truncate">{{ item.menu_item.name }}</p>
-                                <p class="text-[10px] text-gray-400 font-medium mt-0.5">
-                                    {{ item.quantity }}x Rs. {{ item.menu_item.price|floatformat:0 }}
-                                    <span class="text-gray-500 font-bold">(Total: Rs. {% widthratio item.menu_item.price 1 item.quantity %})</span>
-                                </p>
+                <!-- Scrollable Body Content -->
+                <div class="flex-grow overflow-y-auto no-scrollbar">
+
+                    <!-- Equal Split Share Card -->
+                    <div id="split-equal-content" class="p-6 flex flex-col items-center justify-center bg-white border-b border-gray-50">
+                        <p class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Per Guest Share</p>
+                        <span id="equal-share-text" class="text-3xl font-serif font-extrabold text-gray-900 mt-1">Rs. 0</span>
+                    </div>
+
+                    <!-- Item Split Assignment Board -->
+                    <div id="split-items-content" class="hidden p-4 space-y-2 bg-white border-b border-gray-50">
+                        <p class="text-[9px] font-bold text-gray-400 uppercase tracking-widest px-1 mb-2">Tap numeric guest badges to assign item splits</p>
+                        {% for order in previous_orders %}
+                            {% for item in order.items.all %}
+                            <div class="bg-gray-50 p-3 rounded-xl border border-gray-200/60 flex justify-between items-center gap-4">
+                                <div class="min-w-0 flex-1">
+                                    <p class="font-bold text-gray-900 text-xs truncate">{{ item.menu_item.name }}</p>
+                                    <p class="text-[10px] text-gray-400 font-medium mt-0.5">
+                                        {{ item.quantity }}x Rs. {{ item.menu_item.price|floatformat:0 }}
+                                        <span class="text-gray-500 font-bold">(Total: Rs. {% widthratio item.menu_item.price 1 item.quantity %})</span>
+                                    </p>
+                                </div>
+                                <div class="flex gap-1 shrink-0" id="assign-btns-{{ item.id }}"></div>
                             </div>
-                            <div class="flex gap-1 shrink-0" id="assign-btns-{{ item.id }}"></div>
-                        </div>
+                            {% endfor %}
                         {% endfor %}
-                    {% endfor %}
-                </div>
-
-                <!-- Bottom Pager Bar -->
-                <div class="p-4 bg-gray-900 border-t border-gray-800 shrink-0">
-                    <div id="person-pager" class="flex justify-between items-center mb-4">
-                        <button onclick="changePerson(-1)" class="text-white/50 hover:text-white transition-colors p-1"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
-                        <div class="text-center">
-                            <h3 id="current-person-label" class="text-white/60 font-bold text-[10px] uppercase tracking-wider">Guest 1</h3>
-                            <p id="current-person-total" class="text-white font-serif font-bold text-xl mt-0.5">Rs. 0</p>
-                        </div>
-                        <button onclick="changePerson(1)" class="text-white/50 hover:text-white transition-colors p-1"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
                     </div>
 
-                    <button onclick="showPersonQR()" class="w-full bg-white text-gray-900 py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-gray-50 active:scale-98 transition-all flex items-center justify-center gap-1.5 shadow-md">
-                        <i data-lucide="qr-code" class="w-3.5 h-3.5"></i> Show QR Code
-                    </button>
+                    <!-- Interactive Live Ledger (Always visible below the controls) -->
+                    <div class="p-4 bg-white">
+                        <p class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-3">Settle Guest Shares (Tap Name to Edit)</p>
+                        <div id="guest-ledger-container"></div>
+                    </div>
                 </div>
             </div>
         </div>
 
         <!-- QR Display Modal -->
         <div id="qr-modal" class="fixed inset-0 z-[110] hidden flex items-center justify-center p-4 transition-all">
-            <div class="absolute inset-0 bg-gray-900/40 backdrop-blur-sm" onclick="resetAndCloseQR()"></div>
-            <div class="bg-white rounded-2xl w-full max-w-sm p-6 relative z-10 text-center border border-gray-100 shadow-xl animate-in zoom-in-95 duration-200">
-                <h2 id="qr-modal-header-title" class="text-sm font-serif font-bold tracking-wider text-gray-900 uppercase">Scan to Pay</h2>
-                <p id="qr-modal-amount" data-original="Rs. {{ running_total }}" class="text-xl font-serif font-bold text-gray-900 mt-1 mb-4">Rs. {{ running_total }}</p>
+            <div class="absolute inset-0 bg-gray-900/50 backdrop-blur-sm" onclick="resetAndCloseQR()"></div>
 
-                <div class="bg-gray-50 p-4 rounded-xl border border-gray-200 flex items-center justify-center mb-4 max-w-[240px] mx-auto aspect-square">
-                    <img id="main-qr-image" src="{{ qr_code }}" data-original-qr="{{ qr_code }}" class="w-full h-full object-contain">
+            <div class="bg-white rounded-2xl w-full max-w-sm overflow-hidden relative z-10 border border-gray-100 shadow-2xl animate-in zoom-in-95 duration-200">
+
+                <!-- Dynamic merchant green frame header -->
+                <div id="qr-modal-header-container" class="p-5 text-center transition-all bg-gray-50 border-b border-gray-100">
+                    <span class="text-[9px] font-bold tracking-widest uppercase block opacity-80">Fonepay Merchant</span>
+                    <h2 id="qr-modal-header-title" class="text-base font-serif font-bold tracking-wider uppercase mt-1">DineQR Table {{ table_num }}</h2>
+                    <p class="text-[9px] font-bold opacity-60 uppercase mt-0.5">Instant Digital Settlement</p>
                 </div>
 
-                <button id="verify-payment-btn" onclick="handlePaymentConfirm('qr')" class="w-full bg-gray-900 text-white py-3 rounded-xl font-bold text-xs uppercase tracking-widest hover:bg-gray-800 transition-all flex items-center justify-center gap-1.5 shadow-md">
-                    Confirm Payment
-                </button>
+                <div class="p-6 text-center">
+                    <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Amount Due</p>
+                    <p id="qr-modal-amount" data-original="Rs. {{ running_total }}" class="text-3xl font-serif font-extrabold text-gray-900 mt-1 mb-6">Rs. {{ running_total }}</p>
+
+                    <!-- QR Standee Scan Box -->
+                    <div class="bg-white p-5 rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center mb-6 max-w-[220px] mx-auto aspect-square shadow-inner">
+                        <img id="main-qr-image" src="{{ qr_code }}" data-original-qr="{{ qr_code }}" class="w-full h-full object-contain mb-2">
+                        <span class="text-[8px] font-bold text-gray-400 tracking-wider uppercase">Scan with Mobile Banking or Wallet</span>
+                    </div>
+
+                    <div class="flex flex-col gap-2">
+                        <button id="verify-payment-btn" onclick="handlePaymentConfirm('qr')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3.5 rounded-xl font-bold text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 shadow-md">
+                            <i data-lucide="check" class="w-4 h-4"></i> Confirm Payment
+                        </button>
+
+                        <button onclick="resetAndCloseQR()" class="w-full bg-gray-50 hover:bg-gray-100 text-gray-500 py-2.5 rounded-xl font-bold text-[10px] uppercase tracking-wider transition-all">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
         {% endif %}
@@ -270,12 +298,46 @@
     const hasPreviousOrders = ("{{ previous_orders|yesno:'true,false' }}" === "true");
     const backendRunningTotal = parseFloat("{{ running_total|default:0 }}");
 
-    let splitMode = 'equal';
-    let numPeople = 2;
-    let currentPersonIdx = 1;
-    let itemAssignments = {};
-    let isSplitPayment = false;
-    const totalBill = backendRunningTotal;
+    const SESSION_MODE_KEY = `dineqr_split_mode_t_${tableNum}`;
+    const SESSION_PEOPLE_KEY = `dineqr_split_people_t_${tableNum}`;
+    const SESSION_PAID_KEY = `dineqr_split_paid_t_${tableNum}`;
+    const SESSION_ASSIGN_KEY = `dineqr_split_assign_t_${tableNum}`;
+    const SESSION_NAMES_KEY = `dineqr_split_names_t_${tableNum}`; // Track custom guest names
+
+    // State Initialization with LocalStorage fallbacks
+    let splitMode = localStorage.getItem(SESSION_MODE_KEY) || 'equal';
+    let numPeople = parseInt(localStorage.getItem(SESSION_PEOPLE_KEY)) || 2;
+    let paidGuests = JSON.parse(localStorage.getItem(SESSION_PAID_KEY)) || [];
+    let itemAssignments = JSON.parse(localStorage.getItem(SESSION_ASSIGN_KEY)) || {};
+    let guestNames = JSON.parse(localStorage.getItem(SESSION_NAMES_KEY)) || [];
+
+    // Ensures guestNames is always initialized and matches headcount
+    function checkGuestNames() {
+        for (let i = 0; i < numPeople; i++) {
+            if (!guestNames[i]) {
+                guestNames[i] = `Guest ${i + 1}`;
+            }
+        }
+    }
+    checkGuestNames();
+
+    // Helper to persist current split session state
+    function saveSplitSession() {
+        localStorage.setItem(SESSION_MODE_KEY, splitMode);
+        localStorage.setItem(SESSION_PEOPLE_KEY, numPeople.toString());
+        localStorage.setItem(SESSION_PAID_KEY, JSON.stringify(paidGuests));
+        localStorage.setItem(SESSION_ASSIGN_KEY, JSON.stringify(itemAssignments));
+        localStorage.setItem(SESSION_NAMES_KEY, JSON.stringify(guestNames));
+    }
+
+    // Helper to clear split session once table is fully paid
+    function clearSplitSession() {
+        localStorage.removeItem(SESSION_MODE_KEY);
+        localStorage.removeItem(SESSION_PEOPLE_KEY);
+        localStorage.removeItem(SESSION_PAID_KEY);
+        localStorage.removeItem(SESSION_ASSIGN_KEY);
+        localStorage.removeItem(SESSION_NAMES_KEY);
+    }
 
     function renderCartPage() {
         const container = document.getElementById('cart-items-container');
@@ -366,7 +428,7 @@
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': "{{ csrf_token }}",
-                    'X-Session-Token': getSessionToken() // NEW: Sends the verified table session token
+                    'X-Session-Token': getSessionToken()
                 },
                 body: JSON.stringify({ cart: cart, table_number: tableNum })
             });
@@ -400,7 +462,7 @@
                 method: 'POST',
                 headers: {
                     'X-CSRFToken': "{{ csrf_token }}",
-                    'X-Session-Token': getSessionToken() // NEW: Send token for cancel-verification
+                    'X-Session-Token': getSessionToken()
                 }
             });
             const result = await response.json();
@@ -440,6 +502,7 @@
                         document.getElementById('settled-thanks-section').classList.remove('hidden');
                         lucide.createIcons();
                         handleFinalClear();
+                        clearSplitSession();
                         if (typeof cartKey !== 'undefined') localStorage.removeItem(cartKey);
                         break;
                     }
@@ -464,14 +527,23 @@
         }, 5000);
     }
 
+    // =======================================================
+    // UPGRADED SPLIT BILL & PERSISTENCE LEDGER LOGIC
+    // =======================================================
+
     function openSplitModal() {
         document.getElementById('split-modal').classList.remove('hidden');
-        calculateSplit();
+        switchSplitMode(splitMode);
     }
-    function closeSplitModal() { document.getElementById('split-modal').classList.add('hidden'); }
+
+    function closeSplitModal() {
+        document.getElementById('split-modal').classList.add('hidden');
+    }
 
     function switchSplitMode(mode) {
         splitMode = mode;
+        saveSplitSession();
+
         document.getElementById('split-equal-content').classList.toggle('hidden', mode !== 'equal');
         document.getElementById('split-items-content').classList.toggle('hidden', mode !== 'items');
 
@@ -479,11 +551,11 @@
         const btnIt = document.getElementById('tab-items');
 
         if (mode === 'equal') {
-            btnEq.className = "flex-1 py-2 rounded-lg font-bold text-[10px] uppercase tracking-wider bg-gray-900 text-white";
-            btnIt.className = "flex-1 py-2 rounded-lg font-bold text-[10px] uppercase tracking-wider text-gray-400";
+            btnEq.className = "flex-1 py-2 rounded-lg font-bold text-[10px] uppercase tracking-wider bg-gray-900 text-white transition-all";
+            btnIt.className = "flex-1 py-2 rounded-lg font-bold text-[10px] uppercase tracking-wider text-gray-400 hover:text-gray-900 transition-all";
         } else {
-            btnIt.className = "flex-1 py-2 rounded-lg font-bold text-[10px] uppercase tracking-wider bg-gray-900 text-white";
-            btnEq.className = "flex-1 py-2 rounded-lg font-bold text-[10px] uppercase tracking-wider text-gray-400";
+            btnIt.className = "flex-1 py-2 rounded-lg font-bold text-[10px] uppercase tracking-wider bg-gray-900 text-white transition-all";
+            btnEq.className = "flex-1 py-2 rounded-lg font-bold text-[10px] uppercase tracking-wider text-gray-400 hover:text-gray-900 transition-all";
             renderItemAssignmentButtons();
         }
         calculateSplit();
@@ -492,8 +564,17 @@
     function adjustPeople(delta) {
         numPeople = Math.max(1, Math.min(12, numPeople + delta));
         document.getElementById('people-count').innerText = numPeople;
+        checkGuestNames(); // Make sure the names array scales properly with headcount changes
+        saveSplitSession();
         if (splitMode === 'items') renderItemAssignmentButtons();
         calculateSplit();
+    }
+
+    // NEW: Updates name for a specific guest index and saves to session
+    function updateGuestName(idx, value) {
+        guestNames[idx - 1] = value.trim() || `Guest ${idx}`;
+        saveSplitSession();
+        calculateSplit(); // Instantly update lists and modals
     }
 
     function calculateSplit() {
@@ -519,9 +600,55 @@
             {% endfor %}
         }
 
-        if (currentPersonIdx > numPeople) currentPersonIdx = 1;
-        document.getElementById('current-person-label').innerText = `Guest ${currentPersonIdx} of ${numPeople}`;
-        document.getElementById('current-person-total').innerText = `Rs. ${shares[currentPersonIdx - 1].toFixed(2)}`;
+        renderGuestLedger(shares);
+    }
+
+    // Renders list of guests with editable inline names and Pay buttons
+    function renderGuestLedger(shares) {
+        const container = document.getElementById('guest-ledger-container');
+        if (!container) return;
+
+        let html = `<div class="w-full space-y-2">`;
+
+        for (let i = 1; i <= numPeople; i++) {
+            const guestTotal = shares[i - 1];
+            const isPaid = paidGuests.includes(i);
+            const currentName = guestNames[i - 1] || `Guest ${i}`;
+
+            let statusBadge = "";
+            let actionBtn = "";
+
+            if (isPaid) {
+                statusBadge = `<span class="inline-flex items-center gap-1 text-[8px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-2 py-0.5 rounded uppercase tracking-wide">Paid ✅</span>`;
+                actionBtn = `<div class="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-100 flex items-center justify-center text-emerald-600"><i data-lucide="check" class="w-4 h-4"></i></div>`;
+            } else if (guestTotal <= 0) {
+                statusBadge = `<span class="inline-flex items-center gap-1 text-[8px] font-bold text-gray-400 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded uppercase tracking-wide">Empty 🍽️</span>`;
+                actionBtn = `<div class="w-8 h-8 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center text-gray-300"><i data-lucide="minus" class="w-4 h-4"></i></div>`;
+            } else {
+                statusBadge = `<span class="inline-flex items-center gap-1 text-[8px] font-bold text-amber-600 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded uppercase tracking-wide">Unpaid ⏳</span>`;
+                actionBtn = `<button onclick="triggerGuestPayment(${i}, ${guestTotal})" class="px-3 py-1.5 bg-gray-900 hover:bg-gray-800 text-white font-bold rounded-lg text-[10px] uppercase tracking-wider transition-all">Pay Share</button>`;
+            }
+
+            html += `
+                <div class="flex items-center justify-between p-3 rounded-xl border border-gray-100 bg-white shadow-sm gap-4 animate-in fade-in slide-in-from-bottom-2 duration-150">
+                    <div class="min-w-0 flex-1">
+                        <div class="flex items-center gap-2">
+                            <!-- NEW: Editable input replacing hardcoded labels -->
+                            <input type="text" value="${currentName}" onchange="updateGuestName(${i}, this.value)"
+                                class="bg-transparent border-b border-transparent hover:border-gray-200 focus:border-gray-950 focus:outline-none text-xs font-bold text-gray-800 py-0.5 w-full truncate max-w-[140px] transition-all"
+                                placeholder="Edit Name" />
+                            ${statusBadge}
+                        </div>
+                        <span class="text-sm font-serif font-extrabold text-gray-900 mt-0.5 block">Rs. ${guestTotal.toFixed(2)}</span>
+                    </div>
+                    <div class="shrink-0">${actionBtn}</div>
+                </div>
+            `;
+        }
+
+        html += `</div>`;
+        container.innerHTML = html;
+        lucide.createIcons();
     }
 
     function toggleItemToPerson(itemId, personIdx) {
@@ -529,6 +656,8 @@
         const idx = itemAssignments[itemId].indexOf(personIdx);
         if (idx > -1) itemAssignments[itemId].splice(idx, 1);
         else itemAssignments[itemId].push(personIdx);
+
+        saveSplitSession();
         renderItemAssignmentButtons();
         calculateSplit();
     }
@@ -540,38 +669,40 @@
                 let html = '';
                 for (let i = 1; i <= numPeople; i++) {
                     const isActive = (itemAssignments['{{ item.id }}'] || []).includes(i);
-                    const activeClass = isActive ? 'bg-gray-900 text-white border-gray-900 shadow-sm' : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300';
-                    html += `<button onclick="toggleItemToPerson('{{ item.id }}', ${i})" class="w-6 h-6 rounded-md border text-[9px] font-bold flex items-center justify-center transition-all ${activeClass}">${i}</button>`;
+                    const isPaid = paidGuests.includes(i);
+
+                    let activeClass = "";
+                    if (isPaid) {
+                        activeClass = 'bg-emerald-500 text-white border-emerald-500 cursor-not-allowed opacity-60';
+                    } else {
+                        activeClass = isActive ? 'bg-gray-900 text-white border-gray-900 shadow-sm' : 'bg-white text-gray-400 border-gray-200 hover:border-gray-300';
+                    }
+
+                    const clickAction = isPaid ? "" : `onclick="toggleItemToPerson('{{ item.id }}', ${i})"`;
+                    html += `<button ${clickAction} class="w-6 h-6 rounded-md border text-[9px] font-bold flex items-center justify-center transition-all ${activeClass}">${i}</button>`;
                 }
                 container_{{ item.id }}.innerHTML = html;
             }
         {% endfor %}{% endfor %}
     }
 
-    function changePerson(delta) {
-        currentPersonIdx += delta;
-        if (currentPersonIdx > numPeople) currentPersonIdx = 1;
-        if (currentPersonIdx < 1) currentPersonIdx = numPeople;
-        calculateSplit();
-    }
-
-    function showPersonQR() {
-        const amountStr = document.getElementById('current-person-total').innerText.replace('Rs. ', '');
-        const amount = parseFloat(amountStr);
-
-        if (amount <= 0) {
-            alert("No balance owed for this guest.");
-            return;
-        }
-
+    function triggerGuestPayment(personIdx, amount) {
+        currentPersonIdx = personIdx;
         closeSplitModal();
-        isSplitPayment = true; // <-- SET TO TRUE HERE
+        isSplitPayment = true;
 
         const modalAmountEl = document.getElementById('qr-modal-amount');
         if (modalAmountEl) modalAmountEl.innerText = `Rs. ${amount.toFixed(2)}`;
 
+        // Dynamic Name lookup inside the Fonepay dynamic QR Standee!
+        const guestName = guestNames[personIdx - 1] || `Guest ${personIdx}`;
         const titleEl = document.getElementById('qr-modal-header-title');
-        if (titleEl) titleEl.innerText = `Guest ${currentPersonIdx} Bill Share`;
+        if (titleEl) titleEl.innerText = `${guestName} Bill Share`;
+
+        const headerContainer = document.getElementById('qr-modal-header-container');
+        if (headerContainer) {
+            headerContainer.classList.add('fonepay-gradient', 'text-white');
+        }
 
         fetch(`/api/generate-split-qr/?table=${tableNum}&amount=${amount.toFixed(2)}`)
             .then(res => res.json())
@@ -585,7 +716,7 @@
     }
 
     function resetAndCloseQR() {
-        isSplitPayment = false; // <-- RESET HERE
+        isSplitPayment = false;
 
         const modalAmountEl = document.getElementById('qr-modal-amount');
         if (modalAmountEl) modalAmountEl.innerText = modalAmountEl.dataset.original;
@@ -596,16 +727,21 @@
         const qrImg = document.getElementById('main-qr-image');
         if (qrImg && qrImg.dataset.originalQr) qrImg.src = qrImg.dataset.originalQr;
 
+        const headerContainer = document.getElementById('qr-modal-header-container');
+        if (headerContainer) {
+            headerContainer.classList.remove('fonepay-gradient', 'text-white');
+        }
+
         document.getElementById('qr-modal').classList.add('hidden');
     }
 
     async function handlePaymentConfirm(source = 'cash') {
-        // Dynamically adjust confirmation text based on payment type
+        const guestName = guestNames[currentPersonIdx - 1] || `Guest ${currentPersonIdx}`;
         let confirmMsg = "";
         if (source === 'cash') {
             confirmMsg = "Mark this bill as paid with cash?";
         } else if (isSplitPayment) {
-            confirmMsg = `Confirm payment for Guest ${currentPersonIdx}?`;
+            confirmMsg = `Confirm payment for ${guestName}?`;
         } else {
             confirmMsg = "Confirm full payment via QR?";
         }
@@ -622,6 +758,18 @@
             const amountStr = modalAmountEl ? modalAmountEl.innerText.replace('Rs. ', '') : String(totalBill);
             payload.amount = parseFloat(amountStr) || totalBill;
             payload.items = [];
+
+            if (isSplitPayment && splitMode === 'items') {
+                {% for order in previous_orders %}{% for item in order.items.all %}
+                    var assignedToThisGuest = (itemAssignments['{{ item.id }}'] || []).includes(currentPersonIdx);
+                    if (assignedToThisGuest) {
+                        payload.items.push({
+                            id: "{{ item.id }}",
+                            qty: 1
+                        });
+                    }
+                {% endfor %}{% endfor %}
+            }
 
             const response = await fetch(`/payment/confirm/${tableNum}/`, {
                 method: 'POST',
@@ -642,31 +790,24 @@
                         alert("A waiter will be with you shortly to collect cash.");
                     }
                 } else {
-                    // FIX: Only proceed to the next guest if this is actively a split payment session
-                    if (isSplitPayment && currentPersonIdx < numPeople) {
-                        if (typeof showToast === "function") {
-                            showToast(`Guest ${currentPersonIdx} paid! Loading next share...`);
+                    if (isSplitPayment) {
+                        if (!paidGuests.includes(currentPersonIdx)) {
+                            paidGuests.push(currentPersonIdx);
                         }
+                        saveSplitSession();
 
-                        currentPersonIdx++;
-                        calculateSplit();
+                        alert(`Payment complete for ${guestName}!`);
+                        resetAndCloseQR();
 
-                        const nextAmountStr = document.getElementById('current-person-total').innerText.replace('Rs. ', '');
-                        const nextAmount = parseFloat(nextAmountStr);
-
-                        const titleEl = document.getElementById('qr-modal-header-title');
-                        if (titleEl) titleEl.innerText = `Guest ${currentPersonIdx} Bill Share`;
-                        if (modalAmountEl) modalAmountEl.innerText = `Rs. ${nextAmount.toFixed(2)}`;
-
-                        const qrImg = document.getElementById('main-qr-image');
-                        if (qrImg) qrImg.src = '';
-
-                        const res = await fetch(`/api/generate-split-qr/?table=${tableNum}&amount=${nextAmount.toFixed(2)}`);
-                        const qrData = await res.json();
-                        if (qrImg) qrImg.src = qrData.qr_code;
-
+                        const allPaid = paidGuests.length >= numPeople;
+                        if (allPaid) {
+                            clearSplitSession();
+                            window.location.reload();
+                        } else {
+                            openSplitModal();
+                        }
                     } else {
-                        // Full payment completes immediately and refreshes cleanly
+                        clearSplitSession();
                         resetAndCloseQR();
                         window.location.reload();
                     }
@@ -680,18 +821,15 @@
 
     document.addEventListener('DOMContentLoaded', () => {
         const isThanksShowing = "{{ show_thanks|yesno:'true,false' }}" === "true";
-
-        // Check if the user has added new items to their local cart
         const hasNewItems = typeof cart !== 'undefined' && Object.keys(cart).length > 0;
 
         if (isThanksShowing) {
             if (hasNewItems) {
-                // OVERRIDE: Hide the Thank You screen and reveal the cart
                 document.getElementById('settled-thanks-section').classList.add('hidden');
                 document.getElementById('cart-main-content').classList.remove('hidden');
             } else {
-                // NORMAL: Clean up cache if they are just viewing the Thanks screen
                 handleFinalClear();
+                clearSplitSession();
                 if (typeof cartKey !== 'undefined') {
                     localStorage.removeItem(cartKey);
                 }
@@ -705,5 +843,6 @@
     function handleFinalClear() {
         localStorage.removeItem(`cart_table_${tableNum}`);
     }
+
 </script>
 {% endblock %}

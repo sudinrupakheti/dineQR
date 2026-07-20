@@ -325,7 +325,7 @@ def cart_detail(request):
     # DYNAMIC AUTO-HEALING RECALCULATION (Fixes the 0.00 Price Bug)
     for order in previous_orders:
         order_calc_total = Decimal("0.00")
-        for item in order.items.all():
+        for item in order.items.all():  # type: ignore
             order_calc_total += Decimal(str(item.menu_item.price)) * item.quantity
 
         if order.total_price != order_calc_total:
@@ -350,12 +350,16 @@ def cart_detail(request):
     if not popular_items.exists():
         popular_items = MenuItem.objects.filter(is_available=True, is_featured=True)[:4]
 
+    has_ready_orders = previous_orders.filter(status="ready").exists()
+
+
     return render(request, "orders/cart_detail.html", {
         "previous_orders": previous_orders,
         "running_total": running_total,
         "show_thanks": show_thanks,
         "qr_code": qr_code,
         "popular_items": popular_items,
+        "has_ready_orders": has_ready_orders,
     })
 
 
@@ -367,7 +371,8 @@ def place_order(request):
 
     try:
         data = json.loads(request.body)
-        cart = data.get("cart")
+        from typing import Any
+        cart: dict[str, Any] = data.get("cart") or {}
         raw_table_number = data.get("table_number")
 
         if not cart or not raw_table_number:
@@ -497,7 +502,7 @@ def cancel_order_item(request, item_id):
         item.delete()
 
         order.total_price -= item_price_total
-        if order.total_price <= 0 or order.items.count() == 0:
+        if order.total_price <= 0 or order.items.count() == 0:  # type: ignore
             order.delete()
         else:
             order.save()
@@ -782,7 +787,7 @@ def order_review_page(request, order_id):
 
     if request.method == "POST":
         for order in orders_to_review:
-            for item in order.items.all():
+            for item in order.items.all():  # type: ignore
                 rating_val = request.POST.get(f"rating_{item.menu_item.id}")
                 comment_val = request.POST.get(
                     f"comment_{item.menu_item.id}", ""
@@ -802,7 +807,7 @@ def order_review_page(request, order_id):
     items_to_review = []
     seen_items = set()
     for o in orders_to_review:
-        for i in o.items.all():
+        for i in o.items.all(): # type: ignore
             if i.menu_item.id not in seen_items:
                 items_to_review.append(i.menu_item)
                 seen_items.add(i.menu_item.id)

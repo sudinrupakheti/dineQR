@@ -1,6 +1,11 @@
 from django.db import models    # type: ignore
-from django.utils.html import format_html
+from django.utils.html import format_html   # type: ignore
 import uuid
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    # This block only runs during type-checking; it is ignored at runtime
+    from django.db.models.manager import RelatedManager # type: ignore
 
 
 class Category(models.Model):
@@ -71,7 +76,7 @@ class Order(models.Model):
     # Billing fields
     is_paid = models.BooleanField(default=False)
     paid_at = models.DateTimeField(null=True, blank=True)
-    paid_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+    paid_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00) # type: ignore
 
     created_at = models.DateTimeField(auto_now_add=True)
 
