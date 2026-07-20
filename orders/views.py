@@ -48,18 +48,32 @@ from .models import (
 )
 
 
-def is_owner(user):
-    return user.groups.filter(name__iexact="Owner").exists() or user.is_superuser
-
-
-def is_staff(user):
-    # Allow superusers, Staff, Management, or Kitchen groups to pass the initial gate
+def is_management_or_owner(user):
+    """
+    Managers and Owners can access the Management Dashboard, modify menus,
+    and process table bill settlements.
+    """
+    if not user.is_authenticated:
+        return False
     return (
         user.is_superuser
-        or user.groups.filter(name__iexact="Staff").exists()
         or user.groups.filter(name__iexact="Management").exists()
+        or user.groups.filter(name__iexact="Owner").exists()
+    )
+
+
+def is_kitchen_or_higher(user):
+    """
+    Kitchen staff, Managers, and Owners can access the Kitchen Dashboard,
+    update cooking status, and resolve waiter calls.
+    """
+    if not user.is_authenticated:
+        return False
+    return (
+        user.is_superuser
         or user.groups.filter(name__iexact="Kitchen").exists()
-        or user.username.lower() in ['kitchen', 'management']
+        or user.groups.filter(name__iexact="Management").exists()
+        or user.groups.filter(name__iexact="Owner").exists()
     )
 
 
@@ -515,7 +529,7 @@ def cancel_order_item(request, item_id):
         )
 
 
-@user_passes_test(is_staff)
+@user_passes_test(is_management_or_owner)
 @login_required
 def management_dashboard(request):
     is_management = (
@@ -818,7 +832,7 @@ def order_review_page(request, order_id):
         {"order": current_order, "items_to_review": items_to_review},
     )
 
-@user_passes_test(is_staff)
+@user_passes_test(is_kitchen_or_higher)
 @login_required
 def kitchen_dashboard(request):
 
@@ -863,7 +877,7 @@ def kitchen_dashboard(request):
     )
 
 
-@user_passes_test(is_staff)
+@user_passes_test(is_management_or_owner)
 def mark_table_paid(request, table_num):
     if request.method == "POST":
         # Find all orders for this table that aren't completed
@@ -878,7 +892,7 @@ def mark_table_paid(request, table_num):
     return redirect("management_dashboard")
 
 
-@user_passes_test(is_staff)
+@user_passes_test(is_management_or_owner)
 def toggle_item_availability(request, item_id):
     if not (is_owner(request.user) or is_staff(request.user)):
         return redirect("menu")
@@ -974,7 +988,7 @@ def call_waiter_api(request):
             return JsonResponse({"status": "error", "message": str(e)}, status=500)
 
 
-@user_passes_test(is_staff)
+@user_passes_test(is_kitchen_or_higher)
 def get_active_waiter_calls(request):
     """API for the dashboard to get all unresolved waiter calls."""
     calls = WaiterCall.objects.filter(is_resolved=False).order_by("-created_at")
@@ -990,7 +1004,7 @@ def get_active_waiter_calls(request):
     return JsonResponse({"calls": data})
 
 
-@user_passes_test(is_staff)
+@user_passes_test(is_kitchen_or_higher)
 def resolve_waiter_call(request, call_id):
     if request.method == "POST":
         try:
@@ -1035,7 +1049,7 @@ def verify_table_session(request):
     return JsonResponse({"status": "success", "token": str(new_session.session_token)})
 
 
-@user_passes_test(is_staff)
+@user_passes_test(is_management_or_owner)
 def toggle_item_featured(request, item_id):
     if request.method == "POST":
         item = MenuItem.objects.get(id=item_id)
@@ -1211,7 +1225,7 @@ def generate_split_qr_api(request):
     return JsonResponse({"qr_code": qr_base64})
 
 
-@user_passes_test(is_staff)
+@user_passes_test(is_management_or_owner)
 def serve_table_qr(request, table_num):
     # 1. Dynamic Local IP detection matching your root domain routing path
     host_address = request.build_absolute_uri("/")
@@ -1237,7 +1251,7 @@ def serve_table_qr(request, table_num):
     return HttpResponse(buffer.getvalue(), content_type="image/png")
 
 
-@user_passes_test(is_staff)
+@user_passes_test(is_kitchen_or_higher)
 def update_kitchen_broadcast(request):
     if request.method == "POST":
         new_message = request.POST.get("message", "").strip()
@@ -1251,7 +1265,7 @@ def update_kitchen_broadcast(request):
     return redirect(request.META.get("HTTP_REFERER", "management_dashboard"))
 
 
-@user_passes_test(is_staff)
+@user_passes_test(is_management_or_owner)
 def save_menu_item(request, item_id=None):
     """Handles adding new dishes and editing existing ones."""
     if request.method == "POST":
@@ -1278,7 +1292,7 @@ def save_menu_item(request, item_id=None):
     return redirect(f"{reverse('management_dashboard')}?tab=menu")
 
 
-@user_passes_test(is_staff)
+@user_passes_test(is_management_or_owner)
 def save_category(request, category_id=None):
     """Handles adding and renaming menu categories."""
     if request.method == "POST":
@@ -1292,7 +1306,7 @@ def save_category(request, category_id=None):
     return redirect(f"{reverse('management_dashboard')}?tab=menu")
 
 
-@user_passes_test(is_staff)
+@user_passes_test(is_management_or_owner) #type: ignore
 def unified_delete(request, model_type, object_id):
     """A single, secure endpoint to delete Menu Items, Categories, or Reviews."""
     if request.method != "POST":
@@ -1320,7 +1334,7 @@ def unified_delete(request, model_type, object_id):
 
     return redirect(f"{reverse('management_dashboard')}?tab={return_tab}")
 
-@user_passes_test(is_staff) # type: ignore
+@user_passes_test(is_management_or_owner)   #type: ignore
 def staff_place_order(request):
     """API for staff to instantly create walk-in / manual orders"""
     if request.method == "POST":
@@ -1358,7 +1372,7 @@ def staff_place_order(request):
         new_order.save()
         return JsonResponse({"status": "success"})
 
-@user_passes_test(is_staff)
+@user_passes_test(is_management_or_owner)
 def get_table_orders(request, table_num):
     """API to fetch live items for the Slide-Out Drawer"""
     active_orders = Order.objects.filter(table_number=table_num).exclude(status="completed")
@@ -1379,7 +1393,7 @@ def get_table_orders(request, table_num):
     return JsonResponse({"items": items_data, "table": table_num})
 
 
-@user_passes_test(is_staff) # type: ignore
+@user_passes_test(is_management_or_owner)   #type: ignore
 def modify_order_item(request, item_id):
     """API to increment, decrement, or delete an item directly from the drawer"""
     if request.method == "POST":
@@ -1417,7 +1431,7 @@ def modify_order_item(request, item_id):
         except OrderItem.DoesNotExist:
             return JsonResponse({"status": "error", "message": "Item not found"}, status=404)
 
-@user_passes_test(is_staff)
+@user_passes_test(is_management_or_owner)
 def mark_order_paid(request, order_id):
     """Settles a single walk-in order"""
     if request.method == "POST":
@@ -1428,7 +1442,7 @@ def mark_order_paid(request, order_id):
         order.save()
     return redirect("management_dashboard")
 
-@user_passes_test(is_staff)
+@user_passes_test(is_management_or_owner)
 def single_order_bill(request, order_id):
     """Prints the thermal bill for a single walk-in order"""
     order = get_object_or_404(Order, id=order_id)
@@ -1452,7 +1466,7 @@ def single_order_bill(request, order_id):
     }
     return render(request, "orders/bill_print.html", context)
 
-@user_passes_test(is_staff)
+@user_passes_test(is_management_or_owner)
 def get_drawer_items(request):
     """Handles Drawer fetching for BOTH Tables AND individual Walk-In Orders"""
     table_num = request.GET.get('table')
@@ -1481,27 +1495,16 @@ def get_drawer_items(request):
 
 @never_cache
 def login_view(request):
-    # If the user is already logged in
+    # 1. If the user is already logged in, route them using our new helpers
     if request.user.is_authenticated:
-        is_management = (
-            request.user.is_superuser
-            or request.user.groups.filter(name__iexact='Management').exists()
-            or request.user.username.lower() == 'management'
-        )
-        is_kitchen = (
-            request.user.groups.filter(name__iexact='Kitchen').exists()
-            or request.user.username.lower() == 'kitchen'
-        )
-
-        if is_management:
+        if is_management_or_owner(request.user):
             return redirect('management_dashboard')
-        elif is_kitchen:
+        elif is_kitchen_or_higher(request.user):
             return redirect('kitchen_dashboard')
         else:
-            # SAFELY BREAK THE LOOP: Send regular authenticated accounts/customers to the public menu
             return redirect('menu')
 
-    # Processing the login form submission
+    # 2. Processing the login form submission
     if request.method == 'POST':
         username = request.POST.get('username')
         password = request.POST.get('password')
@@ -1511,19 +1514,10 @@ def login_view(request):
         if user is not None:
             login(request, user)
 
-            is_management = (
-                user.is_superuser
-                or user.groups.filter(name__iexact='Management').exists()
-                or user.username.lower() == 'management'
-            )
-            is_kitchen = (
-                user.groups.filter(name__iexact='Kitchen').exists()
-                or user.username.lower() == 'kitchen'
-            )
-
-            if is_management:
+            # Route them cleanly using our standardized helpers (no hardcoded usernames)
+            if is_management_or_owner(user):
                 return redirect('management_dashboard')
-            elif is_kitchen:
+            elif is_kitchen_or_higher(user):
                 return redirect('kitchen_dashboard')
             else:
                 return redirect('menu')
