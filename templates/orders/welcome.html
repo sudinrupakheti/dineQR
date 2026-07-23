@@ -1,0 +1,200 @@
+{% extends 'orders/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="max-w-md mx-auto px-4 py-8 animate-in fade-in duration-300">
+
+    <!-- Branding & Header -->
+    <div class="text-center mb-8">
+        <div class="bg-gray-900 text-white p-3 rounded-2xl shadow-md inline-block mb-3">
+            <i data-lucide="utensils" class="w-8 h-8"></i>
+        </div>
+        <h1 class="text-2xl font-serif font-bold text-gray-900 tracking-tight">
+            dineQR <span class="text-orange-600 font-sans text-sm tracking-normal ml-0.5">Table {{ table_num }}</span>
+        </h1>
+        <p class="text-xs text-gray-400 font-medium mt-1">Welcome! Choose how you'd like to join this table.</p>
+    </div>
+
+    <!-- Active Table Banner (If table is locked) -->
+    {% if has_password %}
+    <div class="mb-6 bg-amber-50 border border-amber-200/80 rounded-2xl p-4 flex items-center gap-3">
+        <div class="p-2 bg-amber-100 rounded-xl text-amber-700">
+            <i data-lucide="lock" class="w-5 h-5"></i>
+        </div>
+        <div>
+            <h2 class="text-xs font-bold text-amber-900 uppercase tracking-wider">Table Password Required</h2>
+            <p class="text-[11px] text-amber-700 mt-0.5">The table host set a password. Enter it below to join.</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Card Container -->
+    <div class="bg-white rounded-2xl border border-gray-200/80 shadow-sm p-6 space-y-6">
+
+        <!-- Tabs: Guest vs Account -->
+        <div class="flex bg-gray-100 p-1 rounded-xl">
+            <button id="tab-guest-btn" onclick="switchTab('guest')" class="flex-1 py-2 rounded-lg text-xs font-bold transition-all bg-white text-gray-900 shadow-sm">
+                Guest Join
+            </button>
+            <button id="tab-auth-btn" onclick="switchTab('auth')" class="flex-1 py-2 rounded-lg text-xs font-bold transition-all text-gray-500 hover:text-gray-900">
+                Sign In / Register
+            </button>
+        </div>
+
+        <!-- Tab 1: Guest Form -->
+        <div id="tab-guest" class="space-y-4">
+            <div>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">
+                    Your Name <span class="text-gray-300 font-normal">(Optional)</span>
+                </label>
+                <div class="relative">
+                    <i data-lucide="user" class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4"></i>
+                    <input type="text" id="guest-name" placeholder="e.g. Alex"
+                           class="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 outline-none text-sm transition-all placeholder:text-gray-300 font-medium">
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">
+                    {% if has_password %}Table Password <span class="text-red-500">*</span>{% else %}Set Table Password <span class="text-gray-300 font-normal">(Optional host lock)</span>{% endif %}
+                </label>
+                <div class="relative">
+                    <i data-lucide="key-round" class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4"></i>
+                    <input type="password" id="table-password" placeholder="{% if has_password %}Enter table password{% else %}Optional passcode for others to join{% endif %}"
+                           class="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 outline-none text-sm transition-all placeholder:text-gray-300 font-medium">
+                </div>
+            </div>
+
+            <div id="guest-error" class="hidden bg-red-50 text-red-600 border border-red-200 text-xs font-medium px-4 py-2.5 rounded-xl flex items-center gap-2">
+                <i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i>
+                <span id="guest-error-msg"></span>
+            </div>
+
+            <button onclick="submitGuestSession()" class="w-full bg-gray-950 text-white font-bold text-xs uppercase tracking-widest py-3.5 rounded-xl hover:bg-gray-800 transition-all shadow-md flex items-center justify-center gap-2">
+                <span>Browse Menu & Order</span>
+                <i data-lucide="arrow-right" class="w-4 h-4"></i>
+            </button>
+        </div>
+
+        <!-- Tab 2: User Sign In / Sign Up Form -->
+        <div id="tab-auth" class="space-y-4 hidden">
+            <div>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Username</label>
+                <input type="text" id="auth-username" placeholder="Username"
+                       class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-gray-900 outline-none text-sm font-medium">
+            </div>
+
+            <div>
+                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Password</label>
+                <input type="password" id="auth-password" placeholder="Password"
+                       class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-gray-900 outline-none text-sm font-medium">
+            </div>
+
+            <div id="auth-error" class="hidden bg-red-50 text-red-600 border border-red-200 text-xs font-medium px-4 py-2.5 rounded-xl flex items-center gap-2">
+                <i data-lucide="alert-circle" class="w-4 h-4 shrink-0"></i>
+                <span id="auth-error-msg"></span>
+            </div>
+
+            <div class="flex gap-2">
+                <button onclick="submitCustomerAuth('login')" class="flex-1 bg-gray-900 text-white font-bold text-xs uppercase tracking-widest py-3 rounded-xl hover:bg-gray-800 transition-all">
+                    Sign In
+                </button>
+                <button onclick="submitCustomerAuth('signup')" class="flex-1 bg-orange-600 text-white font-bold text-xs uppercase tracking-widest py-3 rounded-xl hover:bg-orange-500 transition-all">
+                    Create Account
+                </button>
+            </div>
+            <p class="text-[10px] text-gray-400 text-center">Creating an account earns loyalty points on every order!</p>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    const tableNum = "{{ table_num }}";
+
+    function switchTab(tab) {
+        const guestTab = document.getElementById('tab-guest');
+        const authTab = document.getElementById('tab-auth');
+        const guestBtn = document.getElementById('tab-guest-btn');
+        const authBtn = document.getElementById('tab-auth-btn');
+
+        if (tab === 'guest') {
+            guestTab.classList.remove('hidden');
+            authTab.classList.add('hidden');
+            guestBtn.className = "flex-1 py-2 rounded-lg text-xs font-bold transition-all bg-white text-gray-900 shadow-sm";
+            authBtn.className = "flex-1 py-2 rounded-lg text-xs font-bold transition-all text-gray-500 hover:text-gray-900";
+        } else {
+            authTab.classList.remove('hidden');
+            guestTab.classList.add('hidden');
+            authBtn.className = "flex-1 py-2 rounded-lg text-xs font-bold transition-all bg-white text-gray-900 shadow-sm";
+            guestBtn.className = "flex-1 py-2 rounded-lg text-xs font-bold transition-all text-gray-500 hover:text-gray-900";
+        }
+    }
+
+    async function submitGuestSession() {
+        const name = document.getElementById('guest-name').value.trim() || "Guest Host";
+        const passcode = document.getElementById('table-password').value.trim();
+        const errorDiv = document.getElementById('guest-error');
+        const errorMsg = document.getElementById('guest-error-msg');
+
+        errorDiv.classList.add('hidden');
+
+        try {
+            const url = `/api/verify-session/?table=${tableNum}&host_name=${encodeURIComponent(name)}&passcode=${encodeURIComponent(passcode)}`;
+            const response = await fetch(url, { method: 'GET' });
+            const data = await response.json();
+
+            if (data.status === 'success' && data.token) {
+                localStorage.setItem(`dineqr_session_table_${tableNum}`, data.token);
+                localStorage.setItem('dineqr_table', tableNum);
+                window.location.href = `/?table=${tableNum}`;
+            } else {
+                errorMsg.innerText = data.message || "Failed to enter table session.";
+                errorDiv.classList.remove('hidden');
+            }
+        } catch (e) {
+            errorMsg.innerText = "Connection error. Please try again.";
+            errorDiv.classList.remove('hidden');
+        }
+    }
+
+    async function submitCustomerAuth(action) {
+        const username = document.getElementById('auth-username').value.trim();
+        const password = document.getElementById('auth-password').value.trim();
+        const errorDiv = document.getElementById('auth-error');
+        const errorMsg = document.getElementById('auth-error-msg');
+
+        errorDiv.classList.add('hidden');
+
+        if (!username || !password) {
+            errorMsg.innerText = "Please fill in username and password.";
+            errorDiv.classList.remove('hidden');
+            return;
+        }
+
+        const endpoint = action === 'signup' ? '/api/customer/signup/' : '/api/customer/login/';
+
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token }}'
+                },
+                body: JSON.stringify({ username, password })
+            });
+
+            const data = await response.json();
+            if (data.status === 'success') {
+                submitGuestSession(); // Auto-join session after login/signup
+            } else {
+                errorMsg.innerText = data.message || "Authentication failed.";
+                errorDiv.classList.remove('hidden');
+            }
+        } catch (e) {
+            errorMsg.innerText = "Error connecting to server.";
+            errorDiv.classList.remove('hidden');
+        }
+    }
+</script>
+{% endblock %}

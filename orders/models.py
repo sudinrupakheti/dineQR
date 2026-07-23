@@ -2,9 +2,19 @@ from django.db import models    # type: ignore
 from django.utils.html import format_html   # type: ignore
 import uuid
 from typing import TYPE_CHECKING
+from django.conf import settings  # type: ignore
 
 if TYPE_CHECKING:
     from django.db.models.manager import RelatedManager # type: ignore
+
+class UserProfile(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile"
+    )
+    loyalty_points = models.PositiveIntegerField(default=0)
+
+    def __str__(self):
+        return f"{self.user.username}'s Profile ({self.loyalty_points} pts)"
 
 
 class Category(models.Model):
@@ -79,6 +89,15 @@ class Order(models.Model):
         ("canceled", "Canceled"),
     ]
 
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="orders",
+    )
+
+
     table_number = models.IntegerField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="received")
     total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)  # type: ignore
@@ -152,6 +171,7 @@ class WaiterCall(models.Model):
         ("help", "Need Assistance"),
         ("paid", "Payment Done"),
         ("food_ready", "Food Ready for Pickup"),
+        ("cash", "Collect Cash"),
     ]
 
     table_number = models.IntegerField()
@@ -167,6 +187,14 @@ class WaiterCall(models.Model):
 class TableSession(models.Model):
     table_number = models.IntegerField()
     session_token = models.UUIDField(default=uuid.uuid4, editable=False)
+    session_passcode = models.CharField(max_length=128, blank=True, null=True)
+    host_name = models.CharField(max_length=100, default="Host")
+    host_user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

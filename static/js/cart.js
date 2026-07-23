@@ -1,5 +1,3 @@
-// static/js/cart.js
-
 function getActiveTable() {
     const urlParams = new URLSearchParams(window.location.search);
     let table = urlParams.get('table');
@@ -24,7 +22,7 @@ const cartKey = (tableNumber && tableNumber !== "null") ? `cart_table_${tableNum
 let cart = JSON.parse(localStorage.getItem(cartKey)) || {};
 
 // =======================================================
-// NEW: NEGOTIATE TABLE SESSION TOKEN
+// NEGOTIATE TABLE SESSION TOKEN & PASSCODE REDIRECT
 // =======================================================
 async function initializeTableSession() {
     if (!tableNumber || tableNumber === "null" || tableNumber === "") {
@@ -34,7 +32,12 @@ async function initializeTableSession() {
     const sessionKey = `dineqr_session_table_${tableNumber}`;
     let sessionToken = localStorage.getItem(sessionKey);
 
-    // Call the verification API with our existing token (if we have one)
+    // If no token exists and user is on the main menu, redirect to Welcome page
+    if (!sessionToken && !window.location.pathname.includes('/welcome')) {
+        window.location.href = `/welcome/?table=${tableNumber}`;
+        return;
+    }
+
     try {
         const headers = {};
         if (sessionToken) {
@@ -48,9 +51,12 @@ async function initializeTableSession() {
 
         const data = await response.json();
         if (data.status === 'success' && data.token) {
-            // Save the verified or newly issued token
             localStorage.setItem(sessionKey, data.token);
             console.log("Table session authenticated:", data.token);
+        } else if (data.status === 'password_required') {
+            if (!window.location.pathname.includes('/welcome')) {
+                window.location.href = `/welcome/?table=${tableNumber}`;
+            }
         } else {
             console.warn("Could not authenticate table session:", data.message);
         }
@@ -59,23 +65,20 @@ async function initializeTableSession() {
     }
 }
 
-// Retrieve the session token from local storage when making requests
 function getSessionToken() {
     if (!tableNumber) return null;
     return localStorage.getItem(`dineqr_session_table_${tableNumber}`);
 }
 // =======================================================
 
-function addToCart(id, name, price, quantity = 1) { // Added quantity parameter
-    console.log("Attempting to add:", name, "Table is:", tableNumber);
-
+function addToCart(id, name, price, quantity = 1) {
     if (!tableNumber || tableNumber === "null" || tableNumber === "") {
-        // ... (keep table prompt logic) ...
+        alert("Please scan a valid table QR code first.");
         return;
     }
 
     if (cart[id]) {
-        cart[id].quantity += quantity; // Increment by requested quantity
+        cart[id].quantity += quantity;
     } else {
         cart[id] = {
             name: name,
@@ -144,7 +147,6 @@ function updateNote(id, note) {
     }
 }
 
-// Initialize session and UI on page load
 document.addEventListener('DOMContentLoaded', () => {
     updateCartUI();
     initializeTableSession();

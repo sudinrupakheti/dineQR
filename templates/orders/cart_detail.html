@@ -1,61 +1,9 @@
 {% extends 'orders/base.html' %}
 {% load humanize %}
 
-<!-- <!DOCTYPE html>
-<html>
-<head>
-    <title>Receipt_Table_{{ table_num }}</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <style>
-        body { font-family: 'Courier New', Courier, monospace; width: 80mm; margin: 0 auto; color: #000; }
-        @media print { .no-print { display: none; } body { width: 100%; padding: 0; } }
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        .fonepay-gradient {
-        background: linear-gradient(135deg, #1b803a 0%, #115725 100%);
-        }
-    </style>
-</head>
-<body class="bg-white p-4 antialiased">
-    <div class="no-print bg-gray-50 border border-gray-200 p-4 mb-6 text-center rounded-xl">
-        <button onclick="window.print()" class="w-full py-2.5 bg-gray-900 text-white rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-gray-800 transition-colors">
-            Print Thermal Receipt
-        </button>
-        <p class="text-[10px] text-gray-400 mt-1.5">Configure target interface preferences to "Save as PDF" if storing digitised log files.</p>
-    </div>
-
-    <div class="text-center border-b border-dashed border-gray-400 pb-4 mb-4">
-        <h1 class="text-xl font-bold font-serif tracking-tight uppercase">DineQR</h1>
-        <p class="text-xs mt-0.5">New Baneshwor, Kathmandu</p>
-        <div class="text-[11px] text-gray-600 mt-2">
-            <div>Table: <span class="font-bold">{{ table_num }}</span> | Bill Record ID: #{{ bill_id }}</div>
-            <div>Timestamp: {{ date|date:"Y-m-d H:i" }}</div>
-        </div>
-    </div>
-
-    <div class="space-y-2 text-xs pb-4 border-b border-dashed border-gray-400">
-        {% for item in items %}
-        <div class="flex justify-between items-start gap-4">
-            <span class="truncate">{{ item.quantity }}x {{ item.menu_item.name }}</span>
-            <span class="shrink-0 font-bold">Rs. {{ item.menu_item.price }}</span>
-        </div>
-        {% endfor %}
-    </div>
-
-    <div class="flex justify-between items-center pt-4 font-bold text-sm tracking-tight">
-        <span>GRAND TOTAL</span>
-        <span>Rs. {{ total }}</span>
-    </div>
-
-    <div class="mt-8 text-center text-[10px] text-gray-500 space-y-0.5 uppercase tracking-wide">
-        <p>Thank you for dining with us!</p>
-    </div>
-</body>
-</html> -->
-
 {% block content %}
 <div class="max-w-3xl mx-auto pb-16">
-    <div id="cart-main-content" class="space-y-8 {% if show_thanks %}hidden{% endif %}">
+    <div id="cart-main-content" class="space-y-8">
 
         {% if user.is_staff %}
         <a href="{% url 'management_dashboard' %}?tab=tables" class="inline-flex items-center gap-1.5 text-xs font-bold text-orange-600 hover:text-orange-800 transition-colors uppercase tracking-wider mt-2">
@@ -74,6 +22,7 @@
         </div>
 
         {% if previous_orders %}
+        <!-- Active Kitchen Orders Tracking -->
         <div>
             <div class="flex items-center gap-2 mb-4">
                 <h2 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Items Ordered</h2>
@@ -112,7 +61,7 @@
         {% endif %}
 
         <!-- Settlement Section -->
-        {% if previous_orders and not show_thanks %}
+        {% if previous_orders %}
         <div id="bill-review-section" class="pt-6 border-t border-gray-100 space-y-4 {% if not has_ready_orders %}hidden{% endif %}">
 
             <div class="grid grid-cols-2 gap-2">
@@ -149,7 +98,6 @@
 
             <div class="absolute bottom-0 w-full bg-white rounded-t-2xl md:relative md:w-full md:max-w-md md:mx-auto md:top-1/2 md:-translate-y-1/2 shadow-xl border border-gray-100 overflow-hidden flex flex-col max-h-[88vh] pointer-events-auto pb-safe">
 
-                <!-- Modal Header -->
                 <div class="p-4 border-b border-gray-100 flex justify-between items-center bg-white shrink-0">
                     <h2 class="text-sm font-serif font-bold text-gray-900 uppercase tracking-wider">Split Bill</h2>
                     <button onclick="closeSplitModal()" class="p-1.5 bg-gray-50 border border-gray-200 rounded-lg text-gray-400 hover:text-gray-900 transition-colors">
@@ -157,13 +105,11 @@
                     </button>
                 </div>
 
-                <!-- Tab Selectors -->
                 <div class="p-2 bg-gray-50 border-b border-gray-100 flex gap-1 shrink-0">
                     <button onclick="switchSplitMode('equal')" id="tab-equal" class="flex-1 py-2 rounded-lg font-bold text-[10px] uppercase tracking-wider bg-gray-900 text-white transition-all">Split Equally</button>
                     <button onclick="switchSplitMode('items')" id="tab-items" class="flex-1 py-2 rounded-lg font-bold text-[10px] uppercase tracking-wider text-gray-400 hover:text-gray-900 transition-all">Split by Items</button>
                 </div>
 
-                <!-- NEW: Persistent Headcount Adjuster (Visible across BOTH tabs) -->
                 <div class="p-4 bg-gray-50/40 border-b border-gray-100 flex justify-between items-center shrink-0">
                     <span class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Number of Guests</span>
                     <div class="flex items-center gap-4">
@@ -173,16 +119,13 @@
                     </div>
                 </div>
 
-                <!-- Scrollable Body Content -->
                 <div class="flex-grow overflow-y-auto no-scrollbar">
 
-                    <!-- Equal Split Share Card -->
                     <div id="split-equal-content" class="p-6 flex flex-col items-center justify-center bg-white border-b border-gray-50">
                         <p class="text-[9px] font-bold text-gray-400 uppercase tracking-widest">Per Guest Share</p>
                         <span id="equal-share-text" class="text-3xl font-serif font-extrabold text-gray-900 mt-1">Rs. 0</span>
                     </div>
 
-                    <!-- Item Split Assignment Board -->
                     <div id="split-items-content" class="hidden p-4 space-y-2 bg-white border-b border-gray-50">
                         <p class="text-[9px] font-bold text-gray-400 uppercase tracking-widest px-1 mb-2">Tap numeric guest badges to assign item splits</p>
                         {% for order in previous_orders %}
@@ -201,7 +144,6 @@
                         {% endfor %}
                     </div>
 
-                    <!-- Interactive Live Ledger (Always visible below the controls) -->
                     <div class="p-4 bg-white">
                         <p class="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-3">Settle Guest Shares (Tap Name to Edit)</p>
                         <div id="guest-ledger-container"></div>
@@ -216,7 +158,6 @@
 
             <div class="bg-white rounded-2xl w-full max-w-sm overflow-hidden relative z-10 border border-gray-100 shadow-2xl animate-in zoom-in-95 duration-200">
 
-                <!-- Dynamic merchant green frame header -->
                 <div id="qr-modal-header-container" class="p-5 text-center transition-all bg-gray-50 border-b border-gray-100">
                     <span class="text-[9px] font-bold tracking-widest uppercase block opacity-80">Fonepay Merchant</span>
                     <h2 id="qr-modal-header-title" class="text-base font-serif font-bold tracking-wider uppercase mt-1">DineQR Table {{ table_num }}</h2>
@@ -227,7 +168,6 @@
                     <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Amount Due</p>
                     <p id="qr-modal-amount" data-original="Rs. {{ running_total }}" class="text-3xl font-serif font-extrabold text-gray-900 mt-1 mb-6">Rs. {{ running_total }}</p>
 
-                    <!-- QR Standee Scan Box -->
                     <div class="bg-white p-5 rounded-2xl border-2 border-dashed border-gray-200 flex flex-col items-center justify-center mb-6 max-w-[220px] mx-auto aspect-square shadow-inner">
                         <img id="main-qr-image" src="{{ qr_code }}" data-original-qr="{{ qr_code }}" class="w-full h-full object-contain mb-2">
                         <span class="text-[8px] font-bold text-gray-400 tracking-wider uppercase">Scan with Mobile Banking or Wallet</span>
@@ -247,7 +187,7 @@
         </div>
         {% endif %}
 
-        <!-- Basket Section (New unsubmitted items) -->
+        <!-- Unsubmitted Cart Items -->
         <div id="new-items-section">
             <div class="flex items-center gap-2 mb-4 hidden" id="new-items-header">
                 <h2 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Unsubmitted Items</h2>
@@ -268,31 +208,11 @@
         </div>
 
     </div>
-
-    <!-- Success Screen -->
-    <div id="settled-thanks-section" class="{% if not show_thanks %}hidden{% endif %} animate-in fade-in zoom-in-95 duration-400 py-16 text-center max-w-sm mx-auto">
-        <div class="w-12 h-12 bg-gray-50 text-gray-900 border border-gray-200 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-sm">
-            <i data-lucide="check-circle" class="w-6 h-6 stroke-[1.5]"></i>
-        </div>
-        <h1 class="text-2xl font-serif font-bold text-gray-900 tracking-tight mb-1">Payment Complete</h1>
-        <p class="text-xs text-gray-400 leading-relaxed font-normal mb-8">Thank you! Your payment has been processed successfully.</p>
-
-        {% if user.is_staff %}
-        <a href="{% url 'management_dashboard' %}?tab=tables" class="inline-flex items-center gap-1.5 text-xs font-bold text-orange-600 hover:text-orange-800 transition-colors uppercase tracking-wider mt-2">
-            <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Back to Dashboard
-        </a>
-        {% else %}
-        <a href="{% url 'menu' %}?table={{ request.GET.table }}" class="inline-flex items-center gap-1.5 text-xs font-bold text-gray-400 hover:text-gray-900 transition-colors uppercase tracking-wider mt-2">
-            <i data-lucide="arrow-left" class="w-3.5 h-3.5"></i> Back to Menu
-        </a>
-        {% endif %}
-    </div>
 </div>
 
 <script>
     const urlParams = new URLSearchParams(window.location.search);
     const orderIdParam = urlParams.get('order');
-    // Important Fix: Fallback to table 0 if orderId exists, otherwise use table or localstorage
     const tableNum = urlParams.get('table') || (orderIdParam ? '0' : localStorage.getItem('dineqr_table'));
 
     const hasPreviousOrders = ("{{ previous_orders|yesno:'true,false' }}" === "true");
@@ -302,21 +222,18 @@
     const SESSION_PEOPLE_KEY = `dineqr_split_people_t_${tableNum}`;
     const SESSION_PAID_KEY = `dineqr_split_paid_t_${tableNum}`;
     const SESSION_ASSIGN_KEY = `dineqr_split_assign_t_${tableNum}`;
-    const SESSION_NAMES_KEY = `dineqr_split_names_t_${tableNum}`; // Track custom guest names
+    const SESSION_NAMES_KEY = `dineqr_split_names_t_${tableNum}`;
 
-    // State Initialization with LocalStorage fallbacks
     let splitMode = localStorage.getItem(SESSION_MODE_KEY) || 'equal';
     let numPeople = parseInt(localStorage.getItem(SESSION_PEOPLE_KEY)) || 2;
     let paidGuests = JSON.parse(localStorage.getItem(SESSION_PAID_KEY)) || [];
     let itemAssignments = JSON.parse(localStorage.getItem(SESSION_ASSIGN_KEY)) || {};
     let guestNames = JSON.parse(localStorage.getItem(SESSION_NAMES_KEY)) || [];
 
-    // FIX: Declare missing global variables to prevent script execution crashes
     const totalBill = backendRunningTotal;
     let isSplitPayment = false;
     let currentPersonIdx = null;
 
-    // Ensures guestNames is always initialized and matches headcount
     function checkGuestNames() {
         for (let i = 0; i < numPeople; i++) {
             if (!guestNames[i]) {
@@ -326,7 +243,6 @@
     }
     checkGuestNames();
 
-    // Helper to persist current split session state
     function saveSplitSession() {
         localStorage.setItem(SESSION_MODE_KEY, splitMode);
         localStorage.setItem(SESSION_PEOPLE_KEY, numPeople.toString());
@@ -335,7 +251,6 @@
         localStorage.setItem(SESSION_NAMES_KEY, JSON.stringify(guestNames));
     }
 
-    // Helper to clear split session once table is fully paid
     function clearSplitSession() {
         localStorage.removeItem(SESSION_MODE_KEY);
         localStorage.removeItem(SESSION_PEOPLE_KEY);
@@ -439,8 +354,8 @@
             });
             const result = await response.json();
             if (result.status === 'success') {
-                localStorage.removeItem(cartKey);
-                window.location.reload();
+                localStorage.removeItem(`cart_table_${tableNum}`);
+                window.location.href = `/order-success/${result.order_id}/`;
             } else {
                 alert("Order Error: " + result.message);
                 resetButton();
@@ -503,12 +418,9 @@
 
                     if (data.status === 'completed') {
                         clearInterval(window.pollingInterval);
-                        document.getElementById('cart-main-content').classList.add('hidden');
-                        document.getElementById('settled-thanks-section').classList.remove('hidden');
-                        lucide.createIcons();
-                        handleFinalClear();
                         clearSplitSession();
-                        if (typeof cartKey !== 'undefined') localStorage.removeItem(cartKey);
+                        localStorage.removeItem(`cart_table_${tableNum}`);
+                        window.location.href = `/order-success/${id}/`;
                         break;
                     }
 
@@ -531,10 +443,6 @@
             }
         }, 5000);
     }
-
-    // =======================================================
-    // UPGRADED SPLIT BILL & PERSISTENCE LEDGER LOGIC
-    // =======================================================
 
     function openSplitModal() {
         document.getElementById('split-modal').classList.remove('hidden');
@@ -569,17 +477,16 @@
     function adjustPeople(delta) {
         numPeople = Math.max(1, Math.min(12, numPeople + delta));
         document.getElementById('people-count').innerText = numPeople;
-        checkGuestNames(); // Make sure the names array scales properly with headcount changes
+        checkGuestNames();
         saveSplitSession();
         if (splitMode === 'items') renderItemAssignmentButtons();
         calculateSplit();
     }
 
-    // NEW: Updates name for a specific guest index and saves to session
     function updateGuestName(idx, value) {
         guestNames[idx - 1] = value.trim() || `Guest ${idx}`;
         saveSplitSession();
-        calculateSplit(); // Instantly update lists and modals
+        calculateSplit();
     }
 
     function calculateSplit() {
@@ -608,7 +515,6 @@
         renderGuestLedger(shares);
     }
 
-    // Renders list of guests with editable inline names and Pay buttons
     function renderGuestLedger(shares) {
         const container = document.getElementById('guest-ledger-container');
         if (!container) return;
@@ -635,10 +541,9 @@
             }
 
             html += `
-                <div class="flex items-center justify-between p-3 rounded-xl border border-gray-100 bg-white shadow-sm gap-4 animate-in fade-in slide-in-from-bottom-2 duration-150">
+                <div class="flex items-center justify-between p-3 rounded-xl border border-gray-100 bg-white shadow-sm gap-4">
                     <div class="min-w-0 flex-1">
                         <div class="flex items-center gap-2">
-                            <!-- NEW: Editable input replacing hardcoded labels -->
                             <input type="text" value="${currentName}" onchange="updateGuestName(${i}, this.value)"
                                 class="bg-transparent border-b border-transparent hover:border-gray-200 focus:border-gray-950 focus:outline-none text-xs font-bold text-gray-800 py-0.5 w-full truncate max-w-[140px] transition-all"
                                 placeholder="Edit Name" />
@@ -699,15 +604,9 @@
         const modalAmountEl = document.getElementById('qr-modal-amount');
         if (modalAmountEl) modalAmountEl.innerText = `Rs. ${amount.toFixed(2)}`;
 
-        // Dynamic Name lookup inside the Fonepay dynamic QR Standee!
         const guestName = guestNames[personIdx - 1] || `Guest ${personIdx}`;
         const titleEl = document.getElementById('qr-modal-header-title');
         if (titleEl) titleEl.innerText = `${guestName} Bill Share`;
-
-        const headerContainer = document.getElementById('qr-modal-header-container');
-        if (headerContainer) {
-            headerContainer.classList.add('fonepay-gradient', 'text-white');
-        }
 
         fetch(`/api/generate-split-qr/?table=${tableNum}&amount=${amount.toFixed(2)}`)
             .then(res => res.json())
@@ -732,25 +631,17 @@
         const qrImg = document.getElementById('main-qr-image');
         if (qrImg && qrImg.dataset.originalQr) qrImg.src = qrImg.dataset.originalQr;
 
-        const headerContainer = document.getElementById('qr-modal-header-container');
-        if (headerContainer) {
-            headerContainer.classList.remove('fonepay-gradient', 'text-white');
-        }
-
         document.getElementById('qr-modal').classList.add('hidden');
     }
 
     async function handlePaymentConfirm(source = 'cash') {
-        const guestName = guestNames[currentPersonIdx - 1] || `Guest ${currentPersonIdx}`;
-        let confirmMsg = "";
-        if (source === 'cash') {
-            confirmMsg = "Mark this bill as paid with cash?";
-        } else if (isSplitPayment && currentPersonIdx !== null) {
-            const guestName = guestNames[currentPersonIdx - 1] || `Guest ${currentPersonIdx}`;
-            confirmMsg = `Confirm payment for ${guestName}?`;
-        } else {
-            confirmMsg = "Confirm full payment via QR?";
-        }
+        const guestName = (currentPersonIdx !== null)
+            ? (guestNames[currentPersonIdx - 1] || `Guest ${currentPersonIdx}`)
+            : 'Customer';
+
+        let confirmMsg = (source === 'cash')
+            ? "Mark this bill as paid with cash?"
+            : `Confirm payment for ${guestName}?`;
 
         if (!confirm(confirmMsg)) return;
 
@@ -771,7 +662,7 @@
                     if (assignedToThisGuest) {
                         payload.items.push({
                             id: "{{ item.id }}",
-                            qty: 1
+                            qty: parseInt("{{ item.quantity }}")
                         });
                     }
                 {% endfor %}{% endfor %}
@@ -790,65 +681,31 @@
 
             if (data.status === 'success') {
                 if (source === 'cash') {
-                    if (orderIdParam || "{{ user.is_staff }}" === "True") {
-                        window.location.reload();
-                    } else {
-                        alert("A waiter will be with you shortly to collect cash.");
-                    }
+                    alert("A waiter will be with you shortly to collect cash.");
                 } else {
-                    if (isSplitPayment) {
-                        if (!paidGuests.includes(currentPersonIdx)) {
+                    if (data.table_cleared) {
+                        clearSplitSession();
+                        localStorage.removeItem(`cart_table_${tableNum}`);
+                        window.location.href = `/order-success/${orderIdParam || 0}/`;
+                    } else {
+                        if (currentPersonIdx !== null && !paidGuests.includes(currentPersonIdx)) {
                             paidGuests.push(currentPersonIdx);
                         }
                         saveSplitSession();
-
-                        alert(`Payment complete for ${guestName}!`);
                         resetAndCloseQR();
-
-                        const allPaid = paidGuests.length >= numPeople;
-                        if (allPaid) {
-                            clearSplitSession();
-                            window.location.reload();
-                        } else {
-                            openSplitModal();
-                        }
-                    } else {
-                        clearSplitSession();
-                        resetAndCloseQR();
-                        window.location.reload();
+                        openSplitModal();
                     }
                 }
             } else { alert("Payment error: " + data.message); }
         } catch (error) {
             console.error("Payment Confirmation Error:", error);
-            alert("Could not update payment status. Please settle up at the counter.");
+            alert("Could not update payment status.");
         }
     }
 
     document.addEventListener('DOMContentLoaded', () => {
-        const isThanksShowing = "{{ show_thanks|yesno:'true,false' }}" === "true";
-        const hasNewItems = typeof cart !== 'undefined' && Object.keys(cart).length > 0;
-
-        if (isThanksShowing) {
-            if (hasNewItems) {
-                document.getElementById('settled-thanks-section').classList.add('hidden');
-                document.getElementById('cart-main-content').classList.remove('hidden');
-            } else {
-                handleFinalClear();
-                clearSplitSession();
-                if (typeof cartKey !== 'undefined') {
-                    localStorage.removeItem(cartKey);
-                }
-            }
-        }
-
         renderCartPage();
         initPolling();
     });
-
-    function handleFinalClear() {
-        localStorage.removeItem(`cart_table_${tableNum}`);
-    }
-
 </script>
 {% endblock %}

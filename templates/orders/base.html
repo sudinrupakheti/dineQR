@@ -27,8 +27,17 @@
                 <span>dineQR</span>
             </a>
 
-            <div id="nav-table-badge" class="hidden bg-gray-50 border border-gray-200 text-gray-700 px-3 py-1 rounded-xl text-xs font-bold tracking-wider uppercase">
-                Table <span id="nav-table-num"></span>
+            <div class="flex items-center gap-2">
+                {% if user.is_authenticated and not user.is_staff %}
+                <a href="{% url 'customer_portal' %}" class="bg-orange-50 border border-orange-200 text-orange-700 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 hover:bg-orange-100 transition-colors shadow-sm">
+                    <i data-lucide="user" class="w-3.5 h-3.5"></i>
+                    <span>{{ user.username }}</span>
+                </a>
+                {% endif %}
+
+                <div id="nav-table-badge" class="hidden bg-gray-50 border border-gray-200 text-gray-700 px-3 py-1.5 rounded-xl text-xs font-bold tracking-wider uppercase">
+                    Table <span id="nav-table-num"></span>
+                </div>
             </div>
         </div>
     </nav>
@@ -41,7 +50,7 @@
     <!-- Toast Notifications -->
     <div id="toast-container" class="fixed bottom-24 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
-    <!-- Bottom Navigation -->
+<!-- Bottom Navigation -->
     <div class="fixed bottom-0 left-0 w-full bg-white/95 backdrop-blur-md border-t border-gray-100 z-40 pb-safe shadow-lg">
         <div class="flex justify-around items-center h-16 max-w-md mx-auto px-4">
 

@@ -144,18 +144,16 @@
                 renderConsolidation(data.summary);
                 renderOrders(data.orders);
 
-                // Sound trigger on new orders
-                let hasNewOrder = false;
-                data.orders.forEach(o => {
-                    if (!knownOrderIds.has(o.id)) {
-                        knownOrderIds.add(o.id);
-                        hasNewOrder = true;
-                    }
-                });
+                // Sound trigger on new orders (Memory-safe)
+                const currentIds = new Set(data.orders.map(o => o.id));
+                const hasNewOrder = data.orders.some(o => !knownOrderIds.has(o.id));
 
                 if (hasNewOrder && isAudioEnabled) {
                     document.getElementById('order-chime')?.play().catch(() => {});
                 }
+
+                // Update memory to store ONLY currently active order IDs
+                knownOrderIds = currentIds;
             } catch (err) {
                 console.error("Polling error:", err);
             }

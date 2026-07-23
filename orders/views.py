@@ -28,6 +28,7 @@ from django.db.models import (  # type: ignore
 )
 from django.db.models.functions import ExtractWeekDay, ExtractHour  # type: ignore
 from django.contrib.auth import authenticate, login, logout # type: ignore
+from django.contrib.auth.models import User # type: ignore
 from django.contrib.auth.decorators import login_required, user_passes_test # type: ignore
 from django.views.decorators.cache import never_cache   # type: ignore
 from django.views.decorators.http import require_POST   # type: ignore
@@ -44,6 +45,7 @@ from .models import (
     WaiterCall,
     TableSession,
     KitchenBroadcast,
+    UserProfile,
 )
 
 
@@ -944,18 +946,53 @@ def verify_table_session(request):
     table_num = request.GET.get("table")
     client_token = request.headers.get("X-Session-Token")
 
+    body_data = {}
+    if request.body:
+        try:
+            body_data = json.loads(request.body)
+        except json.JSONDecodeError:
+            pass
+
+    passcode = request.GET.get("passcode") or body_data.get("passcode")
+    host_name = request.GET.get("host_name") or body_data.get("host_name") or "Host"
+
     if not table_num:
         return JsonResponse({"status": "error", "message": "No table specified"}, status=400)
 
-    if client_token:
-        session = TableSession.objects.filter(
-            table_number=table_num, session_token=client_token, is_active=True
-        ).first()
-        if session:
+    try:
+        table_int = int(table_num)
+    except ValueError:
+        return JsonResponse({"status": "error", "message": "Invalid table format"}, status=400)
+
+    session = TableSession.objects.filter(
+        table_number=table_int, is_active=True
+    ).first()
+
+    if session:
+        if client_token and str(session.session_token) == client_token:
             return JsonResponse({"status": "success", "token": str(session.session_token)})
 
-    new_session = TableSession.objects.create(table_number=table_num)
-    return JsonResponse({"status": "success", "token": str(new_session.session_token)})
+        if session.session_passcode:
+            if passcode and passcode == session.session_passcode:
+                return JsonResponse({"status": "success", "token": str(session.session_token)})
+            return JsonResponse(
+                {"status": "password_required", "message": "Table session password required"},
+                status=401
+            )
+
+        return JsonResponse({"status": "success", "token": str(session.session_token)})
+
+    # Create new table session (caller is host)
+    host_user = request.user if request.user.is_authenticated else None
+    new_session = TableSession.objects.create(
+        table_number=table_int,
+        session_passcode=passcode if passcode else None,
+        host_name=host_name,
+        host_user=host_user,
+        is_active=True,
+    )
+
+    return JsonResponse({"status": "success", "token": str(new_session.session_token), "is_host": True})
 
 
 @login_required
@@ -981,7 +1018,6 @@ def generate_bill_qr(data):
     buf = io.BytesIO()
     qr.save(buf, format="PNG")
     return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
-
 
 def confirm_payment_request(request, table_num):
     try:
@@ -1016,7 +1052,7 @@ def confirm_payment_request(request, table_num):
         return JsonResponse({"status": "error", "message": "No active orders"}, status=400)
 
     if payment_method == "cash":
-        WaiterCall.objects.create(table_number=table_int, reason="paid", is_resolved=False)
+        WaiterCall.objects.create(table_number=table_int, reason="cash", is_resolved=False)
         return JsonResponse({
             "status": "success",
             "table_cleared": False,
@@ -1066,7 +1102,18 @@ def confirm_payment_request(request, table_num):
             order.paid_at = timezone.now()
             order.save()
 
+            # Award loyalty points if linked to a user
+            if order.user:
+                profile, _ = UserProfile.objects.get_or_create(user=order.user)
+                profile.loyalty_points += int(order.total_price // 10)
+                profile.save()
+
     WaiterCall.objects.create(table_number=table_int, reason="paid", is_resolved=False)
+
+    # Deactivate table session when all orders are paid and table is cleared
+    if all_done:
+        TableSession.objects.filter(table_number=table_int, is_active=True).update(is_active=False)
+
     return JsonResponse({"status": "success", "table_cleared": all_done})
 
 
@@ -1527,3 +1574,150 @@ def recall_order_api(request, order_id):
         return JsonResponse({"status": "success"})
     except Order.DoesNotExist:
         return JsonResponse({"status": "error", "message": "Order not found"}, status=404)
+
+def welcome_view(request):
+    table_num = request.GET.get("table")
+    if not table_num:
+        return redirect("menu")
+
+    try:
+        table_int = int(table_num)
+    except ValueError:
+        return redirect("menu")
+
+    active_session = TableSession.objects.filter(
+        table_number=table_int, is_active=True
+    ).first()
+
+    context = {
+        "table_num": table_int,
+        "active_session": active_session,
+        "has_password": bool(active_session and active_session.session_passcode),
+    }
+    return render(request, "orders/welcome.html", context)
+
+
+def customer_signup_api(request):
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "Method not allowed"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        username = data.get("username", "").strip()
+        password = data.get("password", "").strip()
+        email = data.get("email", "").strip()
+
+        if not username or not password:
+            return JsonResponse({"status": "error", "message": "Username and password required"}, status=400)
+
+        if User.objects.filter(username=username).exists():
+            return JsonResponse({"status": "error", "message": "Username already taken"}, status=400)
+
+        user = User.objects.create_user(username=username, password=password, email=email)
+        UserProfile.objects.create(user=user, loyalty_points=0)
+
+        login(request, user)
+        return JsonResponse({"status": "success", "username": user.username})
+
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+
+def customer_login_api(request):
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "Method not allowed"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        username = data.get("username", "").strip()
+        password = data.get("password", "").strip()
+
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
+            login(request, user)
+            profile, _ = UserProfile.objects.get_or_create(user=user)
+            return JsonResponse({
+                "status": "success",
+                "username": user.username,
+                "points": profile.loyalty_points
+            })
+        return JsonResponse({"status": "error", "message": "Invalid credentials"}, status=400)
+
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+
+def convert_guest_account_api(request):
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "Method not allowed"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        username = data.get("username", "").strip()
+        password = data.get("password", "").strip()
+        order_id = data.get("order_id")
+
+        if not username or not password:
+            return JsonResponse({"status": "error", "message": "Username and password required"}, status=400)
+
+        if User.objects.filter(username=username).exists():
+            return JsonResponse({"status": "error", "message": "Username already taken"}, status=400)
+
+        user = User.objects.create_user(username=username, password=password)
+        profile = UserProfile.objects.create(user=user, loyalty_points=0)
+        login(request, user)
+
+        if order_id:
+            try:
+                order = Order.objects.get(id=order_id)
+                order.user = user
+                order.save()
+
+                earned_pts = int(order.total_price // 10)
+                profile.loyalty_points += earned_pts
+                profile.save()
+            except Order.DoesNotExist:
+                pass
+
+        return JsonResponse({
+            "status": "success",
+            "username": user.username,
+            "points": profile.loyalty_points
+        })
+
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+
+def user_order_history_api(request):
+    if not request.user.is_authenticated:
+        return JsonResponse({"status": "error", "message": "Authentication required"}, status=401)
+
+    orders = Order.objects.filter(user=request.user).order_by("-created_at").prefetch_related("items__menu_item")
+    history = []
+    for o in orders:
+        items = [{"name": i.menu_item.name, "qty": i.quantity, "price": float(i.menu_item.price)} for i in o.items.all()]
+        history.append({
+            "order_id": o.id,
+            "table_number": o.table_number,
+            "status": o.status,
+            "total_price": float(o.total_price),
+            "created_at": o.created_at.strftime("%Y-%m-%d %H:%M"),
+            "items": items,
+        })
+
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    return JsonResponse({"history": history, "loyalty_points": profile.loyalty_points})
+
+@login_required
+def customer_portal(request):
+    orders = Order.objects.filter(user=request.user).order_by("-created_at").prefetch_related("items__menu_item")
+    profile, _ = UserProfile.objects.get_or_create(user=request.user)
+    return render(
+        request,
+        "orders/customer_portal.html",
+        {
+            "orders": orders,
+            "loyalty_points": profile.loyalty_points,
+        },
+    )

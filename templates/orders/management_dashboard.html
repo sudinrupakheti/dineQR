@@ -1069,8 +1069,9 @@
                 autoResolvingTimers.delete(id);
             }
 
+            const csrfCookie = document.cookie.split('; ').find(row => row.trim().startsWith('csrftoken='));
             const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value ||
-                            document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1];
+                            (csrfCookie ? csrfCookie.split('=')[1] : '');
 
             try {
                 const baseUrl = "{% url 'resolve_waiter_call' 0 %}";
@@ -1388,6 +1389,7 @@
             if (walkInCart.length === 0) return alert("Add items to the cart first!");
 
             const btn = event.currentTarget;
+            if (!btn) return;
             btn.disabled = true;
             const origHtml = btn.innerHTML;
             btn.innerHTML = `<div class="animate-spin w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full inline-block mr-1.5"></div> Sending...`;
@@ -1531,7 +1533,13 @@
             !window.location.search.includes('tab=insights') &&
             !window.location.search.includes('tab=reviews') &&
             !window.location.search.includes('tab=qr')) {
-            setInterval(() => { location.reload(); }, 25000); // 25 seconds
+            setInterval(() => {
+                const isPosOpen = !document.getElementById('walkin-modal')?.classList.contains('hidden');
+                const isDrawerOpen = !document.getElementById('table-drawer-backdrop')?.classList.contains('pointer-events-none');
+                if (!isPosOpen && !isDrawerOpen) {
+                    location.reload();
+                }
+            }, 25000); // 25 seconds
         }
 
         setInterval(pollWaiterCalls, 5000);
