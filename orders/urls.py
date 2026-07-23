@@ -91,4 +91,8 @@ urlpatterns = [
         name="verify_table_session",
     ),
     path('management/reviews/clear/', views.clear_old_reviews, name='clear_old_reviews'),
+    path('api/kitchen/orders/', views.kitchen_orders_api, name='kitchen_orders_api'),
+    path('api/kitchen/item-status/<int:item_id>/', views.update_item_status, name='update_item_status'),
+    path('api/kitchen/recent-completed/', views.get_recent_completed_orders, name='get_recent_completed_orders'),
+    path('api/kitchen/recall/<int:order_id>/', views.recall_order_api, name='recall_order_api'),
 ]

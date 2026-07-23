@@ -4,8 +4,10 @@ import re
 import qrcode   # type: ignore
 import io
 import base64
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from datetime import datetime, timedelta
+from collections import Counter, defaultdict
+from itertools import combinations
 from django.utils import timezone   # type: ignore
 from django.http import JsonResponse, HttpResponse, HttpResponseForbidden   # type: ignore
 from django.shortcuts import render, redirect, get_object_or_404    # type: ignore
@@ -28,15 +30,11 @@ from django.db.models.functions import ExtractWeekDay, ExtractHour  # type: igno
 from django.contrib.auth import authenticate, login, logout # type: ignore
 from django.contrib.auth.decorators import login_required, user_passes_test # type: ignore
 from django.views.decorators.cache import never_cache   # type: ignore
+from django.views.decorators.http import require_POST   # type: ignore
 from django.conf import settings    # type: ignore
-from .ai_utils import analyze_note_sentiment
-from collections import Counter, defaultdict
-from itertools import combinations
-from datetime import timezone as dt_timezone
-from django.views.decorators.csrf import csrf_exempt    # type: ignore
 from django.contrib import messages # type: ignore
-from django.core.exceptions import PermissionDenied # type: ignore
 from django.db import transaction   # type: ignore
+from .ai_utils import analyze_note_sentiment
 from .models import (
     Order,
     OrderItem,
@@ -50,10 +48,6 @@ from .models import (
 
 
 def is_management_or_owner(user):
-    """
-    Managers and Owners can access the Management Dashboard, modify menus,
-    and process table bill settlements.
-    """
     if not user.is_authenticated:
         return False
     return (
@@ -64,10 +58,6 @@ def is_management_or_owner(user):
 
 
 def is_kitchen_or_higher(user):
-    """
-    Kitchen staff, Managers, and Owners can access the Kitchen Dashboard,
-    update cooking status, and resolve waiter calls.
-    """
     if not user.is_authenticated:
         return False
     return (
@@ -81,26 +71,9 @@ def is_kitchen_or_higher(user):
 SEARCH_SYNONYMS = {
     "momo": ["mo:mo", "momos", "dumplings", "dumpling"],
     "mo:mo": ["momo", "momos", "dumplings", "dumpling"],
-    "sweet": [
-        "dessert",
-        "desserts",
-        "sweets",
-        "pudding",
-        "ice cream",
-        "cake",
-        "pastry",
-    ],
+    "sweet": ["dessert", "desserts", "sweets", "pudding", "ice cream", "cake", "pastry"],
     "dessert": ["sweet", "sweets", "desserts", "pudding", "ice cream", "cake"],
-    "drink": [
-        "beverage",
-        "beverages",
-        "drinks",
-        "soda",
-        "juice",
-        "coke",
-        "cold drink",
-        "water",
-    ],
+    "drink": ["beverage", "beverages", "drinks", "soda", "juice", "coke", "cold drink", "water"],
     "beverage": ["drink", "drinks", "beverages", "soda", "juice", "cold drink"],
     "chowmein": ["chow mein", "noodles", "noodle"],
     "noodle": ["chowmein", "chow mein", "noodles"],
@@ -109,67 +82,42 @@ SEARCH_SYNONYMS = {
 
 
 def expand_search_query(raw_query):
-    """Takes a raw query and returns a list of synonymous terms."""
     expanded_terms = set([raw_query])
     words = raw_query.split()
-
     for word in words:
-        # Check if the word is a key or a value in our dictionary
         for root_term, related_terms in SEARCH_SYNONYMS.items():
             if word == root_term or word in related_terms:
                 expanded_terms.add(root_term)
                 expanded_terms.update(related_terms)
-
     return list(expanded_terms)
 
 
 def menu_view(request):
     query = request.GET.get("search", "").lower().strip()
-
-    # Base querysets - default to only showing available items to customers
     items = MenuItem.objects.filter(is_available=True)
     categories = Category.objects.all()
-    recommended_items = None  # Explicit container for fallback recommendations
+    recommended_items = None
     zero_results = False
 
     if query:
-        # 1. Intent Detection
         is_veg = "veg" in query and "non" not in query
         is_spicy = any(w in query for w in ["spicy", "hot", "chili", "spice"])
         is_mild = any(w in query for w in ["mild", "not spicy", "not hot"])
         is_featured = "featured" in query or "special" in query
 
-        # Tokenize query string into clean alphanumeric lowercase words
         words = re.findall(r"[a-z0-9:]+", query)
-
-        intent_keywords = {
-            "veg",
-            "spicy",
-            "hot",
-            "chili",
-            "spice",
-            "mild",
-            "not",
-            "featured",
-            "special",
-        }
-        is_pure_intent = (
-            all(word in intent_keywords for word in words) if words else False
-        )
+        intent_keywords = {"veg", "spicy", "hot", "chili", "spice", "mild", "not", "featured", "special"}
+        is_pure_intent = all(word in intent_keywords for word in words) if words else False
 
         if not is_pure_intent:
-            # 2. Synonym Expansion
             search_terms = set([query])
             for word in words:
                 search_terms.add(word)
                 if word in SEARCH_SYNONYMS:
                     search_terms.update(SEARCH_SYNONYMS[word])
 
-            # 3. Optimized Fuzzy Word Matching
             all_item_words = set()
-            for name in MenuItem.objects.filter(is_available=True).values_list(
-                "name", flat=True
-            ):
+            for name in MenuItem.objects.filter(is_available=True).values_list("name", flat=True):
                 all_item_words.update(re.findall(r"[a-z0-9:]+", name.lower()))
 
             all_cat_words = set()
@@ -178,20 +126,11 @@ def menu_view(request):
 
             fuzzy_matches = []
             for word in words:
-                fuzzy_matches.extend(
-                    difflib.get_close_matches(
-                        word, list(all_item_words), n=2, cutoff=0.6
-                    )
-                )
-                fuzzy_matches.extend(
-                    difflib.get_close_matches(
-                        word, list(all_cat_words), n=2, cutoff=0.6
-                    )
-                )
+                fuzzy_matches.extend(difflib.get_close_matches(word, list(all_item_words), n=2, cutoff=0.6))
+                fuzzy_matches.extend(difflib.get_close_matches(word, list(all_cat_words), n=2, cutoff=0.6))
 
             search_terms.update([match.lower() for match in fuzzy_matches])
 
-            # 4. Text Index Lookup Execution
             lookup = Q()
             for term in search_terms:
                 lookup |= Q(name__icontains=term)
@@ -200,7 +139,6 @@ def menu_view(request):
 
             items = items.filter(lookup)
 
-        # 5. Intent Intersecting Filters
         if is_spicy:
             items = items.filter(spice_level__in=["medium", "hot"])
         if is_mild:
@@ -210,12 +148,9 @@ def menu_view(request):
         if is_veg:
             items = items.filter(veg=True)
 
-        # 6. Check if search found nothing
         if not items.exists():
             zero_results = True
-            recommended_items = MenuItem.objects.filter(
-                is_available=True, is_featured=True
-            )[:6]
+            recommended_items = MenuItem.objects.filter(is_available=True, is_featured=True)[:6]
             items = MenuItem.objects.none()
             categories = Category.objects.none()
         else:
@@ -232,7 +167,6 @@ def menu_view(request):
             else:
                 items = items.order_by("-is_featured", "name")
 
-    # 7. Safe Category Sticky-Bar Prefetch
     if not zero_results:
         if query:
             category_ids = items.values_list("category_id", flat=True).distinct()
@@ -244,7 +178,6 @@ def menu_view(request):
                 Prefetch("items", queryset=items)
             )
 
-    # Feature 1: Get the top 5 highest-selling item IDs
     popular_ids = list(
         OrderItem.objects.filter(order__is_paid=True)
         .values("menu_item_id")
@@ -253,12 +186,8 @@ def menu_view(request):
         .values_list("menu_item_id", flat=True)[:5]
     )
 
-    # Feature 2: Market Basket Analysis (Frequent Companions)
-    # OPTIMIZATION: Limit to order items from the last 30 days to save database memory overhead
     top_companion_map = cache.get("dineqr_companion_map")
-
     if top_companion_map is None:
-        # 2. If it's not in cache, calculate it (this will now only run once every 2 hours)
         historical_orders = OrderItem.objects.filter(
             order__is_paid=True,
             order__created_at__gte=timezone.now() - timedelta(days=30)
@@ -282,10 +211,8 @@ def menu_view(request):
                 if valid_companions:
                     top_companion_map[item_id] = max(valid_companions, key=lambda k: valid_companions[k])
 
-        # 3. Save the math result into the Cache for 2 hours (7200 seconds) so we don't calculate it again
         cache.set("dineqr_companion_map", top_companion_map, 7200)
 
-    # OPTIMIZATION: Pre-fetch all companion MenuItems in a single query to eliminate the N+1 problem
     companion_ids = {comp_id for comp_id in top_companion_map.values() if comp_id}
     companions_by_id = {
         item.id: item for item in MenuItem.objects.filter(id__in=companion_ids, is_available=True)
@@ -294,12 +221,8 @@ def menu_view(request):
     items_list = list(items)
     for item in items_list:
         comp_id = top_companion_map.get(item.id)
-        # Assign pre-fetched object directly from memory (0 secondary database hits)
         item.frequent_companion = companions_by_id.get(comp_id) if comp_id else None
 
-    items = items_list
-
-    # 9. Context-aware greeting
     current_hour = timezone.localtime(timezone.now()).hour
     if 5 <= current_hour < 12:
         greeting = "Good Morning ☕"
@@ -311,7 +234,7 @@ def menu_view(request):
         greeting = "Late Night Cravings? 🌙"
 
     context = {
-        "items": items,
+        "items": items_list,
         "categories": categories,
         "query": query,
         "zero_results": zero_results,
@@ -331,7 +254,7 @@ def cart_detail(request):
     show_thanks = False
 
     if order_id:
-        previous_orders = Order.objects.filter(id=order_id).exclude(status__in=["completed", "canceled"])
+        previous_orders = Order.objects.filter(id=order_id).exclude(status__in=["completed", "canceled"]).prefetch_related("items__menu_item")
         if not previous_orders.exists() and Order.objects.filter(id=order_id, status="completed").exists():
             show_thanks = True
     elif table_num:
@@ -340,15 +263,14 @@ def cart_detail(request):
         if not previous_orders.exists() and recently_settled:
             show_thanks = True
 
-    # DYNAMIC AUTO-HEALING RECALCULATION (Fixes the 0.00 Price Bug)
     for order in previous_orders:
         order_calc_total = Decimal("0.00")
-        for item in order.items.all():  # type: ignore
+        for item in order.items.all():
             order_calc_total += Decimal(str(item.menu_item.price)) * item.quantity
 
         if order.total_price != order_calc_total:
             order.total_price = order_calc_total
-            order.save()
+            order.save(update_fields=["total_price"])
 
         running_total += order_calc_total
 
@@ -368,8 +290,7 @@ def cart_detail(request):
     if not popular_items.exists():
         popular_items = MenuItem.objects.filter(is_available=True, is_featured=True)[:4]
 
-    has_ready_orders = previous_orders.filter(status="ready").exists()
-
+    has_ready_orders = previous_orders.filter(status="ready").exists() if isinstance(previous_orders, list) else previous_orders.filter(status="ready").exists()
 
     return render(request, "orders/cart_detail.html", {
         "previous_orders": previous_orders,
@@ -383,31 +304,22 @@ def cart_detail(request):
 
 def place_order(request):
     if request.method != "POST":
-        return JsonResponse(
-            {"status": "error", "message": "Method not allowed"}, status=405
-        )
+        return JsonResponse({"status": "error", "message": "Method not allowed"}, status=405)
 
     try:
         data = json.loads(request.body)
-        from typing import Any
-        cart: dict[str, Any] = data.get("cart") or {}
+        cart = data.get("cart") or {}
         raw_table_number = data.get("table_number")
 
-        if not cart or not raw_table_number:
-            return JsonResponse(
-                {"status": "error", "message": "Invalid data"}, status=400
-            )
+        if not cart or raw_table_number is None:
+            return JsonResponse({"status": "error", "message": "Invalid data"}, status=400)
 
         try:
             table_num = int(raw_table_number)
             if table_num < 0:
-                return JsonResponse(
-                    {"status": "error", "message": "Table number cannot be negative"}, status=400
-                )
+                return JsonResponse({"status": "error", "message": "Table number cannot be negative"}, status=400)
         except ValueError:
-            return JsonResponse(
-                {"status": "error", "message": "Invalid table format"}, status=400
-            )
+            return JsonResponse({"status": "error", "message": "Invalid table format"}, status=400)
 
         if table_num != 0:
             client_token = request.headers.get("X-Session-Token")
@@ -417,7 +329,6 @@ def place_order(request):
                     status=401
                 )
 
-            # Check if this token matches an active session for the claimed table
             session_exists = TableSession.objects.filter(
                 table_number=table_num,
                 session_token=client_token,
@@ -429,7 +340,6 @@ def place_order(request):
                     {"status": "error", "message": "Invalid session for this table. Please re-scan your table QR code."},
                     status=403
                 )
-        # ==========================================
 
         with transaction.atomic():
             new_order = Order.objects.create(
@@ -439,7 +349,6 @@ def place_order(request):
             )
 
             running_total = Decimal("0.00")
-
             for item_id, item_data in cart.items():
                 menu_item = MenuItem.objects.get(id=item_id)
                 qty = int(item_data["quantity"])
@@ -458,22 +367,15 @@ def place_order(request):
         return JsonResponse({"status": "success", "order_id": new_order.id})
 
     except MenuItem.DoesNotExist:
-        return JsonResponse(
-            {"status": "error", "message": "Menu item not found"}, status=404
-        )
+        return JsonResponse({"status": "error", "message": "Menu item not found"}, status=404)
     except json.JSONDecodeError:
-        return JsonResponse(
-            {"status": "error", "message": "Malformed JSON payload"}, status=400
-        )
+        return JsonResponse({"status": "error", "message": "Malformed JSON payload"}, status=400)
     except Exception as e:
-        print(f"Order Error: {e}")
-        return JsonResponse(
-            {"status": "error", "message": "Internal server error"}, status=500
-        )
+        return JsonResponse({"status": "error", "message": "Internal server error"}, status=500)
 
 
 def order_success(request, order_id):
-    order = Order.objects.get(id=order_id)
+    order = get_object_or_404(Order, id=order_id)
     return render(request, "orders/order_success.html", {"order": order})
 
 
@@ -485,46 +387,82 @@ def get_order_status(request, order_id):
         return JsonResponse({"error": "Not found"}, status=404)
 
 
+@login_required
+@user_passes_test(is_kitchen_or_higher)
 def update_order_status(request, order_id):
     if request.method == "POST":
         try:
-            # TRY to find the order
             order = Order.objects.get(id=order_id)
-            new_status = request.POST.get("status")
+
+            if request.content_type == "application/json":
+                data = json.loads(request.body)
+                new_status = data.get("status", "ready")
+            else:
+                new_status = request.POST.get("status", "ready")
 
             valid_statuses = ["preparing", "ready", "completed"]
-
             if new_status in valid_statuses:
                 order.status = new_status
+
+                if new_status in ["ready", "completed"]:
+                    order.items.all().update(status="ready")
+
+                    # --- AUTOMATICALLY CALL WAITER TO PICK UP FOOD ---
+                    if new_status == "ready":
+                        existing_call = WaiterCall.objects.filter(
+                            table_number=order.table_number,
+                            is_resolved=False
+                        ).first()
+                        if not existing_call:
+                            WaiterCall.objects.create(
+                                table_number=order.table_number,
+                                reason="food_ready",
+                                is_resolved=False
+                            )
+
                 order.save()
+
+            if request.content_type == "application/json" or request.headers.get("X-Requested-With") == "XMLHttpRequest":
+                return JsonResponse({"status": "success", "new_status": order.status})
+
         except Order.DoesNotExist:
-            # If the user canceled the order and it was deleted from DB,
-            # just silently catch the error and refresh the kitchen screen!
-            pass
+            if request.content_type == "application/json":
+                return JsonResponse({"status": "error", "message": "Order not found"}, status=404)
 
         return redirect("kitchen_dashboard")
-    return JsonResponse({"status": "error"}, status=400)
+
+    return JsonResponse({"status": "error", "message": "Method not allowed"}, status=405)
+
 
 
 def cancel_order_item(request, item_id):
-    """Allows customers to delete an item if the kitchen hasn't started cooking it yet."""
     if request.method != "POST":
-        return JsonResponse(
-            {"status": "error", "message": "Method not allowed"}, status=405
-        )
+        return JsonResponse({"status": "error", "message": "Method not allowed"}, status=405)
 
     try:
-        item = OrderItem.objects.get(id=item_id, order__status="received")
+        item = OrderItem.objects.select_related("order").get(id=item_id, order__status="received")
         order = item.order
 
-        item_price_total = Decimal(str(item.menu_item.price)) * item.quantity
-        item.delete()
+        if order.table_number != 0:
+            client_token = request.headers.get("X-Session-Token")
+            session_valid = TableSession.objects.filter(
+                table_number=order.table_number,
+                session_token=client_token,
+                is_active=True
+            ).exists()
+            if not session_valid:
+                return JsonResponse({"status": "error", "message": "Unauthorized session"}, status=403)
 
-        order.total_price -= item_price_total
-        if order.total_price <= 0 or order.items.count() == 0:  # type: ignore
-            order.delete()
-        else:
-            order.save()
+        with transaction.atomic():
+            item.delete()
+            remaining_items = order.items.all()
+            if not remaining_items.exists():
+                order.delete()
+            else:
+                new_total = sum(Decimal(str(i.menu_item.price)) * i.quantity for i in remaining_items)
+                order.total_price = new_total
+                order.save()
+
         return JsonResponse({"status": "success"})
 
     except OrderItem.DoesNotExist:
@@ -533,35 +471,21 @@ def cancel_order_item(request, item_id):
             status=404,
         )
 
+
 @user_passes_test(is_management_or_owner)
 @login_required
 def management_dashboard(request):
-    # is_management = (
-    #     request.user.is_superuser
-    #     or request.user.groups.filter(name__iexact='Management').exists()
-    #     or request.user.username.lower() == 'management'
-    # )
-
-    # if not is_management:
-    #     messages.error(request, "You do not have authorization to view the Management Dashboard.")
-    #     return redirect('kitchen_dashboard')
-
-    # --- AUTOMATIC CLEANUP ---
-    # Silently purge reviews older than 30 days in the background to keep database size optimized
     try:
         cutoff_date = timezone.now() - timedelta(days=30)
         Review.objects.filter(created_at__lt=cutoff_date).delete()
-    except Exception as e:
+    except Exception:
         pass
 
     current_tab = request.GET.get("tab", "tables")
     sentiment_filter = request.GET.get("sentiment", "all")
 
-    # --- GLOBAL STATS ---
     all_active_orders = Order.objects.exclude(status="completed")
-    total_live_revenue = (
-        all_active_orders.aggregate(Sum("total_price"))["total_price__sum"] or 0
-    )
+    total_live_revenue = all_active_orders.aggregate(Sum("total_price"))["total_price__sum"] or Decimal("0.00")
     busy_tables_count = all_active_orders.values("table_number").distinct().count()
     table_data = []
     insights_data = {}
@@ -569,37 +493,37 @@ def management_dashboard(request):
 
     context = {}
 
-    # --- LOGIC FOR TABLES TAB ---
     if current_tab in ["tables", "qr"]:
         walkin_orders = Order.objects.filter(table_number=0).exclude(status="completed").order_by('-created_at')
 
+        active_table_orders = Order.objects.filter(
+            table_number__gte=1, table_number__lte=10
+        ).exclude(status="completed")
+
+        orders_by_table = defaultdict(list)
+        for ord_obj in active_table_orders:
+            orders_by_table[ord_obj.table_number].append(ord_obj)
+
         for i in range(1, 11):
-            active_orders = Order.objects.filter(table_number=i).exclude(status="completed")
-            if active_orders.exists():
-                total_bill = (
-                    active_orders.aggregate(Sum("total_price"))["total_price__sum"] or 0
-                )
-                statuses = [o.status for o in active_orders]
+            t_orders = orders_by_table.get(i, [])
+            if t_orders:
+                total_bill = sum(o.total_price for o in t_orders)
+                statuses = [o.status for o in t_orders]
                 display_status = (
-                    "ready"
-                    if "ready" in statuses
+                    "ready" if "ready" in statuses
                     else ("preparing" if "preparing" in statuses else "received")
                 )
-                table_data.append(
-                    {
-                        "number": i,
-                        "status": display_status,
-                        "total": total_bill,
-                        "has_orders": True,
-                    }
-                )
+                table_data.append({
+                    "number": i,
+                    "status": display_status,
+                    "total": total_bill,
+                    "has_orders": True,
+                })
             else:
-                table_data.append(
-                    {"number": i, "status": "empty", "total": 0, "has_orders": False}
-                )
+                table_data.append({"number": i, "status": "empty", "total": 0, "has_orders": False})
+
         context.update({"walkin_orders": walkin_orders})
 
-    # --- LOGIC FOR INSIGHTS TAB ---
     elif current_tab == "insights":
         top_items = (
             OrderItem.objects.filter(order__is_paid=True)
@@ -637,9 +561,7 @@ def management_dashboard(request):
             .order_by("-total_qty")
         )
 
-        sentiment_counts = Review.objects.values("sentiment").annotate(
-            count=Count("id")
-        )
+        sentiment_counts = Review.objects.values("sentiment").annotate(count=Count("id"))
         sentiment_dict = {item["sentiment"]: item["count"] for item in sentiment_counts}
         total_reviews = sum(sentiment_dict.values()) or 1
         sentiment_ratios = {
@@ -661,7 +583,6 @@ def management_dashboard(request):
             for item in waiter_telemetry
         ]
 
-        # Market Basket analysis limited to last 90 days
         order_item_groups = OrderItem.objects.filter(
             order__created_at__gte=timezone.now() - timedelta(days=90)
         ).values("order_id", "menu_item__name")
@@ -759,16 +680,13 @@ def management_dashboard(request):
             created_at__date=today_local,
         ).count()
 
-        context.update(
-            {
-                "z_gross_sales": z_metrics["gross"] or 0,
-                "z_ticket_count": z_metrics["count"] or 0,
-                "z_avg_ticket": round(z_metrics["avg_spend"] or 0, 2) if z_metrics["avg_spend"] else 0,
-                "z_canceled_count": canceled_count,
-            }
-        )
+        context.update({
+            "z_gross_sales": z_metrics["gross"] or 0,
+            "z_ticket_count": z_metrics["count"] or 0,
+            "z_avg_ticket": round(z_metrics["avg_spend"] or 0, 2) if z_metrics["avg_spend"] else 0,
+            "z_canceled_count": canceled_count,
+        })
 
-    # --- LOGIC FOR REVIEWS TAB ---
     elif current_tab == "reviews":
         recent_reviews = Review.objects.select_related("menu_item").all().order_by("-created_at")
 
@@ -803,27 +721,23 @@ def management_dashboard(request):
 
     categories = Category.objects.prefetch_related("items").all()
 
-    context.update(
-        {
-            "tables": table_data,
-            "categories": categories,
-            "current_tab": current_tab,
-            "total_live_revenue": total_live_revenue,
-            "busy_tables_count": busy_tables_count,
-            "insights": insights_data,
-            "recent_reviews": recent_reviews,
-            "current_sentiment": sentiment_filter,
-        }
-    )
+    context.update({
+        "tables": table_data,
+        "categories": categories,
+        "current_tab": current_tab,
+        "total_live_revenue": total_live_revenue,
+        "busy_tables_count": busy_tables_count,
+        "insights": insights_data,
+        "recent_reviews": recent_reviews,
+        "current_sentiment": sentiment_filter,
+    })
 
     return render(request, "orders/management_dashboard.html", context)
 
-def order_review_page(request, order_id):
 
+def order_review_page(request, order_id):
     try:
         current_order = Order.objects.get(id=order_id)
-
-        # FIX: Walk-in tables (0) should only review their specific order to prevent leaking other customer bills
         if current_order.table_number == 0:
             orders_to_review = Order.objects.filter(id=current_order.id).prefetch_related("items__menu_item")
         else:
@@ -832,18 +746,14 @@ def order_review_page(request, order_id):
                 created_at__gte=current_order.created_at - timedelta(hours=3),
                 status__in=["received", "preparing", "ready", "completed"],
             ).prefetch_related("items__menu_item")
-
     except Order.DoesNotExist:
         return redirect("menu")
 
     if request.method == "POST":
-        reviewed_menu_item_ids = set()  # Track processed dish IDs
-
+        reviewed_menu_item_ids = set()
         for order in orders_to_review:
             for item in order.items.all():
                 menu_item_id = item.menu_item.id
-
-                # If we already recorded a review for this item ID, skip duplicates
                 if menu_item_id in reviewed_menu_item_ids:
                     continue
 
@@ -851,21 +761,26 @@ def order_review_page(request, order_id):
                 comment_val = request.POST.get(f"comment_{menu_item_id}", "").strip()
 
                 if rating_val:
+                    try:
+                        parsed_rating = int(rating_val)
+                    except ValueError:
+                        continue
+
                     Review.objects.create(
                         order=order,
                         menu_item=item.menu_item,
-                        rating=int(rating_val),
+                        rating=parsed_rating,
                         comment=comment_val,
                         sentiment=analyze_note_sentiment(comment_val) if comment_val else "neutral",
                     )
-                    reviewed_menu_item_ids.add(menu_item_id)  # Mark as reviewed
+                    reviewed_menu_item_ids.add(menu_item_id)
 
         return redirect(f"{reverse('menu')}cart/?table={current_order.table_number}")
 
     items_to_review = []
     seen_items = set()
     for o in orders_to_review:
-        for i in o.items.all(): # type: ignore
+        for i in o.items.all():
             if i.menu_item.id not in seen_items:
                 items_to_review.append(i.menu_item)
                 seen_items.add(i.menu_item.id)
@@ -876,37 +791,20 @@ def order_review_page(request, order_id):
         {"order": current_order, "items_to_review": items_to_review},
     )
 
-@user_passes_test(is_kitchen_or_higher)
+
 @login_required
+@user_passes_test(is_kitchen_or_higher)
 def kitchen_dashboard(request):
+    active_orders = Order.objects.filter(
+        status__in=["received", "preparing"]
+    ).prefetch_related("items__menu_item").order_by("created_at")
 
-    # is_management = (
-    #     request.user.is_superuser
-    #     or request.user.groups.filter(name__iexact='Management').exists()
-    #     or request.user.username.lower() == 'management'
-    # )
-    # is_kitchen = (
-    #     request.user.groups.filter(name__iexact='Kitchen').exists()
-    #     or request.user.username.lower() == 'kitchen'
-    # )
-
-    # if not (is_management or is_kitchen):
-    #     raise PermissionDenied
-
-
-    # Get active orders
-    active_orders = Order.objects.filter(status__in=["received", "preparing"]).order_by(
-        "created_at"
-    )
-
-    # This creates the summary: e.g. "Chicken Burger: 5"
     item_summary = (
         OrderItem.objects.filter(order__status__in=["received", "preparing"])
         .values("menu_item__name")
         .annotate(total_qty=Sum("quantity"))
     )
 
-    # Grab the single newest active broadcast notice if it exists
     latest_broadcast = KitchenBroadcast.objects.last()
     broadcast_message = latest_broadcast.message if latest_broadcast else None
 
@@ -921,21 +819,16 @@ def kitchen_dashboard(request):
     )
 
 
+@login_required
 @user_passes_test(is_management_or_owner)
 def mark_table_paid(request, table_num):
     if request.method == "POST":
-        # Find all orders for this table that aren't completed
-        active_orders = Order.objects.filter(table_number=table_num).exclude(
-            status="completed"
-        )
-
-        # Mark all of them as paid and completed
-        active_orders.update(
-            is_paid=True, paid_at=timezone.localtime(), status="completed"
-        )
+        active_orders = Order.objects.filter(table_number=table_num).exclude(status="completed")
+        active_orders.update(is_paid=True, paid_at=timezone.localtime(), status="completed")
     return redirect("management_dashboard")
 
 
+@login_required
 @user_passes_test(is_management_or_owner)
 def toggle_item_availability(request, item_id):
     try:
@@ -944,30 +837,24 @@ def toggle_item_availability(request, item_id):
         item.save()
     except MenuItem.DoesNotExist:
         pass
-
     return redirect(f"{reverse('management_dashboard')}?tab=menu")
 
 
 def table_bill(request, table_num):
-    active_orders = Order.objects.filter(table_number=table_num).exclude(
-        status="completed"
-    )
-
-    items = OrderItem.objects.filter(order__in=active_orders)
-    total = active_orders.aggregate(Sum("total_price"))["total_price__sum"] or 0
+    active_orders = Order.objects.filter(table_number=table_num).exclude(status="completed")
+    items = OrderItem.objects.filter(order__in=active_orders).select_related("menu_item")
+    total = active_orders.aggregate(Sum("total_price"))["total_price__sum"] or Decimal("0.00")
     first_order = active_orders.first()
 
     qr_code = None
     if first_order:
         local_time = timezone.localtime(timezone.now()).strftime("%Y-%m-%d %I:%M %p")
-        qr_code = generate_bill_qr(
-            {
-                "amount": f"{total:,.2f}",
-                "order_id": first_order.id,
-                "table_number": table_num,
-                "timestamp": local_time,
-            }
-        )
+        qr_code = generate_bill_qr({
+            "amount": f"{total:,.2f}",
+            "order_id": first_order.id,
+            "table_number": table_num,
+            "timestamp": local_time,
+        })
 
     context = {
         "table_num": table_num,
@@ -981,10 +868,7 @@ def table_bill(request, table_num):
 
 
 def menu_status_api(request):
-    """Returns a list of IDs for items that are currently unavailable."""
-    sold_out_ids = list(
-        MenuItem.objects.filter(is_available=False).values_list("id", flat=True)
-    )
+    sold_out_ids = list(MenuItem.objects.filter(is_available=False).values_list("id", flat=True))
     return JsonResponse({"sold_out": sold_out_ids})
 
 
@@ -993,45 +877,41 @@ def call_waiter_api(request):
         try:
             data = json.loads(request.body)
             raw_table_num = data.get("table_number")
-            reason = data.get("reason", "help")
+            reason = data.get("reason") or "help"
 
-            if not raw_table_num:
-                return JsonResponse(
-                    {"status": "error", "message": "Table number missing."}, status=400
-                )
+            if raw_table_num is None:
+                return JsonResponse({"status": "error", "message": "Table number missing."}, status=400)
 
-            # Ensure the table number is parsed as an integer to prevent type-mismatch crashes
-            try:
-                table_num = int(raw_table_num)
-            except ValueError:
-                return JsonResponse(
-                    {"status": "error", "message": "Table number must be a valid integer."}, status=400
-                )
+            # Map 'KITCHEN' or 'COUNTER' text strings to integer 0
+            if str(raw_table_num).upper() in ["KITCHEN", "COUNTER"]:
+                table_num = 0
+            else:
+                try:
+                    table_num = int(raw_table_num)
+                except ValueError:
+                    return JsonResponse({"status": "error", "message": "Table number must be a valid integer."}, status=400)
 
-            # Anti-Spam protection: Check if this table already has an active request
-            existing_call = WaiterCall.objects.filter(
-                table_number=table_num, is_resolved=False
-            ).first()
+            # Prevent duplicate active calls for the same table/kitchen
+            existing_call = WaiterCall.objects.filter(table_number=table_num, is_resolved=False).first()
             if existing_call:
-                return JsonResponse(
-                    {
-                        "status": "error",
-                        "message": f"Our staff is already on the way for: {existing_call.get_reason_display()}!",   #type: ignore
-                    },
-                    status=400,
-                )
+                display_name = "Kitchen/Counter" if table_num == 0 else f"Table {table_num}"
+                return JsonResponse({
+                    "status": "error",
+                    "message": f"Staff is already dispatched for {display_name}!",
+                }, status=400)
 
-            # Create the call safely using the cast integer
             WaiterCall.objects.create(table_number=table_num, reason=reason)
             return JsonResponse({"status": "success"})
 
         except Exception as e:
-            return JsonResponse({"status": "error", "message": str(e)}, status=500)
+            return JsonResponse({"status": "error", "message": "Internal error processing waiter call."}, status=500)
+
+    return JsonResponse({"status": "error", "message": "Method not allowed"}, status=405)
 
 
+@login_required
 @user_passes_test(is_kitchen_or_higher)
 def get_active_waiter_calls(request):
-    """API for the dashboard to get all unresolved waiter calls."""
     calls = WaiterCall.objects.filter(is_resolved=False).order_by("-created_at")
     data = [
         {
@@ -1045,6 +925,7 @@ def get_active_waiter_calls(request):
     return JsonResponse({"calls": data})
 
 
+@login_required
 @user_passes_test(is_kitchen_or_higher)
 def resolve_waiter_call(request, call_id):
     if request.method == "POST":
@@ -1054,49 +935,36 @@ def resolve_waiter_call(request, call_id):
             call.save()
             return JsonResponse({"status": "success"})
         except WaiterCall.DoesNotExist:
-            return JsonResponse(
-                {"status": "error", "message": "Waiter call record not found"}, status=404
-            )
+            return JsonResponse({"status": "error", "message": "Waiter call record not found"}, status=404)
 
-    return JsonResponse(
-        {"status": "error", "message": "Invalid request method"}, status=405
-    )
+    return JsonResponse({"status": "error", "message": "Invalid request method"}, status=405)
 
 
 def verify_table_session(request):
-    """
-    Checks if the user has a valid token for the table they are trying to access.
-    If they are new, it gives them a token.
-    """
     table_num = request.GET.get("table")
     client_token = request.headers.get("X-Session-Token")
 
     if not table_num:
-        return JsonResponse(
-            {"status": "error", "message": "No table specified"}, status=400
-        )
+        return JsonResponse({"status": "error", "message": "No table specified"}, status=400)
 
-    # 1. If client sent a token, verify it matches the table
     if client_token:
         session = TableSession.objects.filter(
             table_number=table_num, session_token=client_token, is_active=True
         ).first()
         if session:
-            return JsonResponse(
-                {"status": "success", "token": str(session.session_token)}
-            )
+            return JsonResponse({"status": "success", "token": str(session.session_token)})
 
     new_session = TableSession.objects.create(table_number=table_num)
     return JsonResponse({"status": "success", "token": str(new_session.session_token)})
 
 
+@login_required
 @user_passes_test(is_management_or_owner)
 def toggle_item_featured(request, item_id):
     if request.method == "POST":
-        item = MenuItem.objects.get(id=item_id)
+        item = get_object_or_404(MenuItem, id=item_id)
         item.is_featured = not item.is_featured
         item.save()
-    # Redirect back to the Menu tab on the dashboard
     return redirect(f"{request.META.get('HTTP_REFERER', '/management/')}")
 
 
@@ -1116,7 +984,16 @@ def generate_bill_qr(data):
 
 
 def confirm_payment_request(request, table_num):
-    """Handles equal split, item-based split, and full payment."""
+    try:
+        table_int = int(table_num)
+    except ValueError:
+        return JsonResponse({"status": "error", "message": "Invalid table number"}, status=400)
+
+    if not request.user.is_authenticated:
+        client_token = request.headers.get("X-Session-Token")
+        if not client_token or not TableSession.objects.filter(table_number=table_int, session_token=client_token, is_active=True).exists():
+            return JsonResponse({"status": "error", "message": "Unauthorized session token"}, status=403)
+
     try:
         if request.method == "POST":
             data = json.loads(request.body)
@@ -1127,43 +1004,31 @@ def confirm_payment_request(request, table_num):
         manual_amount = Decimal(str(data.get("amount", 0)))
         payment_method = data.get("payment_method", "qr")
         order_id = data.get("order_id")
-    except Exception:
-        manual_amount = Decimal("0")
-        items_to_pay = []
-        payment_method = "qr"
-        order_id = None
+    except (json.JSONDecodeError, InvalidOperation, ValueError):
+        return JsonResponse({"status": "error", "message": "Malformed request parameters"}, status=400)
 
-    # OPTIMIZATION: Parse parameter state first, then make only one database query
     if order_id:
         active_orders = Order.objects.filter(id=order_id).exclude(status="completed")
     else:
-        active_orders = Order.objects.filter(table_number=table_num).exclude(status="completed")
+        active_orders = Order.objects.filter(table_number=table_int).exclude(status="completed")
 
     if not active_orders.exists():
         return JsonResponse({"status": "error", "message": "No active orders"}, status=400)
 
-    # --- CASH MODE FLOW ---
     if payment_method == "cash":
-        WaiterCall.objects.create(
-            table_number=table_num, reason="paid", is_resolved=False
-        )
-        return JsonResponse(
-            {
-                "status": "success",
-                "table_cleared": False,
-                "message": "Waiter is on the way with the bill.",
-            }
-        )
+        WaiterCall.objects.create(table_number=table_int, reason="paid", is_resolved=False)
+        return JsonResponse({
+            "status": "success",
+            "table_cleared": False,
+            "message": "Waiter is on the way with the bill.",
+        })
 
-    # --- QR FLOW ---
-    # MODE 1: ITEM-BASED PAY
     if items_to_pay:
         for entry in items_to_pay:
             try:
-                order_item = OrderItem.objects.get(id=entry["id"])
+                order_item = OrderItem.objects.select_related("menu_item", "order").get(id=entry["id"])
                 qty = int(entry.get("qty", 1))
 
-                # INTEGRITY CHECK: Limit payments to unpaid quantity bounds
                 unpaid_qty = order_item.quantity - (order_item.paid_quantity or 0)
                 qty = min(qty, unpaid_qty)
 
@@ -1178,10 +1043,9 @@ def confirm_payment_request(request, table_num):
                     Decimal(str(order_item.menu_item.price)) * qty
                 )
                 order.save()
-            except OrderItem.DoesNotExist:
+            except (OrderItem.DoesNotExist, ValueError):
                 pass
 
-    # MODE 2: EQUAL/MANUAL AMOUNT
     elif manual_amount > 0:
         remaining = manual_amount
         for order in active_orders:
@@ -1192,7 +1056,6 @@ def confirm_payment_request(request, table_num):
             remaining -= to_pay
             order.save()
 
-    # FINAL CHECK: IS TABLE FULLY PAID?
     all_done = True
     for order in active_orders:
         if order.remaining_balance > Decimal("0.01"):
@@ -1203,76 +1066,39 @@ def confirm_payment_request(request, table_num):
             order.paid_at = timezone.now()
             order.save()
 
-    WaiterCall.objects.create(table_number=table_num, reason="paid", is_resolved=False)
-
+    WaiterCall.objects.create(table_number=table_int, reason="paid", is_resolved=False)
     return JsonResponse({"status": "success", "table_cleared": all_done})
-
-
-def get_contextual_recommendations(current_cart_item_ids=None):
-    """
-    Returns up to 3 smart item recommendations.
-    If the cart is empty, it serves highly-rated featured dishes.
-    If the cart contains items, it serves popular complements from different categories.
-    """
-    if not current_cart_item_ids:
-        return MenuItem.objects.filter(is_available=True, is_featured=True)[:3]
-
-    # Find matching orders containing these items to track companion selections
-    related_order_ids = (
-        OrderItem.objects.filter(menu_item_id__in=current_cart_item_ids)
-        .values_list("order_id", flat=True)
-        .distinct()
-    )
-
-    # Recommend common accompaniments that aren't already in the current cart
-    recommended_items = (
-        MenuItem.objects.filter(
-            orderitem__order_id__in=related_order_ids, is_available=True
-        )
-        .exclude(id__in=current_cart_item_ids)
-        .annotate(order_count=Count("orderitem"))
-        .order_by("-order_count")[:3]
-    )
-
-    if not recommended_items.exists():
-        # Fallback to general favorites if pairing history is sparse
-        recommended_items = MenuItem.objects.filter(is_available=True).exclude(
-            id__in=current_cart_item_ids
-        )[:3]
-
-    return recommended_items
 
 
 def generate_split_qr_api(request):
     table_num = request.GET.get("table")
     amount = request.GET.get("amount", "0.00")
 
-    active_orders = Order.objects.filter(table_number=table_num).exclude(
-        status="completed"
-    )
+    try:
+        parsed_amount = float(amount)
+    except ValueError:
+        return JsonResponse({"status": "error", "message": "Invalid amount payload"}, status=400)
+
+    active_orders = Order.objects.filter(table_number=table_num).exclude(status="completed")
     first_order = active_orders.first()
     order_id = first_order.id if first_order else "000"
     local_time = timezone.localtime(timezone.now()).strftime("%Y-%m-%d %I:%M %p")
 
-    # Generate QR targeting the specific split portion amount
-    qr_base64 = generate_bill_qr(
-        {
-            "amount": f"{float(amount):,.2f}",
-            "order_id": order_id,
-            "table_number": table_num,
-            "timestamp": local_time,
-        }
-    )
+    qr_base64 = generate_bill_qr({
+        "amount": f"{parsed_amount:,.2f}",
+        "order_id": order_id,
+        "table_number": table_num,
+        "timestamp": local_time,
+    })
     return JsonResponse({"qr_code": qr_base64})
 
 
+@login_required
 @user_passes_test(is_management_or_owner)
 def serve_table_qr(request, table_num):
-    # 1. Dynamic Local IP detection matching your root domain routing path
     host_address = request.build_absolute_uri("/")
     target_url = f"{host_address}?table={table_num}"
 
-    # 2. Configure High Error Correction (Handles restaurant wear-and-tear)
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_H,
@@ -1282,9 +1108,7 @@ def serve_table_qr(request, table_num):
     qr.add_data(target_url)
     qr.make(fit=True)
 
-    # 3. Draw image and stream directly from RAM memory
     img = qr.make_image(fill_color="#000000", back_color="#ffffff")
-
     buffer = io.BytesIO()
     img.save(buffer, format="PNG")
     buffer.seek(0)
@@ -1292,23 +1116,20 @@ def serve_table_qr(request, table_num):
     return HttpResponse(buffer.getvalue(), content_type="image/png")
 
 
+@login_required
 @user_passes_test(is_kitchen_or_higher)
 def update_kitchen_broadcast(request):
     if request.method == "POST":
         new_message = request.POST.get("message", "").strip()
-
-        # Clear out any old broadcast messages so the kitchen only sees the newest one
         KitchenBroadcast.objects.all().delete()
-
         if new_message:
             KitchenBroadcast.objects.create(message=new_message)
-
     return redirect(request.META.get("HTTP_REFERER", "management_dashboard"))
 
 
+@login_required
 @user_passes_test(is_management_or_owner)
 def save_menu_item(request, item_id=None):
-    """Handles adding new dishes and editing existing ones."""
     if request.method == "POST":
         category_id = request.POST.get("category")
         category = get_object_or_404(Category, id=category_id)
@@ -1333,9 +1154,9 @@ def save_menu_item(request, item_id=None):
     return redirect(f"{reverse('management_dashboard')}?tab=menu")
 
 
+@login_required
 @user_passes_test(is_management_or_owner)
 def save_category(request, category_id=None):
-    """Handles adding and renaming menu categories."""
     if request.method == "POST":
         if category_id:
             category = get_object_or_404(Category, id=category_id)
@@ -1347,14 +1168,13 @@ def save_category(request, category_id=None):
     return redirect(f"{reverse('management_dashboard')}?tab=menu")
 
 
-@user_passes_test(is_management_or_owner) #type: ignore
+@login_required
+@user_passes_test(is_management_or_owner)
 def unified_delete(request, model_type, object_id):
-    """A single, secure endpoint to delete Menu Items, Categories, or Reviews."""
     if request.method != "POST":
         return HttpResponseForbidden("Must use POST to delete.")
 
     return_tab = "menu"
-
     try:
         if model_type == "menu_item":
             obj = get_object_or_404(MenuItem, id=object_id)
@@ -1370,14 +1190,15 @@ def unified_delete(request, model_type, object_id):
             return HttpResponseForbidden("Invalid model type.")
 
         obj.delete()
-    except Exception as e:
-        print(f"Deletion error: {e}")
+    except Exception:
+        pass
 
     return redirect(f"{reverse('management_dashboard')}?tab={return_tab}")
 
-@user_passes_test(is_management_or_owner)   #type: ignore
+
+@login_required
+@user_passes_test(is_management_or_owner)
 def staff_place_order(request):
-    """API for staff to instantly create walk-in / manual orders"""
     if request.method != "POST":
         return JsonResponse({"status": "error", "message": "Method not allowed"}, status=405)
 
@@ -1389,15 +1210,15 @@ def staff_place_order(request):
         if not cart:
             return JsonResponse({"status": "error", "message": "Cart is empty"}, status=400)
 
-        new_order = Order.objects.create(
-            table_number=table_num,
-            status="received",
-            total_price=Decimal("0.00")
-        )
+        with transaction.atomic():
+            new_order = Order.objects.create(
+                table_number=table_num,
+                status="received",
+                total_price=Decimal("0.00")
+            )
 
-        running_total = Decimal("0.00")
-        for item in cart:
-            try:
+            running_total = Decimal("0.00")
+            for item in cart:
                 menu_item = MenuItem.objects.get(id=item.get("id"))
                 qty = int(item.get("qty", item.get("quantity", 1)))
 
@@ -1408,19 +1229,19 @@ def staff_place_order(request):
                     notes=item.get("notes", "")
                 )
                 running_total += Decimal(str(menu_item.price)) * qty
-            except Exception as e:
-                print(f"Error parsing Walk-In item: {e}")
 
-        new_order.total_price = running_total
-        new_order.save()
+            new_order.total_price = running_total
+            new_order.save()
+
         return JsonResponse({"status": "success"})
     except json.JSONDecodeError:
         return JsonResponse({"status": "error", "message": "Malformed JSON payload"}, status=400)
 
+
+@login_required
 @user_passes_test(is_management_or_owner)
 def get_table_orders(request, table_num):
-    """API to fetch live items for the Slide-Out Drawer"""
-    active_orders = Order.objects.filter(table_number=table_num).exclude(status="completed")
+    active_orders = Order.objects.filter(table_number=table_num).exclude(status="completed").prefetch_related("items__menu_item")
     items_data = []
 
     for order in active_orders:
@@ -1437,49 +1258,50 @@ def get_table_orders(request, table_num):
 
     return JsonResponse({"items": items_data, "table": table_num})
 
-@user_passes_test(is_management_or_owner)   #type: ignore
+
+@login_required
+@user_passes_test(is_management_or_owner)
 def modify_order_item(request, item_id):
-    """API to increment, decrement, or delete an item directly from the drawer"""
     if request.method != "POST":
         return JsonResponse({"status": "error", "message": "Method not allowed"}, status=405)
 
-    data = json.loads(request.body)
-    action = data.get("action")
-
     try:
-        item = OrderItem.objects.get(id=item_id)
+        data = json.loads(request.body)
+        action = data.get("action")
+        item = OrderItem.objects.select_related("order", "menu_item").get(id=item_id)
         order = item.order
         item_price = Decimal(str(item.menu_item.price))
 
-        if action == "increase":
-            item.quantity += 1
-            item.save()
-            order.total_price += item_price
-        elif action == "decrease":
-            if item.quantity > 1:
-                item.quantity -= 1
+        with transaction.atomic():
+            if action == "increase":
+                item.quantity += 1
                 item.save()
-                order.total_price -= item_price
-            else:
-                order.total_price -= item_price
+                order.total_price += item_price
+            elif action == "decrease":
+                if item.quantity > 1:
+                    item.quantity -= 1
+                    item.save()
+                    order.total_price -= item_price
+                else:
+                    order.total_price -= item_price
+                    item.delete()
+            elif action == "delete":
+                order.total_price -= (item_price * item.quantity)
                 item.delete()
-        elif action == "delete":
-            order.total_price -= (item_price * item.quantity)
-            item.delete()
 
-        order.save()
+            order.save()
 
-        # If order is empty, delete it completely
-        if order.items.count() == 0:
-            order.delete()
+            if order.items.count() == 0:
+                order.delete()
 
         return JsonResponse({"status": "success"})
     except OrderItem.DoesNotExist:
         return JsonResponse({"status": "error", "message": "Item not found"}, status=404)
 
+
+@login_required
 @user_passes_test(is_management_or_owner)
 def mark_order_paid(request, order_id):
-    """Settles a single walk-in order"""
     if request.method == "POST":
         order = get_object_or_404(Order, id=order_id)
         order.is_paid = True
@@ -1488,11 +1310,12 @@ def mark_order_paid(request, order_id):
         order.save()
     return redirect("management_dashboard")
 
+
+@login_required
 @user_passes_test(is_management_or_owner)
 def single_order_bill(request, order_id):
-    """Prints the thermal bill for a single walk-in order"""
     order = get_object_or_404(Order, id=order_id)
-    items = order.items.all()
+    items = order.items.select_related("menu_item").all()
     total = order.total_price
 
     qr_code = generate_bill_qr({
@@ -1512,16 +1335,17 @@ def single_order_bill(request, order_id):
     }
     return render(request, "orders/bill_print.html", context)
 
+
+@login_required
 @user_passes_test(is_management_or_owner)
 def get_drawer_items(request):
-    """Handles Drawer fetching for BOTH Tables AND individual Walk-In Orders"""
     table_num = request.GET.get('table')
     order_id = request.GET.get('order')
 
     if order_id:
-        active_orders = Order.objects.filter(id=order_id)
+        active_orders = Order.objects.filter(id=order_id).prefetch_related("items__menu_item")
     elif table_num:
-        active_orders = Order.objects.filter(table_number=table_num).exclude(status="completed")
+        active_orders = Order.objects.filter(table_number=table_num).exclude(status="completed").prefetch_related("items__menu_item")
     else:
         return JsonResponse({"items": []})
 
@@ -1539,9 +1363,10 @@ def get_drawer_items(request):
             })
     return JsonResponse({"items": items_data})
 
+
+@login_required
 @user_passes_test(is_management_or_owner)
 def clear_old_reviews(request):
-    """Deletes reviews older than 30 days to keep the database clean."""
     if request.method == "POST":
         days_threshold = 30
         cutoff_date = timezone.now() - timedelta(days=days_threshold)
@@ -1549,9 +1374,9 @@ def clear_old_reviews(request):
         messages.success(request, f"Successfully cleared {deleted_count} reviews older than {days_threshold} days.")
     return redirect(f"{reverse('management_dashboard')}?tab=reviews")
 
+
 @never_cache
 def login_view(request):
-    # 1. If the user is already logged in, route them using our new helpers
     if request.user.is_authenticated:
         if is_management_or_owner(request.user):
             return redirect('management_dashboard')
@@ -1560,17 +1385,13 @@ def login_view(request):
         else:
             return redirect('menu')
 
-    # 2. Processing the login form submission
     if request.method == 'POST':
         username = request.POST.get('username')
         password = request.POST.get('password')
 
         user = authenticate(request, username=username, password=password)
-
         if user is not None:
             login(request, user)
-
-            # Route them cleanly using our standardized helpers (no hardcoded usernames)
             if is_management_or_owner(user):
                 return redirect('management_dashboard')
             elif is_kitchen_or_higher(user):
@@ -1586,5 +1407,123 @@ def login_view(request):
 @never_cache
 def logout_view(request):
     logout(request)
-    # Clear session data and send them cleanly back to the login screen
     return redirect('login')
+
+@login_required
+@user_passes_test(is_kitchen_or_higher)
+def kitchen_orders_api(request):
+    """API Endpoint for lightweight 5-second AJAX polling"""
+    station_filter = request.GET.get('station', 'ALL')
+
+    # Base Queryset
+    active_orders = Order.objects.filter(
+        status__in=["received", "preparing"]
+    ).prefetch_related("items__menu_item").order_by("created_at")
+
+    orders_data = []
+    for order in active_orders:
+        items = []
+        for item in order.items.all():
+            # Apply station filter if selected
+            if station_filter != 'ALL' and item.menu_item.station != station_filter:
+                continue
+
+            items.append({
+                "id": item.id,
+                "name": item.menu_item.name,
+                "quantity": item.quantity,
+                "notes": item.notes,
+                "status": item.status,
+                "station": item.menu_item.station,
+            })
+
+        # Skip ticket if no items match the active station filter
+        if not items:
+            continue
+
+        orders_data.append({
+            "id": order.id,
+            "table_number": order.table_number,
+            "status": order.status,
+            "created_at": order.created_at.isoformat(),
+            "items": items,
+        })
+
+    # Summary breakdown
+    summary_qs = OrderItem.objects.filter(order__status__in=["received", "preparing"])
+    if station_filter != 'ALL':
+        summary_qs = summary_qs.filter(menu_item__station=station_filter)
+
+    summary = list(
+        summary_qs.values("menu_item__name")
+        .annotate(total_qty=Sum("quantity"))
+    )
+
+    broadcast = KitchenBroadcast.objects.last()
+
+    return JsonResponse({
+        "orders": orders_data,
+        "summary": summary,
+        "broadcast": broadcast.message if broadcast else None,
+    })
+
+@login_required
+@user_passes_test(is_kitchen_or_higher)
+def update_item_status(request, item_id):
+    """Checkbox toggle: Sets item to 'preparing' or 'received'"""
+    try:
+        data = json.loads(request.body)
+        new_status = data.get("status")  # Will be 'preparing' or 'received'
+
+        if new_status not in ["received", "preparing", "ready"]:
+            return JsonResponse({"status": "error", "message": "Invalid status"}, status=400)
+
+        item = OrderItem.objects.select_related("order").get(id=item_id)
+        item.status = new_status
+        item.save()
+
+        # Update order to 'preparing' if any item starts cooking
+        order = item.order
+        if order.status == "received" and new_status == "preparing":
+            order.status = "preparing"
+            order.save()
+
+        return JsonResponse({"status": "success", "item_status": item.status})
+    except OrderItem.DoesNotExist:
+        return JsonResponse({"status": "error", "message": "Item not found"}, status=404)
+
+@login_required
+@user_passes_test(is_kitchen_or_higher)
+def get_recent_completed_orders(request):
+    """Fetches orders completed in the last 30 minutes for the Recall feature"""
+    cutoff = timezone.now() - timedelta(minutes=30)
+    completed_orders = Order.objects.filter(
+        status="ready",
+        updated_at__gte=cutoff # assumes updated_at field or fallback to created_at
+    ).prefetch_related("items__menu_item").order_by("-id")[:10]
+
+    data = []
+    for o in completed_orders:
+        data.append({
+            "id": o.id,
+            "table_number": o.table_number,
+            "items_summary": ", ".join([f"{i.quantity}x {i.menu_item.name}" for i in o.items.all()])
+        })
+    return JsonResponse({"completed_orders": data})
+
+
+@login_required
+@user_passes_test(is_kitchen_or_higher)
+@require_POST
+def recall_order_api(request, order_id):
+    """Restores a completed/ready order back to active 'preparing' status"""
+    try:
+        order = Order.objects.get(id=order_id)
+        order.status = "preparing"
+        order.save()
+
+        # Reset items back to preparing
+        order.items.all().update(status="preparing")
+        return JsonResponse({"status": "success"})
+    except Order.DoesNotExist:
+        return JsonResponse({"status": "error", "message": "Order not found"}, status=404)

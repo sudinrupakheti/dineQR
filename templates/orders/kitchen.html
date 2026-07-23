@@ -4,360 +4,431 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Kitchen Display | DineQR</title>
+    <title>Kitchen Display System | DineQR</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         .order-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-
         @keyframes border-flash {
             0%, 100% { border-color: #f43f5e; box-shadow: 0 0 0 0px rgba(244, 63, 94, 0.2); }
             50% { border-color: #be123c; box-shadow: 0 0 0 4px rgba(244, 63, 94, 0.1); }
         }
-        .urgent-card {
-            animation: border-flash 2s infinite;
-            background-color: #fff1f2 !important;
-            border-left-color: #f43f5e !important;
-        }
+        .urgent-card { animation: border-flash 2s infinite; background-color: #fff1f2 !important; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-    </style>
-    <script>
-        // Execution safety patch: Avoids structural layout flickering during page refreshes
-        (function() {
-            const currentNotice = "{{ broadcast_message|escapejs }}";
-            if (currentNotice && localStorage.getItem('kds_dismissed_notice') === currentNotice) {
-                document.documentElement.classList.add('hide-broadcast-initially');
-            }
-        })();
-    </script>
-    <style>
-        .hide-broadcast-initially #broadcast-banner { display: none !important; }
+
+        @media print {
+            body * { visibility: hidden; }
+            .printable-ticket, .printable-ticket * { visibility: visible; }
+            .printable-ticket { position: absolute; left: 0; top: 0; width: 100%; }
+        }
     </style>
 </head>
-<body class="bg-gray-50 text-gray-900 font-sans antialiased min-h-screen selection:bg-orange-500 selection:text-white">
+<body class="bg-gray-50 text-gray-900 font-sans antialiased min-h-screen">
 
-    <!-- Toast Notification Container -->
     <div id="kds-toast-container" class="fixed top-24 right-6 z-[100] flex flex-col gap-3 pointer-events-none w-80"></div>
 
-    <!-- Main Navigation Bar -->
-    <nav class="bg-white/95 backdrop-blur-md shadow-sm sticky top-0 z-50 border-b border-gray-100 transition-all">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+    <!-- Navigation Header -->
+    <nav class="bg-white/95 backdrop-blur-md shadow-sm sticky top-0 z-50 border-b border-gray-100">
+        <div class="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
             <div class="flex items-center gap-4">
-                <a href="#" class="text-xl font-serif font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                    <div class="bg-orange-600 text-white p-1.5 rounded-lg shadow-sm">
-                        <i data-lucide="chef-hat" class="w-4 h-4"></i>
-                    </div>
-                    <span>dineQR <span class="text-orange-600 font-sans text-sm tracking-normal ml-0.5">Kitchen</span></span>
-                </a>
+                <span class="text-xl font-serif font-bold text-gray-900 flex items-center gap-2">
+                    <div class="bg-orange-600 text-white p-1.5 rounded-lg"><i data-lucide="chef-hat" class="w-4 h-4"></i></div>
+                    dineQR <span class="text-orange-600 font-sans text-sm ml-0.5">Kitchen</span>
+                </span>
             </div>
 
-            <!-- Global Station Commands -->
-            <div class="flex items-center gap-3 md:gap-5">
-                <button onclick="executeWaiterSummon('KITCHEN','')" class="bg-gray-900 hover:bg-orange-600 text-white text-[10px] font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 transition-all shadow-sm tracking-widest uppercase">
+            <div class="flex items-center gap-3">
+                <!-- Audio Enable Button -->
+                <button id="audio-toggle-btn" onclick="toggleAudioState()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 border border-gray-200">
+                    <i data-lucide="volume-x" id="audio-icon" class="w-4 h-4"></i>
+                    <span id="audio-status-text">Audio Off</span>
+                </button>
+
+                <!-- Recall History Modal Trigger -->
+                <button onclick="toggleRecallModal(true)" class="bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold px-3 py-2 rounded-xl flex items-center gap-1.5 border border-gray-200">
+                    <i data-lucide="history" class="w-4 h-4"></i>
+                    <span>Recall</span>
+                </button>
+
+                <!-- Waiter Call -->
+                <button onclick="executeWaiterSummon('KITCHEN','')" class="bg-gray-900 hover:bg-orange-600 text-white text-[10px] font-bold px-4 py-2 rounded-xl flex items-center gap-1.5 uppercase">
                     <i data-lucide="bell" class="w-3.5 h-3.5"></i>
                     <span class="hidden md:inline">Call Waiter</span>
                 </button>
-
-                <div class="flex items-center gap-2 bg-gray-50 px-3 py-2 rounded-xl border border-gray-200/80 shadow-sm">
-                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span class="text-[10px] font-bold font-mono tracking-widest text-gray-700 uppercase" id="system-clock">00:00:00</span>
-                </div>
-                <form action="{% url 'logout' %}" method="POST" class="inline m-0 p-0" id="logout-form">
-                    {% csrf_token %}
-                    <button type="submit"
-                            onclick="event.stopPropagation();"
-                            class="flex items-center gap-2 px-4 py-2 text-sm text-rose-600 hover:bg-rose-50 rounded-xl transition-all font-medium w-full text-left">
-                        <i data-lucide="log-out" class="w-4 h-4"></i>
-                        <span>Log Out</span>
-                    </button>
-                </form>
             </div>
         </div>
     </nav>
 
-    <!-- Permanent Broadcast Notice Layer -->
-    {% if broadcast_message %}
-    <div id="broadcast-banner" class="bg-orange-50 text-orange-900 border-b border-orange-200 transition-all duration-300 transform origin-top shadow-sm">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between">
-            <div class="flex items-center gap-3 min-w-0">
-                <div class="bg-orange-100 text-orange-600 p-1.5 rounded-lg shrink-0">
-                    <i data-lucide="megaphone" class="w-4 h-4"></i>
-                </div>
-                <p class="text-[10px] font-bold tracking-widest uppercase shrink-0 text-orange-600">Head Chef Notice:</p>
-                <p class="text-sm font-medium truncate text-orange-900">{{ broadcast_message }}</p>
-            </div>
-            <button onclick="dismissBroadcast()" class="p-1.5 hover:bg-orange-100 rounded-xl transition-colors text-orange-700 ml-4" title="Dismiss Message">
-                <i data-lucide="x" class="w-4 h-4"></i>
-            </button>
-        </div>
-    </div>
-    {% endif %}
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
 
-    <!-- Hidden audio for alerts -->
-    <div class="hidden">{% csrf_token %}</div>
-    <audio id="order-chime" src="https://assets.mixkit.co/active_storage/sfx/1390/1390-preview.mp3" preload="auto"></audio>
-
-    <!-- Master Grid Container Workspace -->
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 md:py-8 space-y-8">
-
-        <!-- 1. PRODUCTION LINE QUANTITY AGGREGATOR -->
-        <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-200/80 animate-in fade-in slide-in-from-top-4 duration-500">
-            <div class="flex items-center gap-2 mb-4">
-                <i data-lucide="layers" class="w-4 h-4 text-orange-500"></i>
-                <h2 class="text-[10px] font-bold tracking-widest text-gray-400 uppercase">Live Item Consolidation</h2>
-            </div>
-
-            <div class="flex flex-wrap gap-2.5 overflow-x-auto no-scrollbar pb-1">
-                {% for summary in item_summary %}
-                <div class="bg-gray-50 border border-gray-200/80 px-3 py-1.5 rounded-xl flex items-center gap-2 transition-colors shrink-0 hover:border-gray-300 cursor-default shadow-sm">
-                    <span class="inline-flex items-center justify-center bg-gray-900 text-white text-[10px] font-bold px-2 py-0.5 rounded-lg shadow-sm min-w-[24px]">
-                        {{ summary.total_qty }}
-                    </span>
-                    <span class="text-gray-700 font-bold text-[10px] uppercase tracking-wider">{{ summary.menu_item__name }}</span>
-                </div>
-                {% empty %}
-                <div class="flex items-center gap-2 text-gray-400 font-bold text-[10px] tracking-widest uppercase py-1">
-                    <i data-lucide="check-circle" class="w-3.5 h-3.5 text-emerald-500"></i>
-                    No active dishes currently in preparation.
-                </div>
-                {% endfor %}
-            </div>
+        <!-- Station Filter Bar -->
+        <div class="flex items-center gap-2 overflow-x-auto no-scrollbar border-b border-gray-200 pb-3">
+            <span class="text-xs font-bold text-gray-400 uppercase tracking-wider mr-2">Stations:</span>
+            <button onclick="setStation('ALL')" class="station-tab bg-orange-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold" data-station="ALL">All</button>
+            <button onclick="setStation('Mains')" class="station-tab bg-gray-100 text-gray-600 px-3 py-1.5 rounded-xl text-xs font-bold" data-station="Mains">Mains</button>
+            <button onclick="setStation('Snacks')" class="station-tab bg-gray-100 text-gray-600 px-3 py-1.5 rounded-xl text-xs font-bold" data-station="Snacks">Snacks</button>
+            <button onclick="setStation('Bar')" class="station-tab bg-gray-100 text-gray-600 px-3 py-1.5 rounded-xl text-xs font-bold" data-station="Bar">Bar</button>
+            <button onclick="setStation('DESSERT')" class="station-tab bg-gray-100 text-gray-600 px-3 py-1.5 rounded-xl text-xs font-bold" data-station="DESSERT">Desserts</button>
         </div>
 
-        <!-- Section Identifier Header -->
-        <div class="flex items-center justify-between border-b border-gray-200 pb-3">
-            <div class="flex items-center gap-3">
-                <h1 class="text-xl font-serif font-bold tracking-tight text-gray-900">Active Station Orders</h1>
-                <span class="bg-gray-100 text-gray-500 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest border border-gray-200/60 shadow-sm">
-                    {{ orders|length }} Tickets
-                </span>
-            </div>
+        <!-- Consolidation Bar -->
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-gray-200">
+            <h2 class="text-[10px] font-bold tracking-widest text-gray-400 uppercase mb-3">Item Consolidation</h2>
+            <div id="consolidation-container" class="flex flex-wrap gap-2"></div>
         </div>
 
-        <!-- 2. PRODUCTION LIVE ORDERS GRID MATRIX -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-            {% for order in orders %}
-            <div class="order-card bg-white rounded-2xl shadow-sm border flex flex-col h-full relative overflow-hidden
-                {% if order.status == 'received' %} border-l-4 border-l-amber-500 border-gray-200/80
-                {% elif order.status == 'preparing' %} border-l-4 border-l-blue-500 border-gray-200/80
-                {% else %} border-gray-200/80 {% endif %}"
-                data-order-id="{{ order.id }}"
-                data-created="{{ order.created_at|localtime|date:'c' }}">
-
-                <!-- Ticket Control Cap Sheet -->
-                <div class="p-5 bg-gray-50/50 border-b border-gray-100 flex justify-between items-start gap-3">
-                    <div class="min-w-0 flex-1">
-                        <div class="flex items-center gap-2">
-                            <h3 class="text-xl font-serif font-bold text-gray-900 tracking-tight truncate">
-                                {% if order.table_number == '0' %} Counter {% else %} Table {{ order.table_number }} {% endif %}
-                            </h3>
-                            <button onclick="executeWaiterSummon('{{ order.table_number }}', 'food_ready')"
-                                    class="p-1.5 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-xl border border-transparent hover:border-orange-100 transition-all active:scale-95"
-                                    title="Call Waiter to this Table">
-                                <i data-lucide="bell-ring" class="w-4 h-4"></i>
-                            </button>
-                        </div>
-                        <p class="text-[9px] font-bold text-gray-400 mt-1.5 tracking-widest uppercase">Order #{{ order.id }}</p>
-                    </div>
-                    <div class="text-right shrink-0">
-                        <div class="inline-flex items-center gap-1.5 bg-white border border-gray-200/80 px-2 py-1 rounded-lg shadow-sm">
-                            <i data-lucide="clock" class="w-3 h-3 text-gray-400"></i>
-                            <span class="wait-timer text-[10px] font-bold tracking-widest uppercase text-gray-700">0m</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Ticket Content Parameters -->
-                <div class="p-5 flex-grow divide-y divide-gray-100 space-y-3 overflow-y-auto max-h-[380px] bg-white">
-                    {% for item in order.items.all %}
-                    <div class="flex items-start gap-3 pt-3 first:pt-0">
-                        <div class="bg-gray-900 text-white font-bold text-[10px] w-6 h-6 rounded-lg flex items-center justify-center shrink-0 shadow-sm mt-0.5">
-                            {{ item.quantity }}
-                        </div>
-                        <div class="min-w-0 flex-1">
-                            <p class="font-bold text-gray-900 text-xs leading-tight tracking-wide uppercase">{{ item.menu_item.name }}</p>
-
-                            <!-- Allergy Context Scanning Matrix Hook -->
-                            {% if item.notes %}
-                            <div class="item-note-wrapper mt-2" data-note-text="{{ item.notes|escapejs }}">
-                                <div class="p-2.5 bg-gray-50 border border-gray-200/60 rounded-xl flex items-start gap-2 shadow-sm">
-                                    <i data-lucide="message-square" class="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5"></i>
-                                    <p class="text-[10px] font-bold uppercase tracking-wide text-gray-600 leading-normal">{{ item.notes }}</p>
-                                </div>
-                            </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-
-                <!-- Action Execution Pipeline Footnotes -->
-                <div class="p-4 bg-gray-50/80 border-t border-gray-100">
-                    <form method="POST" action="{% url 'update_order_status' order.id %}" class="m-0">
-                        {% csrf_token %}
-                        {% if order.status == 'received' %}
-                            <input type="hidden" name="status" value="preparing">
-                            <button class="w-full bg-blue-600 text-white py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-blue-700 active:scale-[0.98] transition-all shadow-sm flex items-center justify-center gap-1.5">
-                                <i data-lucide="play" class="w-3.5 h-3.5"></i>
-                                Accept & Prepare
-                            </button>
-                        {% elif order.status == 'preparing' %}
-                            <input type="hidden" name="status" value="ready">
-                            <button class="w-full bg-emerald-600 text-white py-3 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-emerald-700 active:scale-[0.98] transition-all shadow-sm flex items-center justify-center gap-1.5">
-                                <i data-lucide="check" class="w-3.5 h-3.5"></i>
-                                Ready for Pickup
-                            </button>
-                        {% endif %}
-                    </form>
-                </div>
-            </div>
-            {% empty %}
-            <!-- Idle Vector Configuration View -->
-            <div class="col-span-full py-24 text-center border border-dashed border-gray-200 rounded-2xl bg-white max-w-lg mx-auto px-6 shadow-sm">
-                <div class="bg-gray-50 border border-gray-200/80 w-12 h-12 rounded-xl flex items-center justify-center mx-auto mb-4 text-gray-400 shadow-sm">
-                    <i data-lucide="clipboard-check" class="w-5 h-5"></i>
-                </div>
-                <h3 class="text-gray-900 font-serif font-bold text-lg tracking-tight">All Stations Clear</h3>
-                <p class="text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-1.5">Incoming orders will appear here automatically.</p>
-            </div>
-            {% endfor %}
-        </div>
+        <!-- Tickets Grid -->
+        <div id="orders-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"></div>
     </main>
 
-    <script>
-        const CURRENT_NOTICE_TEXT = "{{ broadcast_message|escapejs }}";
+    <!-- Recall Modal Drawer -->
+    <div id="recall-modal" class="fixed inset-0 bg-black/50 z-[100] hidden flex justify-end">
+        <div class="bg-white w-full max-w-md h-full p-6 space-y-4 overflow-y-auto">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 class="font-serif font-bold text-lg">Recently Completed Tickets</h3>
+                <button onclick="toggleRecallModal(false)" class="p-1 hover:bg-gray-100 rounded-lg"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div id="recall-list" class="space-y-3"></div>
+        </div>
+    </div>
 
-        // --- 1. PERSISTENT NOTICE SYSTEM ---
-        function dismissBroadcast() {
-            const banner = document.getElementById('broadcast-banner');
-            if (banner) {
-                if (CURRENT_NOTICE_TEXT) {
-                    localStorage.setItem('kds_dismissed_notice', CURRENT_NOTICE_TEXT);
+    <audio id="order-chime" src="https://assets.mixkit.co/active_storage/sfx/1390/1390-preview.mp3" preload="auto"></audio>
+
+    <script>
+        let currentStation = 'ALL';
+        let knownOrderIds = new Set();
+        let isAudioEnabled = false;
+
+        const csrfToken = '{{ csrf_token }}';
+
+        // Toggle Audio Autoplay
+        function toggleAudioState() {
+            const chime = document.getElementById('order-chime');
+            isAudioEnabled = !isAudioEnabled;
+
+            const icon = document.getElementById('audio-icon');
+            const text = document.getElementById('audio-status-text');
+
+            if (isAudioEnabled) {
+                chime.play().then(() => chime.pause()).catch(() => {});
+                text.innerText = "Audio On";
+                icon.setAttribute('data-lucide', 'volume-2');
+            } else {
+                text.innerText = "Audio Off";
+                icon.setAttribute('data-lucide', 'volume-x');
+            }
+            lucide.createIcons();
+        }
+
+        function setStation(station) {
+            currentStation = station;
+            document.querySelectorAll('.station-tab').forEach(tab => {
+                if (tab.dataset.station === station) {
+                    tab.className = 'station-tab bg-orange-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold';
+                } else {
+                    tab.className = 'station-tab bg-gray-100 text-gray-600 px-3 py-1.5 rounded-xl text-xs font-bold';
                 }
-                banner.style.height = '0px';
-                banner.style.paddingTop = '0px';
-                banner.style.paddingBottom = '0px';
-                banner.style.opacity = '0';
-                setTimeout(() => banner.remove(), 300);
+            });
+            fetchOrders();
+        }
+
+        // --- AJAX POLLING LOOP ---
+        async function fetchOrders() {
+            try {
+                const response = await fetch(`/api/kitchen/orders/?station=${currentStation}`);
+                if (!response.ok) return;
+
+                const data = await response.json();
+                renderConsolidation(data.summary);
+                renderOrders(data.orders);
+
+                // Sound trigger on new orders
+                let hasNewOrder = false;
+                data.orders.forEach(o => {
+                    if (!knownOrderIds.has(o.id)) {
+                        knownOrderIds.add(o.id);
+                        hasNewOrder = true;
+                    }
+                });
+
+                if (hasNewOrder && isAudioEnabled) {
+                    document.getElementById('order-chime')?.play().catch(() => {});
+                }
+            } catch (err) {
+                console.error("Polling error:", err);
             }
         }
 
-        if (CURRENT_NOTICE_TEXT && localStorage.getItem('kds_dismissed_notice') === CURRENT_NOTICE_TEXT) {
-            document.getElementById('broadcast-banner')?.remove();
+        function renderConsolidation(summary) {
+            const container = document.getElementById('consolidation-container');
+            if (!summary.length) {
+                container.innerHTML = `<p class="text-xs text-gray-400 font-bold uppercase">No active dishes in preparation.</p>`;
+                return;
+            }
+
+            container.innerHTML = summary.map(item => `
+                <div class="bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl flex items-center gap-2">
+                    <span class="bg-gray-900 text-white text-[10px] font-bold px-2 py-0.5 rounded-lg">${item.total_qty}</span>
+                    <span class="text-gray-700 font-bold text-[10px] uppercase">${item.menu_item__name}</span>
+                </div>
+            `).join('');
         }
 
-        // --- 2. RESTAURANT INTER-DEPARTMENTAL CALL WAITER PIPELINE ---
-        function executeWaiterSummon(tableNumber, reasonCode = "help") {
-            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value;
+        function renderOrders(orders) {
+            const grid = document.getElementById('orders-grid');
+            if (!orders.length) {
+                grid.innerHTML = `<div class="col-span-full py-16 text-center border border-dashed rounded-2xl bg-white"><p class="text-gray-400 text-xs uppercase font-bold">All Stations Clear</p></div>`;
+                return;
+            }
 
-            fetch('/api/call-waiter/', {
+            grid.innerHTML = orders.map(order => {
+                const createdTime = new Date(order.created_at);
+                const diffMins = Math.max(0, Math.floor((new Date() - createdTime) / 60000));
+
+                let timerBorder = "border-l-emerald-500";
+                let timerText = "text-emerald-600";
+                let urgentClass = "";
+
+                if (diffMins >= 15) {
+                    timerBorder = "border-l-rose-500";
+                    timerText = "text-rose-600";
+                    urgentClass = "urgent-card";
+                } else if (diffMins >= 8) {
+                    timerBorder = "border-l-amber-500";
+                    timerText = "text-amber-600";
+                }
+
+                return `
+                    <div class="order-card bg-white rounded-2xl shadow-sm border border-gray-200 border-l-4 ${timerBorder} ${urgentClass} flex flex-col h-full overflow-hidden">
+                        <div class="p-4 bg-gray-50/50 border-b flex justify-between items-start">
+                            <div>
+                                <h3 class="font-serif font-bold text-lg">${order.table_number === 0 ? 'Counter' : 'Table ' + order.table_number}</h3>
+                                <p class="text-[9px] font-bold text-gray-400 uppercase">Order #${order.id}</p>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-[10px] font-bold uppercase tracking-wider ${timerText}">${diffMins} MINS</span>
+                                <button onclick="printTicket(${order.id})" class="ml-2 p-1 text-gray-400 hover:text-gray-600" title="Print KOT"><i data-lucide="printer" class="w-3.5 h-3.5"></i></button>
+                            </div>
+                        </div>
+
+                        <!-- ITEMS LIST -->
+                        <div class="p-4 flex-grow space-y-2 overflow-y-auto max-h-[300px]">
+                            ${order.items.map(item => {
+                                const isPreparing = item.status === 'preparing';
+                                return `
+                                    <div class="flex items-center justify-between p-2 rounded-xl transition-colors ${isPreparing ? 'bg-amber-50 border border-amber-200' : 'bg-gray-50'}">
+                                        <div class="flex items-center gap-2.5 min-w-0">
+                                            <input type="checkbox" ${isPreparing ? 'checked' : ''}
+                                                onchange="toggleItemStatus(${item.id}, this.checked)"
+                                                class="w-4 h-4 accent-amber-600 rounded cursor-pointer">
+                                            <div class="min-w-0">
+                                                <p class="text-xs font-bold uppercase ${isPreparing ? 'text-amber-900' : 'text-gray-900'}">
+                                                    ${item.quantity}x ${item.name}
+                                                </p>
+                                                ${item.notes ? `<p class="text-[10px] text-rose-600 font-bold uppercase">${item.notes}</p>` : ''}
+                                            </div>
+                                        </div>
+                                        <span class="text-[9px] font-bold uppercase px-2 py-0.5 rounded-md ${isPreparing ? 'bg-amber-200 text-amber-800' : 'bg-gray-200 text-gray-600'}">
+                                            ${isPreparing ? 'Preparing' : 'Received'}
+                                        </span>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+
+                        <!-- MAIN CARD BUTTON (Bumps/Vanishes Order) -->
+                        <div class="p-3 bg-gray-50 border-t">
+                            <button onclick="completeOrder(${order.id})" class="w-full bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white py-2.5 rounded-xl font-bold text-xs uppercase tracking-wider transition-all shadow-sm flex items-center justify-center gap-1.5">
+                                <i data-lucide="check-circle" class="w-4 h-4"></i>
+                                Ready for Pickup
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            lucide.createIcons();
+        }
+
+        // --- 0. Notification Toast Helper (Prevents ReferenceError) ---
+        function showKitchenToast(message, type = 'success') {
+            const container = document.getElementById('kds-toast-container');
+            if (!container) {
+                console.log(`[Toast ${type}]: ${message}`);
+                return;
+            }
+
+            const el = document.createElement('div');
+            el.className = `p-4 text-[10px] font-bold uppercase tracking-widest rounded-2xl border shadow-xl flex items-center gap-2.5 transition-all duration-300 ${
+                type === 'success' ? 'bg-gray-900 border-gray-800 text-white' : 'bg-rose-50 border-rose-200 text-rose-700'
+            }`;
+            el.textContent = message;
+
+            container.appendChild(el);
+            setTimeout(() => el.remove(), 3000);
+        }
+
+        // --- 1. Checkbox Toggle: Toggles item between 'preparing' and 'received' ---
+        async function toggleItemStatus(itemId, isChecked) {
+            const statusToSend = isChecked ? 'preparing' : 'received';
+
+            await fetch(`/api/kitchen/item-status/${itemId}/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': csrfToken
                 },
-                body: JSON.stringify({
-                    table_number: tableNumber,
-                    reason: reasonCode
-                })
-            })
-            .then(async response => {
-                const data = await response.json();
-                if (!response.ok) throw new Error(data.message || 'Transmission failed.');
+                body: JSON.stringify({ status: statusToSend })
+            });
 
-                const alertMsg = (tableNumber === 'KITCHEN' || tableNumber === '0')
+            // Refresh display (ticket stays on screen!)
+            fetchOrders();
+        }
+
+        // Update complete order status
+        async function updateOrderStatus(orderId, status) {
+            try {
+                const response = await fetch(`/update_order_status/${orderId}/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({ status: status })
+                });
+
+                if (!response.ok) {
+                    const data = await response.json().catch(() => ({}));
+                    showKitchenToast(data.message || 'Failed to bump ticket.', 'error');
+                    return;
+                }
+
+                showKitchenToast(`Order #${orderId} cleared!`, 'success');
+
+                // Immediately refresh orders on screen
+                fetchOrders();
+            } catch (error) {
+                console.error("Bump Error:", error);
+                showKitchenToast('Network error while bumping ticket.', 'error');
+            }
+        }
+
+        // --- 2. Complete Order Function (Fixes 404 & ReferenceError) ---
+        async function completeOrder(orderId) {
+            try {
+                // Dynamically generates the exact Django URL from urls.py
+                const baseUrl = "{% url 'update_order_status' 0 %}";
+                const targetUrl = baseUrl.replace('/0/', `/${orderId}/`);
+
+                const response = await fetch(targetUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
+                    body: JSON.stringify({ status: 'ready' })
+                });
+
+                if (response.ok) {
+                    showKitchenToast(`Order #${orderId} marked Ready!`, 'success');
+                    // Re-fetch orders so the completed ticket vanishes from the screen
+                    fetchOrders();
+                } else {
+                    const data = await response.json().catch(() => ({}));
+                    showKitchenToast(data.message || 'Failed to complete order.', 'error');
+                }
+            } catch (err) {
+                console.error("Error completing order:", err);
+                showKitchenToast('Network error while completing order.', 'error');
+            }
+        }
+
+
+        // Recall Modal Handling
+        async function toggleRecallModal(show) {
+            const modal = document.getElementById('recall-modal');
+            modal.classList.toggle('hidden', !show);
+            if (show) {
+                const res = await fetch('/api/kitchen/recent-completed/');
+                const data = await res.json();
+                const list = document.getElementById('recall-list');
+
+                if (!data.completed_orders.length) {
+                    list.innerHTML = `<p class="text-xs text-gray-400">No recently completed orders found.</p>`;
+                    return;
+                }
+
+                list.innerHTML = data.completed_orders.map(o => `
+                    <div class="p-3 border border-gray-200 rounded-xl flex items-center justify-between">
+                        <div>
+                            <p class="font-bold text-xs">Table ${o.table_number} (Order #${o.id})</p>
+                            <p class="text-[10px] text-gray-500 truncate max-w-[200px]">${o.items_summary}</p>
+                        </div>
+                        <button onclick="recallOrder(${o.id})" class="bg-gray-900 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase">Recall</button>
+                    </div>
+                `).join('');
+            }
+        }
+
+        // Fixes Call Waiter URL and handles response toasts
+        async function executeWaiterSummon(tableNumber, reasonCode = "help") {
+            try {
+                const callWaiterUrl = "{% url 'call_waiter_api' %}";
+
+                // Map 'KITCHEN' or blank values to 0
+                const targetTable = (tableNumber === 'KITCHEN' || !tableNumber) ? 0 : tableNumber;
+
+                const response = await fetch(callWaiterUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({
+                        table_number: targetTable,
+                        reason: reasonCode || "help"
+                    })
+                });
+
+                const data = await response.json().catch(() => ({}));
+
+                if (!response.ok) {
+                    showKitchenToast(data.message || 'Call waiter failed.', 'error');
+                    return;
+                }
+
+                const alertMsg = (targetTable === 0 || targetTable === '0')
                     ? "Waiter called to Kitchen!"
-                    : `Waiter dispatched to Table ${tableNumber}`;
+                    : `Waiter dispatched to Table ${targetTable}`;
 
                 showKitchenToast(alertMsg, 'success');
-            })
-            .catch(error => {
-                showKitchenToast(error.message, 'error');
-            });
-        }
-
-        // Minimalist Dynamic Dashboard System Toast UI Notifications
-        function showKitchenToast(message, type = 'success') {
-            const container = document.getElementById('kds-toast-container');
-            if (!container) return;
-
-            const el = document.createElement('div');
-            el.className = `p-4 text-[10px] font-bold uppercase tracking-widest rounded-2xl border shadow-xl flex items-center gap-2.5 transition-all duration-300 transform translate-x-12 opacity-0 pointer-events-auto ${
-                type === 'success' ? 'bg-gray-900 border-gray-800 text-white' : 'bg-rose-50 border-rose-200 text-rose-700'
-            }`;
-
-            const icon = type === 'success' ? 'check-circle-2' : 'alert-triangle';
-            el.innerHTML = `<i data-lucide="${icon}" class="w-4 h-4 shrink-0"></i> <span>${message}</span>`;
-
-            container.appendChild(el);
-            lucide.createIcons();
-
-            setTimeout(() => {
-                el.classList.replace('translate-x-12', 'translate-x-0');
-                el.classList.replace('opacity-0', 'opacity-100');
-            }, 10);
-
-            setTimeout(() => {
-                el.classList.replace('translate-x-0', 'translate-x-12');
-                el.classList.replace('opacity-100', 'opacity-0');
-                setTimeout(() => el.remove(), 300);
-            }, 4000);
-        }
-
-        // --- 3. ALLERGY SCANNERS & TIMERS CONTROL PIPELINE ---
-        function runAllergyAnalysis() {
-            document.querySelectorAll('.item-note-wrapper').forEach(wrapper => {
-                const rawText = wrapper.getAttribute('data-note-text').toLowerCase();
-                // Flag items mentioning allergies or omissions
-                if (rawText.includes('allergy') || rawText.includes('allergic') || rawText.includes('no ') || rawText.includes('without')) {
-                    const txt = wrapper.querySelector('p').innerText;
-                    wrapper.innerHTML = `
-                        <div class="p-2.5 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl flex items-start gap-2 shadow-sm animate-pulse">
-                            <i data-lucide="shield-alert" class="w-3.5 h-3.5 shrink-0 mt-0.5"></i>
-                            <p class="text-[10px] font-bold tracking-widest uppercase leading-normal">${txt}</p>
-                        </div>
-                    `;
-                }
-            });
-        }
-
-        function updateTimers() {
-            document.querySelectorAll('.order-card').forEach(card => {
-                const createdTime = new Date(card.dataset.created);
-                const now = new Date();
-                const diffMs = now - createdTime;
-                const diffMins = Math.floor(diffMs / 60000);
-
-                const timerEl = card.querySelector('.wait-timer');
-                if (timerEl) {
-                    timerEl.innerText = `${diffMins} MINS`;
-                    if (diffMins >= 15) {
-                        card.classList.add('urgent-card');
-                        timerEl.classList.replace('text-gray-700', 'text-rose-600');
-                        timerEl.parentElement.classList.replace('border-gray-200/80', 'border-rose-200');
-                    }
-                }
-            });
-        }
-
-        // Initialization Run
-        runAllergyAnalysis();
-        updateTimers();
-        setInterval(updateTimers, 60000);
-
-        // Automated Background Page Synchronization (15s)
-        setTimeout(() => { location.reload(); }, 15000);
-
-        // Header Clock updates
-        setInterval(() => {
-            const clockEl = document.getElementById('system-clock');
-            if (clockEl) {
-                const now = new Date();
-                clockEl.innerText = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'});
+            } catch (err) {
+                console.error("Waiter Call Error:", err);
+                showKitchenToast('Network error calling waiter.', 'error');
             }
-        }, 1000);
+        }
 
+        async function recallOrder(orderId) {
+            await fetch(`/api/kitchen/recall/${orderId}/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': csrfToken }
+            });
+            toggleRecallModal(false);
+            fetchOrders();
+        }
+
+        // Ticket Print Hook
+        function printTicket(orderId) {
+            window.print();
+        }
+
+        // Start 5-second polling loop
+        fetchOrders();
+        setInterval(fetchOrders, 5000);
         lucide.createIcons();
     </script>
 </body>

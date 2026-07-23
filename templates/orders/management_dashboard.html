@@ -982,10 +982,11 @@
             });
         }
 
-        // --- WAITER CALL POLLING ---
+        // --- 1. GLOBAL VARIABLES FOR WAITER CALL POLLING ---
         let lastCallCount = 0;
         const autoResolvingTimers = new Map();
 
+        // --- 2. WAITER CALL POLLING FUNCTION ---
         async function pollWaiterCalls() {
             try {
                 const response = await fetch('{% url "get_active_waiter_calls" %}');
@@ -1004,7 +1005,9 @@
 
                     list.innerHTML = data.calls.map(call => {
                         const isPayment = (call.reason === "Payment Done");
+                        const isFoodReady = (call.reason === "Food Ready for Pickup" || call.reason === "food_ready");
 
+                        // 15-second auto-resolve timer for Payment calls
                         if (isPayment && !autoResolvingTimers.has(call.id)) {
                             const handle = setTimeout(() => {
                                 autoResolvingTimers.delete(call.id);
@@ -1013,9 +1016,22 @@
                             autoResolvingTimers.set(call.id, handle);
                         }
 
-                        const borderColor = isPayment ? "border-emerald-200" : "border-rose-200";
-                        const badgeBg     = isPayment ? "bg-emerald-50 text-emerald-700 border-emerald-100" : "bg-rose-50 text-rose-700 border-rose-100";
-                        const icon        = isPayment ? "check-circle" : "bell";
+                        // Format Table 0 as "Kitchen / Counter"
+                        const displayTableName = (call.table === 0 || call.table === "0") ? "Kitchen / Counter" : `Table ${call.table}`;
+
+                        let borderColor = "border-rose-200";
+                        let badgeBg     = "bg-rose-50 text-rose-700 border-rose-100";
+                        let icon        = "bell";
+
+                        if (isPayment) {
+                            borderColor = "border-emerald-200";
+                            badgeBg     = "bg-emerald-50 text-emerald-700 border-emerald-100";
+                            icon        = "check-circle";
+                        } else if (isFoodReady) {
+                            borderColor = "border-amber-200";
+                            badgeBg     = "bg-amber-50 text-amber-700 border-amber-100";
+                            icon        = "chef-hat";
+                        }
 
                         return `
                             <div class="bg-white border ${borderColor} rounded-2xl p-5 shadow-sm flex items-center justify-between animate-in fade-in slide-in-from-top-2">
@@ -1023,10 +1039,10 @@
                                     <p class="text-[9px] font-bold ${badgeBg} border px-2 py-0.5 rounded-md uppercase tracking-widest mb-2 inline-flex items-center gap-1">
                                         <i data-lucide="${icon}" class="w-3 h-3"></i> ${call.reason}
                                     </p>
-                                    <h3 class="text-xl font-serif font-bold text-gray-900 tracking-tight">Table ${call.table}</h3>
+                                    <h3 class="text-xl font-serif font-bold text-gray-900 tracking-tight">${displayTableName}</h3>
                                     <p class="text-[10px] text-gray-400 font-bold mt-0.5 uppercase tracking-widest">${call.time}</p>
                                 </div>
-                                <button onclick="resolveCall(${call.id})" class="bg-white border border-gray-200 text-gray-500 p-3 rounded-xl hover:bg-gray-900 hover:text-white transition-all active:scale-95 shadow-sm">
+                                <button onclick="resolveCall(${call.id})" class="bg-white border border-gray-200 text-gray-500 p-3 rounded-xl hover:bg-gray-900 hover:text-white transition-all active:scale-95 shadow-sm" title="Dismiss Alert">
                                     <i data-lucide="check" class="w-5 h-5"></i>
                                 </button>
                             </div>
@@ -1035,32 +1051,47 @@
 
                     lucide.createIcons();
                 } else {
-                    if(container) container.classList.add('hidden');
+                    if (container) container.classList.add('hidden');
                     lastCallCount = 0;
                     autoResolvingTimers.forEach(handle => clearTimeout(handle));
                     autoResolvingTimers.clear();
                 }
-            } catch (e) { console.error("Waiter polling error", e); }
+            } catch (e) {
+                console.error("Waiter polling error", e);
+            }
         }
 
+
+        // --- 3. RESOLVE CALL FUNCTION (TICK BUTTON) ---
         async function resolveCall(id) {
             if (autoResolvingTimers.has(id)) {
                 clearTimeout(autoResolvingTimers.get(id));
                 autoResolvingTimers.delete(id);
             }
+
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value ||
+                            document.cookie.split('; ').find(row => row.startsWith('csrftoken='))?.split('=')[1];
+
             try {
-                const csrfToken = document.cookie
-                    .split('; ')
-                    .find(row => row.startsWith('csrftoken='))
-                    ?.split('=')[1];
-                const res = await fetch(`/api/resolve-waiter-call/${id}/`, {
+                const baseUrl = "{% url 'resolve_waiter_call' 0 %}";
+                const targetUrl = baseUrl.replace('/0/', `/${id}/`);
+
+                const res = await fetch(targetUrl, {
                     method: 'POST',
-                    headers: { 'X-CSRFToken': csrfToken }
+                    headers: {
+                        'X-CSRFToken': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
                 });
+
                 if (res.ok) {
                     pollWaiterCalls();
+                } else {
+                    console.error("Failed to resolve call, status:", res.status);
                 }
-            } catch (e) { console.error("Error resolving call", e); }
+            } catch (e) {
+                console.error("Error resolving call:", e);
+            }
         }
 
         // --- CHARTS INITIALIZATION (Insights Tab) ---

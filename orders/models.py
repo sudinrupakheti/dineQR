@@ -4,7 +4,6 @@ import uuid
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    # This block only runs during type-checking; it is ignored at runtime
     from django.db.models.manager import RelatedManager # type: ignore
 
 
@@ -26,7 +25,6 @@ class MenuItem(models.Model):
     is_available = models.BooleanField(default=True)
     best_seller = models.BooleanField(default=False)
 
-    # New operational fields
     veg = models.BooleanField(default=False)
     SPICE_CHOICES = [
         ("sweet", "Sweet"),
@@ -43,8 +41,20 @@ class MenuItem(models.Model):
         default=False, verbose_name="Featured/Recommended"
     )
 
+    # --- ADDED: Station filtering for kitchen display ---
+    STATION_CHOICES = [
+        ("Mains", "Khana & Main Kitchen"),
+        ("Snacks", "Snacks & Fryer"),
+        ("Bar", "Bar & Drinks"),
+        ("DESSERT", "Salads & Desserts"),
+    ]
+    station = models.CharField(
+        max_length=20, choices=STATION_CHOICES, default="Mains"
+    )
+
     id: int
     frequent_companion: "MenuItem | None"
+
     def image_tag(self):
         if self.image:
             return format_html(
@@ -73,12 +83,14 @@ class Order(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="received")
     total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)  # type: ignore
 
-    # Billing fields
     is_paid = models.BooleanField(default=False)
     paid_at = models.DateTimeField(null=True, blank=True)
     paid_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00) # type: ignore
 
     created_at = models.DateTimeField(auto_now_add=True)
+
+    # --- ADDED: Timestamp to track when order was last updated (for Recall feature) ---
+    updated_at = models.DateTimeField(auto_now=True)
 
     @property
     def remaining_balance(self):
@@ -98,6 +110,16 @@ class OrderItem(models.Model):
     quantity = models.PositiveIntegerField(default=1)
     notes = models.TextField(blank=True, null=True)
     paid_quantity = models.PositiveIntegerField(default=0)
+
+    # --- ADDED: Item-level preparation status tracking ---
+    ITEM_STATUS_CHOICES = [
+        ("received", "Received"),
+        ("preparing", "Preparing"),
+        ("ready", "Ready"),
+    ]
+    status = models.CharField(
+        max_length=20, choices=ITEM_STATUS_CHOICES, default="received"
+    )
 
     @property
     def remaining_quantity(self):
@@ -129,6 +151,7 @@ class WaiterCall(models.Model):
         ("clean", "Clean Table"),
         ("help", "Need Assistance"),
         ("paid", "Payment Done"),
+        ("food_ready", "Food Ready for Pickup"),
     ]
 
     table_number = models.IntegerField()
