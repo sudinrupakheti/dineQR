@@ -1,7 +1,22 @@
-# orders/admin.py
+from django.contrib import admin  # type: ignore
+from .models import (
+    Category,
+    MenuItem,
+    Order,
+    OrderItem,
+    Review,
+    WaiterCall,
+    TableSession,
+    KitchenBroadcast,
+    UserProfile,
+)
 
-from django.contrib import admin    #type: ignore
-from .models import Category, MenuItem, Order, OrderItem, Review, WaiterCall, TableSession, KitchenBroadcast
+
+@admin.register(UserProfile)
+class UserProfileAdmin(admin.ModelAdmin):
+    list_display = ("id", "user", "loyalty_points")
+    search_fields = ("user__username", "user__email")
+
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
@@ -14,20 +29,19 @@ class MenuItemAdmin(admin.ModelAdmin):
     list_display = ("id", "image_tag", "name", "category", "price", "is_available", "is_featured")
     list_filter = ("category", "is_available", "is_featured", "spice_level")
     search_fields = ("name", "description")
-    readonly_fields = ("image_tag",)  # Displays a thumbnail preview in the admin panel
+    readonly_fields = ("image_tag",)
 
 
 class OrderItemInline(admin.TabularInline):
-    """Allows managing items directly inside the Order detail screen"""
     model = OrderItem
     extra = 0
 
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
-    list_display = ("id", "table_number", "status", "total_price", "is_paid", "created_at")
+    list_display = ("id", "user", "table_number", "status", "total_price", "discount_amount", "is_paid", "created_at")
     list_filter = ("status", "is_paid", "created_at")
-    search_fields = ("id", "table_number")
+    search_fields = ("id", "table_number", "user__username")
     inlines = [OrderItemInline]
 
 
@@ -47,9 +61,9 @@ class WaiterCallAdmin(admin.ModelAdmin):
 
 @admin.register(TableSession)
 class TableSessionAdmin(admin.ModelAdmin):
-    list_display = ("table_number", "session_token", "is_active", "created_at")
+    list_display = ("table_number", "host_name", "session_passcode", "is_active", "created_at")
     list_filter = ("is_active", "created_at")
-    search_fields = ("table_number",)
+    search_fields = ("table_number", "host_name")
 
 
 admin.site.register(KitchenBroadcast)

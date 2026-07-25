@@ -17,6 +17,13 @@ SECRET_KEY = "django-insecure-os7)ebgefhvtg7!^ptbxlrn10flg*$5j+7&zukru6u=xx!u5$w
 DEBUG = True
 
 ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', '192.168.1.20','*']
+CSRF_TRUSTED_ORIGINS = [
+    'https://reversion-bounce-drew.ngrok-free.dev',
+    'http://192.168.1.20:8000',
+    'http://localhost:8000',
+    'http://127.0.0.1:8000',
+    'https://dineqr.sudinrupakheti.com.np',
+]
 
 LOGIN_URL = 'login'
 

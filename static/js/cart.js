@@ -20,6 +20,12 @@ function getActiveTable() {
 let tableNumber = getActiveTable();
 const cartKey = (tableNumber && tableNumber !== "null") ? `cart_table_${tableNumber}` : 'cart_guest';
 let cart = JSON.parse(localStorage.getItem(cartKey)) || {};
+let lastCartSync = null;
+
+function getCsrfToken() {
+    const el = document.querySelector('input[name=csrfmiddlewaretoken]');
+    return el ? el.value : '';
+}
 
 // =======================================================
 // NEGOTIATE TABLE SESSION TOKEN & PASSCODE REDIRECT
@@ -32,7 +38,6 @@ async function initializeTableSession() {
     const sessionKey = `dineqr_session_table_${tableNumber}`;
     let sessionToken = localStorage.getItem(sessionKey);
 
-    // If no token exists and user is on the main menu, redirect to Welcome page
     if (!sessionToken && !window.location.pathname.includes('/welcome')) {
         window.location.href = `/welcome/?table=${tableNumber}`;
         return;
@@ -52,7 +57,6 @@ async function initializeTableSession() {
         const data = await response.json();
         if (data.status === 'success' && data.token) {
             localStorage.setItem(sessionKey, data.token);
-            console.log("Table session authenticated:", data.token);
         } else if (data.status === 'password_required') {
             if (!window.location.pathname.includes('/welcome')) {
                 window.location.href = `/welcome/?table=${tableNumber}`;
@@ -68,6 +72,58 @@ async function initializeTableSession() {
 function getSessionToken() {
     if (!tableNumber) return null;
     return localStorage.getItem(`dineqr_session_table_${tableNumber}`);
+}
+// =======================================================
+
+// =======================================================
+// SHARED CART SYNC (POLLING)
+// =======================================================
+async function pushCartToServer() {
+    if (!tableNumber || tableNumber === "null" || tableNumber === "") return;
+
+    try {
+        const response = await fetch("/api/table-cart/update/", {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken(),
+                'X-Session-Token': getSessionToken()
+            },
+            body: JSON.stringify({ table_number: tableNumber, cart: cart })
+        });
+        const data = await response.json();
+        if (data.status === 'success') {
+            lastCartSync = data.updated_at;
+        }
+    } catch (e) {
+        console.error("Cart sync push failed:", e);
+    }
+}
+
+async function pullCartFromServer() {
+    if (!tableNumber || tableNumber === "null" || tableNumber === "") return;
+
+    try {
+        const response = await fetch(`/api/table-cart/get/?table=${tableNumber}`, {
+            headers: { 'X-Session-Token': getSessionToken() }
+        });
+        const data = await response.json();
+        if (data.status === 'success' && data.updated_at && data.updated_at !== lastCartSync) {
+            lastCartSync = data.updated_at;
+            cart = data.cart || {};
+            saveCart();
+            updateCartUI();
+            if (typeof renderCart === "function") renderCart();
+            if (typeof renderCartPage === "function") renderCartPage();
+        }
+    } catch (e) {
+        console.error("Cart sync pull failed:", e);
+    }
+}
+
+function startCartPolling() {
+    if (!tableNumber || tableNumber === "null" || tableNumber === "") return;
+    setInterval(pullCartFromServer, 5000);
 }
 // =======================================================
 
@@ -90,6 +146,7 @@ function addToCart(id, name, price, quantity = 1) {
 
     saveCart();
     updateCartUI();
+    pushCartToServer();
 }
 
 function saveCart() {
@@ -125,6 +182,7 @@ function updateQuantity(id, delta) {
         }
         saveCart();
         updateCartUI();
+        pushCartToServer();
         if (typeof renderCart === "function") renderCart();
         if (typeof renderCartPage === "function") renderCartPage();
     }
@@ -135,6 +193,7 @@ function removeFromCart(id) {
         delete cart[id];
         saveCart();
         updateCartUI();
+        pushCartToServer();
         if (typeof renderCart === "function") renderCart();
         if (typeof renderCartPage === "function") renderCartPage();
     }
@@ -144,10 +203,13 @@ function updateNote(id, note) {
     if (cart[id]) {
         cart[id].notes = note;
         saveCart();
+        pushCartToServer();
     }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     updateCartUI();
     initializeTableSession();
+    pullCartFromServer();
+    startCartPolling();
 });

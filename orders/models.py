@@ -1,3 +1,4 @@
+from decimal import Decimal
 from django.db import models    # type: ignore
 from django.utils.html import format_html   # type: ignore
 import uuid
@@ -96,24 +97,25 @@ class Order(models.Model):
         blank=True,
         related_name="orders",
     )
-
-
     table_number = models.IntegerField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="received")
     total_price = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)  # type: ignore
+    discount_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)  # type: ignore
 
     is_paid = models.BooleanField(default=False)
     paid_at = models.DateTimeField(null=True, blank=True)
-    paid_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00) # type: ignore
+    paid_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)  # type: ignore
 
     created_at = models.DateTimeField(auto_now_add=True)
-
-    # --- ADDED: Timestamp to track when order was last updated (for Recall feature) ---
     updated_at = models.DateTimeField(auto_now=True)
 
     @property
+    def effective_total(self):
+        return max(Decimal("0.00"), self.total_price - self.discount_amount)
+
+    @property
     def remaining_balance(self):
-        return self.total_price - self.paid_amount
+        return max(Decimal("0.00"), self.effective_total - self.paid_amount)
 
     @property
     def has_review(self):
@@ -128,7 +130,7 @@ class OrderItem(models.Model):
     menu_item = models.ForeignKey(MenuItem, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField(default=1)
     notes = models.TextField(blank=True, null=True)
-    paid_quantity = models.PositiveIntegerField(default=0)
+    paid_quantity = models.DecimalField(max_digits=6, decimal_places=2, default=0)
 
     # --- ADDED: Item-level preparation status tracking ---
     ITEM_STATUS_CHOICES = [
@@ -205,3 +207,16 @@ class TableSession(models.Model):
 class KitchenBroadcast(models.Model):
     message = models.TextField()
     created_at = models.DateTimeField(auto_now=True)
+
+class TableCart(models.Model):
+    table_number = models.IntegerField(unique=True)
+    cart_data = models.JSONField(default=dict, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Cart for Table {self.table_number}"
+
+class TableSplitState(models.Model):
+    table_number = models.IntegerField(unique=True)
+    state_data = models.JSONField(default=dict, blank=True)
+    updated_at = models.DateTimeField(auto_now=True)

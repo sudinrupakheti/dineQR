@@ -196,6 +196,29 @@
             <div id="cart-items-container" class="space-y-3"></div>
         </div>
 
+        <!-- Loyalty Points Redemption Selector -->
+        {% if user.is_authenticated and user_loyalty_points >= 100 %}
+        <div id="loyalty-redemption-card" class="bg-amber-50/80 border border-amber-200/80 rounded-2xl p-4 space-y-2 hidden">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-1.5 text-amber-900">
+                    <i data-lucide="sparkles" class="w-4 h-4 text-amber-500 fill-amber-500"></i>
+                    <span class="text-xs font-serif font-bold uppercase tracking-wider">Redeem Loyalty Points</span>
+                </div>
+                <span class="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
+                    {{ user_loyalty_points }} pts available
+                </span>
+            </div>
+
+            <p class="text-[11px] text-amber-800 leading-relaxed">
+                Use your points to get a discount on this order (100 pts = Rs. 100 off).
+            </p>
+
+            <select id="redeem-points-select" onchange="renderCartPage()" class="w-full bg-white border border-amber-200 text-xs font-bold text-gray-900 p-2.5 rounded-xl outline-none focus:ring-1 focus:ring-amber-500">
+                <option value="0">Do not redeem points</option>
+            </select>
+        </div>
+        {% endif %}
+
         <!-- Place Order Checkout Box -->
         <div id="checkout-box" class="bg-gray-950 rounded-xl shadow-md border border-gray-900 p-5 hidden transition-all">
             <div class="flex justify-between items-center mb-4">
@@ -243,12 +266,65 @@
     }
     checkGuestNames();
 
+    let lastSplitSync = null;
+
     function saveSplitSession() {
         localStorage.setItem(SESSION_MODE_KEY, splitMode);
         localStorage.setItem(SESSION_PEOPLE_KEY, numPeople.toString());
         localStorage.setItem(SESSION_PAID_KEY, JSON.stringify(paidGuests));
         localStorage.setItem(SESSION_ASSIGN_KEY, JSON.stringify(itemAssignments));
         localStorage.setItem(SESSION_NAMES_KEY, JSON.stringify(guestNames));
+        pushSplitToServer();
+    }
+
+    async function pushSplitToServer() {
+        if (!tableNum || tableNum === "null") return;
+        try {
+            const response = await fetch("/api/table-split/update/", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': "{{ csrf_token }}",
+                    'X-Session-Token': getSessionToken()
+                },
+                body: JSON.stringify({
+                    table_number: tableNum,
+                    state: { splitMode, numPeople, paidGuests, itemAssignments, guestNames }
+                })
+            });
+            const data = await response.json();
+            if (data.status === 'success') lastSplitSync = data.updated_at;
+        } catch (e) { console.error("Split sync push failed:", e); }
+    }
+
+    async function pullSplitFromServer() {
+        if (!tableNum || tableNum === "null") return;
+        try {
+            const response = await fetch(`/api/table-split/get/?table=${tableNum}`, {
+                headers: { 'X-Session-Token': getSessionToken() }
+            });
+            const data = await response.json();
+            if (data.status === 'success' && data.updated_at && data.updated_at !== lastSplitSync) {
+                lastSplitSync = data.updated_at;
+                const s = data.state || {};
+                if (s.splitMode) splitMode = s.splitMode;
+                if (s.numPeople) numPeople = s.numPeople;
+                if (s.paidGuests) paidGuests = s.paidGuests;
+                if (s.itemAssignments) itemAssignments = s.itemAssignments;
+                if (s.guestNames) guestNames = s.guestNames;
+
+                localStorage.setItem(SESSION_MODE_KEY, splitMode);
+                localStorage.setItem(SESSION_PEOPLE_KEY, numPeople.toString());
+                localStorage.setItem(SESSION_PAID_KEY, JSON.stringify(paidGuests));
+                localStorage.setItem(SESSION_ASSIGN_KEY, JSON.stringify(itemAssignments));
+                localStorage.setItem(SESSION_NAMES_KEY, JSON.stringify(guestNames));
+
+                const peopleEl = document.getElementById('people-count');
+                if (peopleEl) peopleEl.innerText = numPeople;
+                if (splitMode === 'items') renderItemAssignmentButtons();
+                calculateSplit();
+            }
+        } catch (e) { console.error("Split sync pull failed:", e); }
     }
 
     function clearSplitSession() {
@@ -257,6 +333,34 @@
         localStorage.removeItem(SESSION_PAID_KEY);
         localStorage.removeItem(SESSION_ASSIGN_KEY);
         localStorage.removeItem(SESSION_NAMES_KEY);
+
+        // Log out guest session for this table
+        localStorage.removeItem(`dineqr_session_table_${tableNum}`);
+        localStorage.removeItem('dineqr_table');
+    }
+
+    function updateRedemptionOptions(cartTotal) {
+        const card = document.getElementById('loyalty-redemption-card');
+        const select = document.getElementById('redeem-points-select');
+        if (!select || !card) return;
+
+        const userPoints = parseInt("{{ user_loyalty_points|default:0 }}");
+        const maxRedeemable = Math.floor(Math.min(userPoints, cartTotal) / 100) * 100;
+
+        if (maxRedeemable >= 100) {
+            card.classList.remove('hidden');
+            const currentSelected = parseInt(select.value) || 0;
+
+            let html = '<option value="0">Do not redeem points</option>';
+            for (let pts = 100; pts <= maxRedeemable; pts += 100) {
+                const selectedAttr = (pts === currentSelected) ? 'selected' : '';
+                html += `<option value="${pts}" ${selectedAttr}>Redeem ${pts} pts (Rs. ${pts} off)</option>`;
+            }
+            select.innerHTML = html;
+        } else {
+            card.classList.add('hidden');
+            select.value = "0";
+        }
     }
 
     function renderCartPage() {
@@ -331,7 +435,20 @@
             `;
         }
 
-        if (cartTotalEl) cartTotalEl.innerText = `Rs. ${jsCartTotal.toLocaleString()}`;
+        const pointsSelect = document.getElementById('redeem-points-select');
+        const selectedPoints = pointsSelect ? parseInt(pointsSelect.value) : 0;
+        const discountVal = Math.min(selectedPoints, jsCartTotal);
+        const finalCartTotal = Math.max(0, jsCartTotal - discountVal);
+
+        updateRedemptionOptions(jsCartTotal);
+
+        if (cartTotalEl) {
+            if (discountVal > 0) {
+                cartTotalEl.innerHTML = `<span class="line-through text-gray-500 text-xs mr-1">Rs. ${jsCartTotal.toLocaleString()}</span> Rs. ${finalCartTotal.toLocaleString()}`;
+            } else {
+                cartTotalEl.innerText = `Rs. ${jsCartTotal.toLocaleString()}`;
+            }
+        }
         if (unifiedTotalEl) unifiedTotalEl.innerText = `Rs. ${(backendRunningTotal + jsCartTotal).toLocaleString()}`;
         lucide.createIcons();
     }
@@ -343,6 +460,9 @@
         this.classList.add('opacity-70', 'cursor-not-allowed');
 
         try {
+            const pointsSelect = document.getElementById('redeem-points-select');
+            const pointsToRedeem = pointsSelect ? parseInt(pointsSelect.value) : 0;
+
             const response = await fetch("{% url 'place_order' %}", {
                 method: 'POST',
                 headers: {
@@ -350,7 +470,7 @@
                     'X-CSRFToken': "{{ csrf_token }}",
                     'X-Session-Token': getSessionToken()
                 },
-                body: JSON.stringify({ cart: cart, table_number: tableNum })
+                body: JSON.stringify({ cart: cart, table_number: tableNum, points_to_redeem: pointsToRedeem })
             });
             const result = await response.json();
             if (result.status === 'success') {
@@ -658,11 +778,12 @@
 
             if (isSplitPayment && splitMode === 'items') {
                 {% for order in previous_orders %}{% for item in order.items.all %}
-                    var assignedToThisGuest = (itemAssignments['{{ item.id }}'] || []).includes(currentPersonIdx);
-                    if (assignedToThisGuest) {
+                    var assigned_{{ item.id }} = itemAssignments['{{ item.id }}'] || [];
+                    if (assigned_{{ item.id }}.includes(currentPersonIdx)) {
                         payload.items.push({
                             id: "{{ item.id }}",
-                            qty: parseInt("{{ item.quantity }}")
+                            qty: parseInt("{{ item.quantity }}"),
+                            shareCount: assigned_{{ item.id }}.length
                         });
                     }
                 {% endfor %}{% endfor %}
@@ -706,6 +827,8 @@
     document.addEventListener('DOMContentLoaded', () => {
         renderCartPage();
         initPolling();
+        pullSplitFromServer();
+        setInterval(pullSplitFromServer, 5000);
     });
 </script>
 {% endblock %}

@@ -133,47 +133,56 @@
         lucide.createIcons();
 
         document.addEventListener("DOMContentLoaded", () => {
-            const params = new URLSearchParams(window.location.search);
-            const table = params.get('table') || localStorage.getItem('dineqr_table');
+        const params = new URLSearchParams(window.location.search);
+        const table = params.get('table') || localStorage.getItem('dineqr_table');
+        const urlToken = params.get('token');
 
-            if (table) {
-                localStorage.setItem('dineqr_table', table);
-                const badge = document.getElementById('nav-table-badge');
-                const num = document.getElementById('nav-table-num');
-                if (badge && num) {
-                    badge.classList.remove('hidden');
-                    num.innerText = table;
-                }
+        if (table) {
+            localStorage.setItem('dineqr_table', table);
 
-                const appendTable = (id) => {
-                    const el = document.getElementById(id);
-                    if (el) {
-                        const url = new URL(el.href, window.location.origin);
-                        url.searchParams.set('table', table);
-                        el.href = url.toString();
-                    }
-                }
-                appendTable('nav-menu');
-                appendTable('nav-cart');
+            if (urlToken) {
+                localStorage.setItem(`dineqr_session_table_${table}`, urlToken);
             }
 
-            const logo = document.getElementById('logo-link');
-            if (logo) {
-                logo.addEventListener('click', (e) => {
-                    const currentPath = window.location.pathname;
-                    const urlParams = new URLSearchParams(window.location.search);
-                    const hasSearch = urlParams.has('search');
+            const token = urlToken || localStorage.getItem(`dineqr_session_table_${table}`);
 
-                    if ((currentPath === '{% url "menu" %}' || currentPath === '/') && !hasSearch) {
-                        e.preventDefault();
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                    } else if (table) {
-                        e.preventDefault();
-                        window.location.href = `{% url 'menu' %}?table=${table}`;
-                    }
-                });
+            const badge = document.getElementById('nav-table-badge');
+            const num = document.getElementById('nav-table-num');
+            if (badge && num) {
+                badge.classList.remove('hidden');
+                num.innerText = table;
             }
-        });
+
+            const appendTable = (id) => {
+                const el = document.getElementById(id);
+                if (el) {
+                    const url = new URL(el.href, window.location.origin);
+                    url.searchParams.set('table', table);
+                    if (token) url.searchParams.set('token', token);
+                    el.href = url.toString();
+                }
+            }
+            appendTable('nav-menu');
+            appendTable('nav-cart');
+        }
+
+        const logo = document.getElementById('logo-link');
+        if (logo) {
+            logo.addEventListener('click', (e) => {
+                const currentPath = window.location.pathname;
+                const urlParams = new URLSearchParams(window.location.search);
+                const hasSearch = urlParams.has('search');
+
+                if ((currentPath === '{% url "menu" %}' || currentPath === '/') && !hasSearch) {
+                    e.preventDefault();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                } else if (table) {
+                    e.preventDefault();
+                    window.location.href = `{% url 'menu' %}?table=${table}`;
+                }
+            });
+        }
+    });
 
         function showToast(message) {
             const container = document.getElementById('toast-container');

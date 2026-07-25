@@ -1,3 +1,4 @@
+<!-- START OF FILE welcome.html -->
 {% extends 'orders/base.html' %}
 {% load static %}
 
@@ -45,23 +46,16 @@
         <div id="tab-guest" class="space-y-4">
             <div>
                 <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">
-                    Your Name <span class="text-gray-300 font-normal">(Optional)</span>
-                </label>
-                <div class="relative">
-                    <i data-lucide="user" class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4"></i>
-                    <input type="text" id="guest-name" placeholder="e.g. Alex"
-                           class="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 outline-none text-sm transition-all placeholder:text-gray-300 font-medium">
-                </div>
-            </div>
-
-            <div>
-                <label class="block text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">
                     {% if has_password %}Table Password <span class="text-red-500">*</span>{% else %}Set Table Password <span class="text-gray-300 font-normal">(Optional host lock)</span>{% endif %}
                 </label>
                 <div class="relative">
                     <i data-lucide="key-round" class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4"></i>
                     <input type="password" id="table-password" placeholder="{% if has_password %}Enter table password{% else %}Optional passcode for others to join{% endif %}"
-                           class="w-full pl-11 pr-4 py-3 rounded-xl border border-gray-200 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 outline-none text-sm transition-all placeholder:text-gray-300 font-medium">
+                           class="w-full pl-11 pr-11 py-3 rounded-xl border border-gray-200 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 outline-none text-sm transition-all placeholder:text-gray-300 font-medium">
+                    <button type="button" id="toggle-table-password" tabindex="-1"
+                            class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                        <i data-lucide="eye" class="w-4 h-4"></i>
+                    </button>
                 </div>
             </div>
 
@@ -132,7 +126,6 @@
     }
 
     async function submitGuestSession() {
-        const name = document.getElementById('guest-name').value.trim() || "Guest Host";
         const passcode = document.getElementById('table-password').value.trim();
         const errorDiv = document.getElementById('guest-error');
         const errorMsg = document.getElementById('guest-error-msg');
@@ -140,14 +133,14 @@
         errorDiv.classList.add('hidden');
 
         try {
-            const url = `/api/verify-session/?table=${tableNum}&host_name=${encodeURIComponent(name)}&passcode=${encodeURIComponent(passcode)}`;
+            const url = `/api/verify-session/?table=${tableNum}&passcode=${encodeURIComponent(passcode)}`;
             const response = await fetch(url, { method: 'GET' });
             const data = await response.json();
 
             if (data.status === 'success' && data.token) {
                 localStorage.setItem(`dineqr_session_table_${tableNum}`, data.token);
                 localStorage.setItem('dineqr_table', tableNum);
-                window.location.href = `/?table=${tableNum}`;
+                window.location.href = `/?table=${tableNum}&token=${data.token}`;
             } else {
                 errorMsg.innerText = data.message || "Failed to enter table session.";
                 errorDiv.classList.remove('hidden');
@@ -196,5 +189,17 @@
             errorDiv.classList.remove('hidden');
         }
     }
+
+    const pwInput = document.getElementById('table-password');
+    const pwToggle = document.getElementById('toggle-table-password');
+
+    pwToggle.addEventListener('click', () => {
+        const show = pwInput.type === 'password';
+        pwInput.type = show ? 'text' : 'password';
+        pwToggle.innerHTML = show
+            ? '<i data-lucide="eye-off" class="w-4 h-4"></i>'
+            : '<i data-lucide="eye" class="w-4 h-4"></i>';
+        lucide.createIcons();
+    });
 </script>
 {% endblock %}

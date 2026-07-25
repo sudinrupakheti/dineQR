@@ -46,6 +46,8 @@ from .models import (
     TableSession,
     KitchenBroadcast,
     UserProfile,
+    TableCart,
+    TableSplitState,
 )
 
 
@@ -95,6 +97,19 @@ def expand_search_query(raw_query):
 
 
 def menu_view(request):
+    table_num = request.GET.get("table")
+    if table_num:
+        try:
+            table_int = int(table_num)
+        except ValueError:
+            table_int = None
+        if table_int and table_int != 0:
+            session = TableSession.objects.filter(table_number=table_int, is_active=True).first()
+            if session and session.session_passcode:
+                token = request.GET.get("token")
+                if not token or token != str(session.session_token):
+                    return redirect(f"/welcome/?table={table_int}")
+
     query = request.GET.get("search", "").lower().strip()
     items = MenuItem.objects.filter(is_available=True)
     categories = Category.objects.all()
@@ -128,8 +143,8 @@ def menu_view(request):
 
             fuzzy_matches = []
             for word in words:
-                fuzzy_matches.extend(difflib.get_close_matches(word, list(all_item_words), n=2, cutoff=0.6))
-                fuzzy_matches.extend(difflib.get_close_matches(word, list(all_cat_words), n=2, cutoff=0.6))
+                fuzzy_matches.extend(difflib.get_close_matches(word, list(all_item_words), n=2, cutoff=0.8))
+                fuzzy_matches.extend(difflib.get_close_matches(word, list(all_cat_words), n=2, cutoff=0.8))
 
             search_terms.update([match.lower() for match in fuzzy_matches])
 
@@ -251,7 +266,23 @@ def cart_detail(request):
     table_num = request.GET.get("table")
     order_id = request.GET.get("order")
 
-    previous_orders = []
+    if table_num:
+        try:
+            table_int = int(table_num)
+        except ValueError:
+            return HttpResponseForbidden("Invalid table")
+
+        if table_int != 0:
+            client_token = request.headers.get("X-Session-Token") or request.GET.get("token")
+            session_valid = TableSession.objects.filter(
+                table_number=table_int,
+                session_token=client_token,
+                is_active=True
+            ).exists()
+            if not session_valid:
+                return HttpResponseForbidden("Invalid or missing session token")
+
+    previous_orders = Order.objects.none()
     running_total = Decimal("0.00")
     show_thanks = False
 
@@ -266,15 +297,7 @@ def cart_detail(request):
             show_thanks = True
 
     for order in previous_orders:
-        order_calc_total = Decimal("0.00")
-        for item in order.items.all():
-            order_calc_total += Decimal(str(item.menu_item.price)) * item.quantity
-
-        if order.total_price != order_calc_total:
-            order.total_price = order_calc_total
-            order.save(update_fields=["total_price"])
-
-        running_total += order_calc_total
+        running_total += order.effective_total
 
     qr_code = None
     if previous_orders:
@@ -292,7 +315,12 @@ def cart_detail(request):
     if not popular_items.exists():
         popular_items = MenuItem.objects.filter(is_available=True, is_featured=True)[:4]
 
-    has_ready_orders = previous_orders.filter(status="ready").exists() if isinstance(previous_orders, list) else previous_orders.filter(status="ready").exists()
+    has_ready_orders = previous_orders.filter(status="ready").exists()
+
+    user_loyalty_points = 0
+    if request.user.is_authenticated:
+        profile, _ = UserProfile.objects.get_or_create(user=request.user)
+        user_loyalty_points = profile.loyalty_points
 
     return render(request, "orders/cart_detail.html", {
         "previous_orders": previous_orders,
@@ -301,6 +329,7 @@ def cart_detail(request):
         "qr_code": qr_code,
         "popular_items": popular_items,
         "has_ready_orders": has_ready_orders,
+        "user_loyalty_points": user_loyalty_points,
     })
 
 
@@ -312,6 +341,7 @@ def place_order(request):
         data = json.loads(request.body)
         cart = data.get("cart") or {}
         raw_table_number = data.get("table_number")
+        requested_points = int(data.get("points_to_redeem", 0))
 
         if not cart or raw_table_number is None:
             return JsonResponse({"status": "error", "message": "Invalid data"}, status=400)
@@ -345,9 +375,11 @@ def place_order(request):
 
         with transaction.atomic():
             new_order = Order.objects.create(
+                user=request.user if request.user.is_authenticated else None,
                 table_number=table_num,
                 status="received",
                 total_price=Decimal("0.00"),
+                discount_amount=Decimal("0.00"),
             )
 
             running_total = Decimal("0.00")
@@ -364,6 +396,19 @@ def place_order(request):
                 running_total += Decimal(str(menu_item.price)) * qty
 
             new_order.total_price = running_total
+
+            # Handle Point Redemption with select_for_update
+            if requested_points > 0 and request.user.is_authenticated:
+                profile = UserProfile.objects.select_for_update().get(user=request.user)
+                max_redeemable = (min(profile.loyalty_points, int(running_total)) // 100) * 100
+                actual_points = min(requested_points - (requested_points % 100), max_redeemable)
+
+                if actual_points >= 100:
+                    discount = Decimal(str(actual_points))
+                    new_order.discount_amount = discount
+                    profile.loyalty_points -= actual_points
+                    profile.save()
+
             new_order.save()
 
         return JsonResponse({"status": "success", "order_id": new_order.id})
@@ -459,6 +504,10 @@ def cancel_order_item(request, item_id):
             item.delete()
             remaining_items = order.items.all()
             if not remaining_items.exists():
+                if order.user and order.discount_amount > 0:
+                    profile, _ = UserProfile.objects.get_or_create(user=order.user)
+                    profile.loyalty_points += int(order.discount_amount)
+                    profile.save()
                 order.delete()
             else:
                 new_total = sum(Decimal(str(i.menu_item.price)) * i.quantity for i in remaining_items)
@@ -506,6 +555,12 @@ def management_dashboard(request):
         for ord_obj in active_table_orders:
             orders_by_table[ord_obj.table_number].append(ord_obj)
 
+        locked_tables = set(
+            TableSession.objects.filter(
+                table_number__gte=1, table_number__lte=10, is_active=True
+            ).values_list("table_number", flat=True)
+        )
+
         for i in range(1, 11):
             t_orders = orders_by_table.get(i, [])
             if t_orders:
@@ -520,9 +575,16 @@ def management_dashboard(request):
                     "status": display_status,
                     "total": total_bill,
                     "has_orders": True,
+                    "is_locked": i in locked_tables,
                 })
             else:
-                table_data.append({"number": i, "status": "empty", "total": 0, "has_orders": False})
+                table_data.append({
+                    "number": i,
+                    "status": "empty",
+                    "total": 0,
+                    "has_orders": False,
+                    "is_locked": i in locked_tables,
+                })
 
         context.update({"walkin_orders": walkin_orders})
 
@@ -751,6 +813,16 @@ def order_review_page(request, order_id):
     except Order.DoesNotExist:
         return redirect("menu")
 
+    if current_order.table_number != 0:
+        client_token = request.headers.get("X-Session-Token") or request.GET.get("token")
+        session_valid = TableSession.objects.filter(
+            table_number=current_order.table_number,
+            session_token=client_token,
+            is_active=True
+        ).exists()
+        if not session_valid:
+            return HttpResponseForbidden("Invalid session")
+
     if request.method == "POST":
         reviewed_menu_item_ids = set()
         for order in orders_to_review:
@@ -826,9 +898,20 @@ def kitchen_dashboard(request):
 def mark_table_paid(request, table_num):
     if request.method == "POST":
         active_orders = Order.objects.filter(table_number=table_num).exclude(status="completed")
-        active_orders.update(is_paid=True, paid_at=timezone.localtime(), status="completed")
-    return redirect("management_dashboard")
+        with transaction.atomic():
+            for order in active_orders.select_for_update():
+                order.is_paid = True
+                order.paid_at = timezone.localtime()
+                order.status = "completed"
+                order.save()
 
+                if order.user:
+                    profile, _ = UserProfile.objects.select_for_update().get_or_create(user=order.user)
+                    earned_pts = int(order.effective_total // 10)
+                    if earned_pts > 0:
+                        profile.loyalty_points += earned_pts
+                        profile.save()
+    return redirect("management_dashboard")
 
 @login_required
 @user_passes_test(is_management_or_owner)
@@ -843,6 +926,22 @@ def toggle_item_availability(request, item_id):
 
 
 def table_bill(request, table_num):
+    if table_num:
+        try:
+            table_int = int(table_num)
+        except ValueError:
+            return HttpResponseForbidden("Invalid table")
+
+        if table_int != 0:
+            client_token = request.headers.get("X-Session-Token") or request.GET.get("token")
+            session_valid = TableSession.objects.filter(
+                table_number=table_int,
+                session_token=client_token,
+                is_active=True
+            ).exists()
+            if not session_valid:
+                return HttpResponseForbidden("Invalid or missing session token")
+
     active_orders = Order.objects.filter(table_number=table_num).exclude(status="completed")
     items = OrderItem.objects.filter(order__in=active_orders).select_related("menu_item")
     total = active_orders.aggregate(Sum("total_price"))["total_price__sum"] or Decimal("0.00")
@@ -954,7 +1053,8 @@ def verify_table_session(request):
             pass
 
     passcode = request.GET.get("passcode") or body_data.get("passcode")
-    host_name = request.GET.get("host_name") or body_data.get("host_name") or "Host"
+    # Default host_name to "Guest" automatically
+    host_name = request.GET.get("host_name") or body_data.get("host_name") or "Guest"
 
     if not table_num:
         return JsonResponse({"status": "error", "message": "No table specified"}, status=400)
@@ -1059,58 +1159,66 @@ def confirm_payment_request(request, table_num):
             "message": "Waiter is on the way with the bill.",
         })
 
-    if items_to_pay:
-        for entry in items_to_pay:
-            try:
-                order_item = OrderItem.objects.select_related("menu_item", "order").get(id=entry["id"])
-                qty = int(entry.get("qty", 1))
+    order_ids = list(active_orders.values_list("id", flat=True))
 
-                unpaid_qty = order_item.quantity - (order_item.paid_quantity or 0)
-                qty = min(qty, unpaid_qty)
+    with transaction.atomic():
+        if items_to_pay:
+            for entry in items_to_pay:
+                try:
+                    order_item = OrderItem.objects.select_for_update().select_related(
+                        "menu_item", "order"
+                    ).get(id=entry["id"])
+                    share_count = max(1, int(entry.get("shareCount", 1)))
 
-                if qty <= 0:
-                    continue
+                    unpaid_qty = Decimal(str(order_item.quantity)) - (order_item.paid_quantity or Decimal("0"))
+                    qty_share = Decimal(str(order_item.quantity)) / share_count
+                    qty_share = min(qty_share, unpaid_qty)
 
-                order_item.paid_quantity = (order_item.paid_quantity or 0) + qty
-                order_item.save()
+                    if qty_share <= 0:
+                        continue
 
-                order = order_item.order
-                order.paid_amount = (order.paid_amount or Decimal("0")) + (
-                    Decimal(str(order_item.menu_item.price)) * qty
-                )
+                    order_item.paid_quantity = (order_item.paid_quantity or Decimal("0")) + qty_share
+                    order_item.save()
+
+                    order = Order.objects.select_for_update().get(id=order_item.order_id)
+                    order.paid_amount = (order.paid_amount or Decimal("0")) + (
+                        Decimal(str(order_item.menu_item.price)) * qty_share
+                    )
+                    order.save()
+                except (OrderItem.DoesNotExist, ValueError, InvalidOperation):
+                    pass
+
+        elif manual_amount > 0:
+            remaining = manual_amount
+            locked_orders = Order.objects.select_for_update().filter(id__in=order_ids)
+            for order in locked_orders:
+                if remaining <= Decimal("0"):
+                    break
+                to_pay = min(remaining, order.remaining_balance)
+                order.paid_amount = (order.paid_amount or Decimal("0")) + to_pay
+                remaining -= to_pay
                 order.save()
-            except (OrderItem.DoesNotExist, ValueError):
-                pass
 
-    elif manual_amount > 0:
-        remaining = manual_amount
-        for order in active_orders:
-            if remaining <= Decimal("0"):
-                break
-            to_pay = min(remaining, order.remaining_balance)
-            order.paid_amount = (order.paid_amount or Decimal("0")) + to_pay
-            remaining -= to_pay
-            order.save()
+        all_done = True
+        locked_orders = Order.objects.select_for_update().filter(id__in=order_ids)
+        for order in locked_orders:
+            if order.remaining_balance > Decimal("0.01"):
+                all_done = False
+            else:
+                order.status = "completed"
+                order.is_paid = True
+                order.paid_at = timezone.now()
+                order.save()
 
-    all_done = True
-    for order in active_orders:
-        if order.remaining_balance > Decimal("0.01"):
-            all_done = False
-        else:
-            order.status = "completed"
-            order.is_paid = True
-            order.paid_at = timezone.now()
-            order.save()
-
-            # Award loyalty points if linked to a user
-            if order.user:
-                profile, _ = UserProfile.objects.get_or_create(user=order.user)
-                profile.loyalty_points += int(order.total_price // 10)
-                profile.save()
+                if order.user:
+                    profile, _ = UserProfile.objects.select_for_update().get_or_create(user=order.user)
+                    earned_points = int(order.effective_total // 10)
+                    if earned_points > 0:
+                        profile.loyalty_points += earned_points
+                        profile.save()
 
     WaiterCall.objects.create(table_number=table_int, reason="paid", is_resolved=False)
 
-    # Deactivate table session when all orders are paid and table is cleared
     if all_done:
         TableSession.objects.filter(table_number=table_int, is_active=True).update(is_active=False)
 
@@ -1120,6 +1228,22 @@ def confirm_payment_request(request, table_num):
 def generate_split_qr_api(request):
     table_num = request.GET.get("table")
     amount = request.GET.get("amount", "0.00")
+
+    if table_num:
+        try:
+            table_int = int(table_num)
+        except ValueError:
+            return HttpResponseForbidden("Invalid table")
+
+        if table_int != 0:
+            client_token = request.headers.get("X-Session-Token") or request.GET.get("token")
+            session_valid = TableSession.objects.filter(
+                table_number=table_int,
+                session_token=client_token,
+                is_active=True
+            ).exists()
+            if not session_valid:
+                return HttpResponseForbidden("Invalid or missing session token")
 
     try:
         parsed_amount = float(amount)
@@ -1143,8 +1267,8 @@ def generate_split_qr_api(request):
 @login_required
 @user_passes_test(is_management_or_owner)
 def serve_table_qr(request, table_num):
-    host_address = request.build_absolute_uri("/")
-    target_url = f"{host_address}?table={table_num}"
+    host_address = 'https://reversion-bounce-drew.ngrok-free.dev/'
+    target_url = f"{host_address}welcome/?table={table_num}"
 
     qr = qrcode.QRCode(
         version=1,
@@ -1350,11 +1474,19 @@ def modify_order_item(request, item_id):
 @user_passes_test(is_management_or_owner)
 def mark_order_paid(request, order_id):
     if request.method == "POST":
-        order = get_object_or_404(Order, id=order_id)
-        order.is_paid = True
-        order.paid_at = timezone.now()
-        order.status = "completed"
-        order.save()
+        with transaction.atomic():
+            order = get_object_or_404(Order.objects.select_for_update(), id=order_id)
+            order.is_paid = True
+            order.paid_at = timezone.now()
+            order.status = "completed"
+            order.save()
+
+            if order.user:
+                profile, _ = UserProfile.objects.select_for_update().get_or_create(user=order.user)
+                earned_pts = int(order.effective_total // 10)
+                if earned_pts > 0:
+                    profile.loyalty_points += earned_pts
+                    profile.save()
     return redirect("management_dashboard")
 
 
@@ -1673,7 +1805,7 @@ def convert_guest_account_api(request):
                 order.user = user
                 order.save()
 
-                earned_pts = int(order.total_price // 10)
+                earned_pts = int(order.effective_total // 10)
                 profile.loyalty_points += earned_pts
                 profile.save()
             except Order.DoesNotExist:
@@ -1721,3 +1853,110 @@ def customer_portal(request):
             "loyalty_points": profile.loyalty_points,
         },
     )
+
+def update_table_cart(request):
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "Method not allowed"}, status=405)
+
+    try:
+        data = json.loads(request.body)
+        table_num = int(data.get("table_number"))
+        cart = data.get("cart", {})
+    except (json.JSONDecodeError, ValueError, TypeError):
+        return JsonResponse({"status": "error", "message": "Invalid payload"}, status=400)
+
+    if table_num != 0:
+        client_token = request.headers.get("X-Session-Token")
+        session_valid = TableSession.objects.filter(
+            table_number=table_num,
+            session_token=client_token,
+            is_active=True
+        ).exists()
+        if not session_valid:
+            return JsonResponse({"status": "error", "message": "Unauthorized session"}, status=403)
+
+    table_cart, _ = TableCart.objects.update_or_create(
+        table_number=table_num,
+        defaults={"cart_data": cart}
+    )
+    return JsonResponse({"status": "success", "updated_at": table_cart.updated_at.isoformat()})
+
+def get_table_cart(request):
+    table_num = request.GET.get("table")
+    if not table_num:
+        return JsonResponse({"status": "error", "message": "No table specified"}, status=400)
+
+    try:
+        table_int = int(table_num)
+    except ValueError:
+        return JsonResponse({"status": "error", "message": "Invalid table format"}, status=400)
+
+    if table_int != 0:
+        client_token = request.headers.get("X-Session-Token") or request.GET.get("token")
+        session_valid = TableSession.objects.filter(
+            table_number=table_int,
+            session_token=client_token,
+            is_active=True
+        ).exists()
+        if not session_valid:
+            return JsonResponse({"status": "error", "message": "Invalid or missing session token"}, status=401)
+
+    try:
+        table_cart = TableCart.objects.get(table_number=table_int)
+        return JsonResponse({
+            "status": "success",
+            "cart": table_cart.cart_data,
+            "updated_at": table_cart.updated_at.isoformat(),
+        })
+    except TableCart.DoesNotExist:
+        return JsonResponse({"status": "success", "cart": {}, "updated_at": None})
+
+@login_required
+@user_passes_test(is_management_or_owner)
+def reset_table_session(request, table_num):
+    if request.method == "POST":
+        TableSession.objects.filter(table_number=table_num, is_active=True).update(is_active=False)
+        TableCart.objects.filter(table_number=table_num).delete()
+        messages.success(request, f"Table {table_num} session reset.")
+    return redirect(f"{reverse('management_dashboard')}?tab=tables")
+
+def update_table_split(request):
+    if request.method != "POST":
+        return JsonResponse({"status": "error", "message": "Method not allowed"}, status=405)
+    try:
+        data = json.loads(request.body)
+        table_num = int(data.get("table_number"))
+        state = data.get("state", {})
+    except (json.JSONDecodeError, ValueError, TypeError):
+        return JsonResponse({"status": "error", "message": "Invalid payload"}, status=400)
+
+    if table_num != 0:
+        client_token = request.headers.get("X-Session-Token")
+        if not TableSession.objects.filter(table_number=table_num, session_token=client_token, is_active=True).exists():
+            return JsonResponse({"status": "error", "message": "Unauthorized session"}, status=403)
+
+    obj, _ = TableSplitState.objects.update_or_create(
+        table_number=table_num, defaults={"state_data": state}
+    )
+    return JsonResponse({"status": "success", "updated_at": obj.updated_at.isoformat()})
+
+
+def get_table_split(request):
+    table_num = request.GET.get("table")
+    if not table_num:
+        return JsonResponse({"status": "error", "message": "No table specified"}, status=400)
+    try:
+        table_int = int(table_num)
+    except ValueError:
+        return JsonResponse({"status": "error", "message": "Invalid table format"}, status=400)
+
+    if table_int != 0:
+        client_token = request.headers.get("X-Session-Token") or request.GET.get("token")
+        if not TableSession.objects.filter(table_number=table_int, session_token=client_token, is_active=True).exists():
+            return JsonResponse({"status": "error", "message": "Invalid or missing session token"}, status=401)
+
+    try:
+        obj = TableSplitState.objects.get(table_number=table_int)
+        return JsonResponse({"status": "success", "state": obj.state_data, "updated_at": obj.updated_at.isoformat()})
+    except TableSplitState.DoesNotExist:
+        return JsonResponse({"status": "success", "state": {}, "updated_at": None})

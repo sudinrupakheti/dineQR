@@ -1,0 +1,3761 @@
+[
+{
+  "model": "admin.logentry",
+  "pk": 1,
+  "fields": {
+    "action_time": "2026-07-25T10:23:06.496Z",
+    "user": 1,
+    "content_type": 15,
+    "object_id": "3",
+    "object_repr": "owner_user's Profile (0 pts)",
+    "action_flag": 3,
+    "change_message": ""
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 2,
+  "fields": {
+    "action_time": "2026-07-25T12:06:05.515Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "1",
+    "object_repr": "Veg Dal Bhat Set",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Description\", \"Spice level\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 3,
+  "fields": {
+    "action_time": "2026-07-25T12:06:13.756Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "2",
+    "object_repr": "Chicken Dal Bhat Set",
+    "action_flag": 2,
+    "change_message": "[]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 4,
+  "fields": {
+    "action_time": "2026-07-25T12:06:25.035Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "3",
+    "object_repr": "Mutton Dal Bhat Set",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Spice level\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 5,
+  "fields": {
+    "action_time": "2026-07-25T12:06:35.318Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "3",
+    "object_repr": "Mutton Dal Bhat Set",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Description\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 6,
+  "fields": {
+    "action_time": "2026-07-25T12:06:44.640Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "7",
+    "object_repr": "Chicken Mo:Mo",
+    "action_flag": 2,
+    "change_message": "[]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 7,
+  "fields": {
+    "action_time": "2026-07-25T14:22:15.084Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "2",
+    "object_repr": "Chicken Dal Bhat Set",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Best seller\", \"Featured/Recommended\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 8,
+  "fields": {
+    "action_time": "2026-07-25T14:22:24.281Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "7",
+    "object_repr": "Chicken Mo:Mo",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Best seller\", \"Featured/Recommended\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 9,
+  "fields": {
+    "action_time": "2026-07-25T14:22:32.113Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "32",
+    "object_repr": "Fresh Orange Juice",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Best seller\", \"Featured/Recommended\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 10,
+  "fields": {
+    "action_time": "2026-07-25T14:22:40.895Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "27",
+    "object_repr": "Coca-Cola",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Best seller\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 11,
+  "fields": {
+    "action_time": "2026-07-25T14:23:15.716Z",
+    "user": 1,
+    "content_type": 4,
+    "object_id": "5",
+    "object_repr": "adam",
+    "action_flag": 3,
+    "change_message": ""
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 12,
+  "fields": {
+    "action_time": "2026-07-25T14:23:15.716Z",
+    "user": 1,
+    "content_type": 4,
+    "object_id": "9",
+    "object_repr": "Adam",
+    "action_flag": 3,
+    "change_message": ""
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 13,
+  "fields": {
+    "action_time": "2026-07-25T14:23:15.716Z",
+    "user": 1,
+    "content_type": 4,
+    "object_id": "8",
+    "object_repr": "anuzz",
+    "action_flag": 3,
+    "change_message": ""
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 14,
+  "fields": {
+    "action_time": "2026-07-25T14:23:15.716Z",
+    "user": 1,
+    "content_type": 4,
+    "object_id": "7",
+    "object_repr": "Sudin",
+    "action_flag": 3,
+    "change_message": ""
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 15,
+  "fields": {
+    "action_time": "2026-07-25T14:23:15.716Z",
+    "user": 1,
+    "content_type": 4,
+    "object_id": "6",
+    "object_repr": "Tom",
+    "action_flag": 3,
+    "change_message": ""
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 16,
+  "fields": {
+    "action_time": "2026-07-25T14:24:28.972Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "35",
+    "object_repr": "Ice Cream",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Description\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 17,
+  "fields": {
+    "action_time": "2026-07-25T14:24:39.483Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "34",
+    "object_repr": "Kheer",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Description\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 18,
+  "fields": {
+    "action_time": "2026-07-25T14:24:44.861Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "33",
+    "object_repr": "Chocolate Brownie",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Description\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 19,
+  "fields": {
+    "action_time": "2026-07-25T14:24:47.756Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "32",
+    "object_repr": "Fresh Orange Juice",
+    "action_flag": 2,
+    "change_message": "[]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 20,
+  "fields": {
+    "action_time": "2026-07-25T14:24:50.565Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "31",
+    "object_repr": "Honey Lemon Tea",
+    "action_flag": 2,
+    "change_message": "[]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 21,
+  "fields": {
+    "action_time": "2026-07-25T14:24:56.758Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "30",
+    "object_repr": "Milk Tea",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Description\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 22,
+  "fields": {
+    "action_time": "2026-07-25T14:25:02.464Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "29",
+    "object_repr": "Seasonal Milkshake",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Description\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 23,
+  "fields": {
+    "action_time": "2026-07-25T14:25:08.865Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "27",
+    "object_repr": "Coca-Cola",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Description\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 24,
+  "fields": {
+    "action_time": "2026-07-25T14:25:15.603Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "23",
+    "object_repr": "Wai Wai Sadeko",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Description\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 25,
+  "fields": {
+    "action_time": "2026-07-25T14:25:30.689Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "8",
+    "object_repr": "Chicken Schezwan Mo:Mo",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Description\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 26,
+  "fields": {
+    "action_time": "2026-07-25T14:25:38.873Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "9",
+    "object_repr": "Chicken Kothey Mo:Mo",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Description\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 27,
+  "fields": {
+    "action_time": "2026-07-25T14:25:45.736Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "12",
+    "object_repr": "Chicken Thukpa",
+    "action_flag": 2,
+    "change_message": "[]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 28,
+  "fields": {
+    "action_time": "2026-07-25T14:25:49.797Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "12",
+    "object_repr": "Chicken Thukpa",
+    "action_flag": 2,
+    "change_message": "[]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 29,
+  "fields": {
+    "action_time": "2026-07-25T14:25:57.197Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "13",
+    "object_repr": "Clear Chicken Soup",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Description\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 30,
+  "fields": {
+    "action_time": "2026-07-25T14:26:04.064Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "26",
+    "object_repr": "Cream of Mushroom Soup",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Description\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 31,
+  "fields": {
+    "action_time": "2026-07-25T14:26:08.406Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "26",
+    "object_repr": "Cream of Mushroom Soup",
+    "action_flag": 2,
+    "change_message": "[]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 32,
+  "fields": {
+    "action_time": "2026-07-25T14:26:12.410Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "21",
+    "object_repr": "Veg Mo:Mo",
+    "action_flag": 2,
+    "change_message": "[]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 33,
+  "fields": {
+    "action_time": "2026-07-25T14:26:19.076Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "13",
+    "object_repr": "Clear Chicken Soup",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Description\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 34,
+  "fields": {
+    "action_time": "2026-07-25T14:26:27.964Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "28",
+    "object_repr": "Sprite",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Description\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 35,
+  "fields": {
+    "action_time": "2026-07-25T14:26:31.672Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "22",
+    "object_repr": "Veg Kothey Mo:Mo",
+    "action_flag": 2,
+    "change_message": "[]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 36,
+  "fields": {
+    "action_time": "2026-07-25T14:26:36.090Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "13",
+    "object_repr": "Clear Chicken Soup",
+    "action_flag": 2,
+    "change_message": "[]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 37,
+  "fields": {
+    "action_time": "2026-07-25T14:26:57.153Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "35",
+    "object_repr": "Ice Cream",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Spice level\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 38,
+  "fields": {
+    "action_time": "2026-07-25T14:27:02.072Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "34",
+    "object_repr": "Kheer",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Spice level\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 39,
+  "fields": {
+    "action_time": "2026-07-25T14:27:06.379Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "33",
+    "object_repr": "Chocolate Brownie",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Spice level\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 40,
+  "fields": {
+    "action_time": "2026-07-25T14:27:11.250Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "30",
+    "object_repr": "Milk Tea",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Spice level\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 41,
+  "fields": {
+    "action_time": "2026-07-25T14:27:16.017Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "29",
+    "object_repr": "Seasonal Milkshake",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Spice level\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 42,
+  "fields": {
+    "action_time": "2026-07-25T14:27:22.547Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "31",
+    "object_repr": "Honey Lemon Tea",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Spice level\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 43,
+  "fields": {
+    "action_time": "2026-07-25T14:27:28.248Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "32",
+    "object_repr": "Fresh Orange Juice",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Spice level\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 44,
+  "fields": {
+    "action_time": "2026-07-25T14:27:34.957Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "21",
+    "object_repr": "Veg Mo:Mo",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Spice level\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 45,
+  "fields": {
+    "action_time": "2026-07-25T14:27:38.875Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "1",
+    "object_repr": "Veg Dal Bhat Set",
+    "action_flag": 2,
+    "change_message": "[]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 46,
+  "fields": {
+    "action_time": "2026-07-25T14:27:48.534Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "7",
+    "object_repr": "Chicken Mo:Mo",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Spice level\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 47,
+  "fields": {
+    "action_time": "2026-07-25T14:28:04.462Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "12",
+    "object_repr": "Chicken Thukpa",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Spice level\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 48,
+  "fields": {
+    "action_time": "2026-07-25T14:28:11.515Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "13",
+    "object_repr": "Clear Chicken Soup",
+    "action_flag": 2,
+    "change_message": "[]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 49,
+  "fields": {
+    "action_time": "2026-07-25T14:28:16.297Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "21",
+    "object_repr": "Veg Mo:Mo",
+    "action_flag": 2,
+    "change_message": "[]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 50,
+  "fields": {
+    "action_time": "2026-07-25T14:28:22.595Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "22",
+    "object_repr": "Veg Kothey Mo:Mo",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Spice level\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 51,
+  "fields": {
+    "action_time": "2026-07-25T14:28:28.228Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "23",
+    "object_repr": "Wai Wai Sadeko",
+    "action_flag": 2,
+    "change_message": "[]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 52,
+  "fields": {
+    "action_time": "2026-07-25T14:28:35.092Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "24",
+    "object_repr": "Veg Thukpa",
+    "action_flag": 2,
+    "change_message": "[]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 53,
+  "fields": {
+    "action_time": "2026-07-25T14:28:47.126Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "25",
+    "object_repr": "Chicken Hot & Sour Soup",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Spice level\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 54,
+  "fields": {
+    "action_time": "2026-07-25T14:28:53.259Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "27",
+    "object_repr": "Coca-Cola",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Spice level\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 55,
+  "fields": {
+    "action_time": "2026-07-25T14:28:58.149Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "28",
+    "object_repr": "Sprite",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Spice level\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 56,
+  "fields": {
+    "action_time": "2026-07-25T14:33:17.564Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "3",
+    "object_repr": "Mutton Dal Bhat Set",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Description\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 57,
+  "fields": {
+    "action_time": "2026-07-25T14:33:35.567Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "8",
+    "object_repr": "Chicken Schezwan Mo:Mo",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Description\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 58,
+  "fields": {
+    "action_time": "2026-07-25T14:33:50.600Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "12",
+    "object_repr": "Chicken Thukpa",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Description\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 59,
+  "fields": {
+    "action_time": "2026-07-25T14:34:04.944Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "22",
+    "object_repr": "Veg Kothey Mo:Mo",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Description\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 60,
+  "fields": {
+    "action_time": "2026-07-25T14:34:36.376Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "24",
+    "object_repr": "Veg Thukpa",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Description\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 61,
+  "fields": {
+    "action_time": "2026-07-25T14:34:48.000Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "25",
+    "object_repr": "Chicken Hot & Sour Soup",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Description\"]}}]"
+  }
+},
+{
+  "model": "admin.logentry",
+  "pk": 62,
+  "fields": {
+    "action_time": "2026-07-25T14:35:04.880Z",
+    "user": 1,
+    "content_type": 9,
+    "object_id": "27",
+    "object_repr": "Coca Cola",
+    "action_flag": 2,
+    "change_message": "[{\"changed\": {\"fields\": [\"Name\"]}}]"
+  }
+},
+{
+  "model": "auth.group",
+  "pk": 1,
+  "fields": {
+    "name": "Owner",
+    "permissions": []
+  }
+},
+{
+  "model": "auth.group",
+  "pk": 2,
+  "fields": {
+    "name": "Management",
+    "permissions": []
+  }
+},
+{
+  "model": "auth.group",
+  "pk": 3,
+  "fields": {
+    "name": "Kitchen",
+    "permissions": []
+  }
+},
+{
+  "model": "auth.user",
+  "pk": 1,
+  "fields": {
+    "password": "pbkdf2_sha256$1200000$ZJOc5uEHxP9dIeGuv1r7qF$8+zcP/78xxskXhofQLG47k01zbb4pC+rX2Kar7cq7Ww=",
+    "last_login": "2026-07-25T14:21:49.881Z",
+    "is_superuser": true,
+    "username": "owner_user",
+    "first_name": "",
+    "last_name": "",
+    "email": "",
+    "is_staff": true,
+    "is_active": true,
+    "date_joined": "2026-07-23T12:56:25.001Z",
+    "groups": [
+      1
+    ],
+    "user_permissions": []
+  }
+},
+{
+  "model": "auth.user",
+  "pk": 2,
+  "fields": {
+    "password": "pbkdf2_sha256$1200000$svW0tX4BaNWQmYzP4brNnA$HlQ2umaVBciT9IMJTKlejUW0CvBpD5OHZvNYg1pSmvk=",
+    "last_login": "2026-07-25T10:03:48.318Z",
+    "is_superuser": false,
+    "username": "manager_user",
+    "first_name": "",
+    "last_name": "",
+    "email": "",
+    "is_staff": true,
+    "is_active": true,
+    "date_joined": "2026-07-23T12:56:25.746Z",
+    "groups": [
+      2
+    ],
+    "user_permissions": []
+  }
+},
+{
+  "model": "auth.user",
+  "pk": 3,
+  "fields": {
+    "password": "pbkdf2_sha256$1200000$sgRsDmcFxzmJ3yS7cMxqEI$aajfyV4pprlCDgmb3HgdA8A2XJzMDGIGtBSZh71Od20=",
+    "last_login": "2026-07-25T04:09:13.523Z",
+    "is_superuser": false,
+    "username": "user_1",
+    "first_name": "",
+    "last_name": "",
+    "email": "",
+    "is_staff": false,
+    "is_active": true,
+    "date_joined": "2026-07-25T04:09:13.214Z",
+    "groups": [],
+    "user_permissions": []
+  }
+},
+{
+  "model": "auth.user",
+  "pk": 4,
+  "fields": {
+    "password": "pbkdf2_sha256$1200000$fgf94N5FgPvOEdVOhE1NCQ$ky30JGJAZqbAvdis4dapxiNwd+9Vn3DMtaswP7Un03Y=",
+    "last_login": null,
+    "is_superuser": false,
+    "username": "kitchen_user",
+    "first_name": "",
+    "last_name": "",
+    "email": "",
+    "is_staff": true,
+    "is_active": true,
+    "date_joined": "2026-07-25T05:11:57.871Z",
+    "groups": [
+      3
+    ],
+    "user_permissions": []
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "03h1qls9qghnrso61ps57dpvuvei4oeg",
+  "fields": {
+    "session_data": ".eJxVjMsOwiAQAP9lz4bwEmiP3vsNDewuUjWQlPZk_HfTpAe9zkzmDXPctzLvndd5IRhBweWXpYhProegR6z3JrDVbV2SOBJx2i6mRvy6ne3foMReYITsFWZEIxWFmI0bspM2GHbOeCPJJxWcJj_glcnakNDrSIlNVsSKtYPPF-kBODo:1wnUXo:bOeye7PgvxZh0i3Sir8lBS7VL3SoTthMGvTjZb5mUJo",
+    "expire_date": "2026-08-08T05:03:28.694Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "6a4670byy4e0n3rm88gylow2uy4ltdu9",
+  "fields": {
+    "session_data": ".eJxVjDEOwjAMAP_iGUXBKU3SkZ03VI7tkAJqpKadEH9HlTrAene6N4y0rWXcmi7jJDCAg9MvS8RPnXchD5rv1XCd12VKZk_MYZu5VdHX9Wj_BoVagQGCDXpBlqTOIQnFwMFJx6jZpnP0Ngdi9i5n4cgqGKISUsJeutR7hM8XDXo5Jw:1wnThJ:atgvijNrETa8EY4r8JBMq7boqZoTkZ6g8VyR7bDcpvQ",
+    "expire_date": "2026-08-08T04:09:13.526Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "6mluokf1wz1aw4aa40b88uk7ilymqxjo",
+  "fields": {
+    "session_data": ".eJxVjEEKwyAQAP-y5yJi3Kg59t43yK5ua9qiEJNT6N9LIIf2OjPMDpG2tcStyxLnDBN4uPwypvSSeoj8pPpoKrW6LjOrI1Gn7erWsryvZ_s3KNQLTGAGi05EjHFELhCjZi2BdUCLo7iRWQbDySDaRMELZfSY9B2NY2KEzxfnoTgz:1wnZLv:caImMMcWTAdxkg6XeN7Na-BEeOhOTa5Tbx4pDHaE3kg",
+    "expire_date": "2026-08-08T10:11:31.864Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "7u9qcaq18attob2fc5ya6lvs9qdivxab",
+  "fields": {
+    "session_data": ".eJxVjEEKwyAQAP-y5yKuGi059t43yK6rNW0xEJNT6N9LIIf2OjPMDpG2tcat5yVOAiMYuPwypvTK7RDypPaYVZrbukysjkSdtqv7LPl9O9u_QaVeYQQOPlydC0PyGYsL4rAYZLSDJZZiQ0Dy4gxi1uQLC1mdS9KGk07sDHy-1eo4Dg:1wnW1G:aa60WX_cn4lxMzZ3dKL6HEcde2PqDwF3vgOR2Te48M4",
+    "expire_date": "2026-08-08T06:37:58.622Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "ax37qkwb8p95vhvm1shxumn4ceoc8phm",
+  "fields": {
+    "session_data": ".eJxVjEEKwyAQAP-y5yKuGi059t43yK6rNW0xEJNT6N9LIIf2OjPMDpG2tcat5yVOAiMYuPwypvTK7RDypPaYVZrbukysjkSdtqv7LPl9O9u_QaVeYQQOPlydC0PyGYsL4rAYZLSDJZZiQ0Dy4gxi1uQLC1mdS9KGk07sDHy-1eo4Dg:1wmsyk:wiurUYQDLKjRDRGH6nIrNmd0sk14Aw27H5NgxnHipXs",
+    "expire_date": "2026-08-06T12:56:46.715Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "b65xiz6b0hg746llwxgk4xvwaszzxhec",
+  "fields": {
+    "session_data": ".eJxVjMsOwiAQAP9lz4YIdNndHr33GxooIFUDSR8n47-bJj3odWYybxj9vpVxX9MyzhF6ELj8suCnZ6qHiA9f701NrW7LHNSRqNOuamgxvW5n-zcofi3QQ2aNSCYYumbyEW3nhF3WGIMh0YYEUZg1ddo4jiKOJFg2ljOh5QyfL6cGNd0:1wnZaD:wAu14zH5LWx6MLyWsUnoGvtNqlDVDObSwetUZ0QF6Mg",
+    "expire_date": "2026-08-08T10:26:17.755Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "bjnd7nmcti4o4sjsx60trz6w9hm5v35g",
+  "fields": {
+    "session_data": ".eJxVjMsOwiAQAP9lz4bwEmiP3vsNDewuUjWQlPZk_HfTpAe9zkzmDXPctzLvndd5IRhBweWXpYhProegR6z3JrDVbV2SOBJx2i6mRvy6ne3foMReYITsFWZEIxWFmI0bspM2GHbOeCPJJxWcJj_glcnakNDrSIlNVsSKtYPPF-kBODo:1wndG9:4i1mf915SETCQL3swcTks4mnuY3iDpQWY7KEoQnGDFc",
+    "expire_date": "2026-08-08T14:21:49.885Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "ejvpbv6hhrzdlakqivhefvyrntb90enb",
+  "fields": {
+    "session_data": ".eJxVjMsOwiAQAP9lz4bwEmiP3vsNDewuUjWQlPZk_HfTpAe9zkzmDXPctzLvndd5IRhBweWXpYhProegR6z3JrDVbV2SOBJx2i6mRvy6ne3foMReYITsFWZEIxWFmI0bspM2GHbOeCPJJxWcJj_glcnakNDrSIlNVsSKtYPPF-kBODo:1wnV9M:973Wshj81uD0wsH6DYJ63V5qWD8PnEdiK0sf8GxJM2c",
+    "expire_date": "2026-08-08T05:42:16.430Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "ihlsez4s6eqv970midx3llj5d067totq",
+  "fields": {
+    "session_data": ".eJxVjDsOwyAQBe9CHSF-iyBl-pwBLbAEJxFIxq6s3D1CcpG0b2bewQLuWw37oDUsmV0ZsMvvFjG9qE2Qn9genafetnWJfCr8pIPfe6b37XT_DiqOOmuKQqkccwEPtqBEkGRtpOI1SUMumRyVNVZoWwAQsCThBIHyTmmF7PMFB0U4Lg:1wnZlX:hwZBNkuUpGVPEowp-aHK3p5FPUncrbGe9mUE-OCba1g",
+    "expire_date": "2026-08-08T10:37:59.620Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "kofzvz2iuqkuphrsegug852jtpg7d2we",
+  "fields": {
+    "session_data": ".eJxVjMsOwiAQAP9lz4bwEmiP3vsNDewuUjWQlPZk_HfTpAe9zkzmDXPctzLvndd5IRhBweWXpYhProegR6z3JrDVbV2SOBJx2i6mRvy6ne3foMReYITsFWZEIxWFmI0bspM2GHbOeCPJJxWcJj_glcnakNDrSIlNVsSKtYPPF-kBODo:1wnZGz:RL7VGc6x608pCsVBk8nKscjyrReenpjQfRGc9qSjE6Q",
+    "expire_date": "2026-08-08T10:06:25.233Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "nytsoiaqslxuq97ltc3om46zmxtielab",
+  "fields": {
+    "session_data": ".eJxVjEEOwiAQAP-yZ0Ngu0Dp0btvILBQqRpISnsy_t006UGvM5N5gw_7Vvze8-qXBBNYuPyyGPiZ6yHSI9R7E9zqti5RHIk4bRe3lvLrerZ_gxJ6gQkGlkw8KESnrFLJSjKONWtGYhtzxnGW1hDLjHpkyagSWZpDioYcSvh8AcX8NzE:1wnVsr:LCTZslHcCJsVebcfPTwIdg8Cs83aA0iyxXyjZ4rwhes",
+    "expire_date": "2026-08-08T06:29:17.490Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "u952v0zg8cv80fzc4jmu12pn47hhcufo",
+  "fields": {
+    "session_data": ".eJxVjMsOwiAQAP9lz4bwEmiP3vsNDewuUjWQlPZk_HfTpAe9zkzmDXPctzLvndd5IRhBweWXpYhProegR6z3JrDVbV2SOBJx2i6mRvy6ne3foMReYITsFWZEIxWFmI0bspM2GHbOeCPJJxWcJj_glcnakNDrSIlNVsSKtYPPF-kBODo:1wnVG8:JrP9YKpoAPkLrzM6qHw4yJKgueQqi6f7_LwkVakd6Jo",
+    "expire_date": "2026-08-08T05:49:16.290Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "vnms8aevlkxiqxpprucrrtg9a0nkvdr8",
+  "fields": {
+    "session_data": ".eJxVjMsOwiAQAP9lz4bwEmiP3vsNDewuUjWQlPZk_HfTpAe9zkzmDXPctzLvndd5IRhBweWXpYhProegR6z3JrDVbV2SOBJx2i6mRvy6ne3foMReYITsFWZEIxWFmI0bspM2GHbOeCPJJxWcJj_glcnakNDrSIlNVsSKtYPPF-kBODo:1wn8Tf:LAqVAOZvP8thuGAhJLpbeiRuUO4aq14EpvSTps0-PFs",
+    "expire_date": "2026-08-07T05:29:43.991Z"
+  }
+},
+{
+  "model": "sessions.session",
+  "pk": "wfkg6indp380cltawzhzwumlnvrteeaq",
+  "fields": {
+    "session_data": ".eJxVjMsOwiAQAP9lz4bwEmiP3vsNDewuUjWQlPZk_HfTpAe9zkzmDXPctzLvndd5IRhBweWXpYhProegR6z3JrDVbV2SOBJx2i6mRvy6ne3foMReYITsFWZEIxWFmI0bspM2GHbOeCPJJxWcJj_glcnakNDrSIlNVsSKtYPPF-kBODo:1wnUYz:jCqtcQCt70O0BLNQDOIwwi1OZpBcgyr3VjZrl357UXA",
+    "expire_date": "2026-08-08T05:04:41.815Z"
+  }
+},
+{
+  "model": "orders.userprofile",
+  "pk": 1,
+  "fields": {
+    "user": 3,
+    "loyalty_points": 0
+  }
+},
+{
+  "model": "orders.category",
+  "pk": 1,
+  "fields": {
+    "name": "Main Course"
+  }
+},
+{
+  "model": "orders.category",
+  "pk": 2,
+  "fields": {
+    "name": "Snacks & Starters"
+  }
+},
+{
+  "model": "orders.category",
+  "pk": 3,
+  "fields": {
+    "name": "Soups"
+  }
+},
+{
+  "model": "orders.category",
+  "pk": 4,
+  "fields": {
+    "name": "Beverages"
+  }
+},
+{
+  "model": "orders.category",
+  "pk": 5,
+  "fields": {
+    "name": "Desserts"
+  }
+},
+{
+  "model": "orders.menuitem",
+  "pk": 1,
+  "fields": {
+    "category": 1,
+    "name": "Veg Dal Bhat Set",
+    "description": "Traditional Nepali thali with steamed rice, slow cooked yellow dal, seasonal saag, mixed achar, and a side of papad.",
+    "price": "380.00",
+    "image": "menu_items/veg_khana_set.png",
+    "is_available": true,
+    "best_seller": false,
+    "veg": true,
+    "spice_level": "medium",
+    "preparation_time": 20,
+    "is_featured": false,
+    "station": "Mains"
+  }
+},
+{
+  "model": "orders.menuitem",
+  "pk": 2,
+  "fields": {
+    "category": 1,
+    "name": "Chicken Dal Bhat Set",
+    "description": "Classic Nepali thali with fragrant rice, rich chicken curry, hearty dal, mixed seasonal vegetables, and tangy homemade pickle.",
+    "price": "520.00",
+    "image": "menu_items/chicken_khana_set.png",
+    "is_available": true,
+    "best_seller": true,
+    "veg": false,
+    "spice_level": "medium",
+    "preparation_time": 25,
+    "is_featured": true,
+    "station": "Mains"
+  }
+},
+{
+  "model": "orders.menuitem",
+  "pk": 3,
+  "fields": {
+    "category": 1,
+    "name": "Mutton Dal Bhat Set",
+    "description": "Slow braised mutton curry with melt off the bone tenderness, served alongside steamed rice, golden dal, sautéed greens, and spiced achar.",
+    "price": "700.00",
+    "image": "menu_items/mutton_khana_set.png",
+    "is_available": true,
+    "best_seller": false,
+    "veg": false,
+    "spice_level": "medium",
+    "preparation_time": 35,
+    "is_featured": false,
+    "station": "Mains"
+  }
+},
+{
+  "model": "orders.menuitem",
+  "pk": 7,
+  "fields": {
+    "category": 2,
+    "name": "Chicken Mo:Mo",
+    "description": "Handcrafted steamed dumplings stuffed with seasoned minced chicken, served with smoked tomato chutney.",
+    "price": "200.00",
+    "image": "menu_items/chichen_momo.png",
+    "is_available": true,
+    "best_seller": true,
+    "veg": false,
+    "spice_level": "medium",
+    "preparation_time": 15,
+    "is_featured": true,
+    "station": "Snacks"
+  }
+},
+{
+  "model": "orders.menuitem",
+  "pk": 8,
+  "fields": {
+    "category": 2,
+    "name": "Chicken Schezwan Mo:Mo",
+    "description": "Crispy tossed dumplings glazed in a bold, fiery schezwan sauce a street food favourite with serious heat.",
+    "price": "260.00",
+    "image": "menu_items/chicken_schezwan_momo.png",
+    "is_available": true,
+    "best_seller": false,
+    "veg": false,
+    "spice_level": "hot",
+    "preparation_time": 18,
+    "is_featured": false,
+    "station": "Snacks"
+  }
+},
+{
+  "model": "orders.menuitem",
+  "pk": 9,
+  "fields": {
+    "category": 2,
+    "name": "Chicken Kothey Mo:Mo",
+    "description": "Golden pan fried dumplings with a crisp base and juicy chicken filling, served with house dipping sauce.",
+    "price": "240.00",
+    "image": "menu_items/chicken_kotheys_momo.png",
+    "is_available": true,
+    "best_seller": false,
+    "veg": false,
+    "spice_level": "medium",
+    "preparation_time": 20,
+    "is_featured": false,
+    "station": "Snacks"
+  }
+},
+{
+  "model": "orders.menuitem",
+  "pk": 12,
+  "fields": {
+    "category": 3,
+    "name": "Chicken Thukpa",
+    "description": "Hearty Tibetan noodle soup with hand shredded chicken, fresh greens, and a deeply spiced, aromatic broth.",
+    "price": "270.00",
+    "image": "menu_items/chicken_thukpa.png",
+    "is_available": true,
+    "best_seller": false,
+    "veg": false,
+    "spice_level": "mild",
+    "preparation_time": 25,
+    "is_featured": false,
+    "station": "Snacks"
+  }
+},
+{
+  "model": "orders.menuitem",
+  "pk": 13,
+  "fields": {
+    "category": 3,
+    "name": "Clear Chicken Soup",
+    "description": "Light, golden chicken broth slow cooked with ginger, garlic, and garden herbs comforting and restorative.",
+    "price": "220.00",
+    "image": "menu_items/chicken_soup.png",
+    "is_available": true,
+    "best_seller": false,
+    "veg": false,
+    "spice_level": "mild",
+    "preparation_time": 20,
+    "is_featured": false,
+    "station": "Snacks"
+  }
+},
+{
+  "model": "orders.menuitem",
+  "pk": 21,
+  "fields": {
+    "category": 2,
+    "name": "Veg Mo:Mo",
+    "description": "Delicate steamed dumplings filled with spiced mixed vegetables and herbs, served with tomato sesame chutney.",
+    "price": "140.00",
+    "image": "menu_items/veg_momo.png",
+    "is_available": true,
+    "best_seller": false,
+    "veg": true,
+    "spice_level": "medium",
+    "preparation_time": 15,
+    "is_featured": false,
+    "station": "Snacks"
+  }
+},
+{
+  "model": "orders.menuitem",
+  "pk": 22,
+  "fields": {
+    "category": 2,
+    "name": "Veg Kothey Mo:Mo",
+    "description": "Pan fried vegetable dumplings with a beautifully crisped bottom, served with house dipping sauce.",
+    "price": "170.00",
+    "image": "menu_items/veg_khoteys_momo.png",
+    "is_available": true,
+    "best_seller": false,
+    "veg": true,
+    "spice_level": "medium",
+    "preparation_time": 15,
+    "is_featured": false,
+    "station": "Snacks"
+  }
+},
+{
+  "model": "orders.menuitem",
+  "pk": 23,
+  "fields": {
+    "category": 2,
+    "name": "Wai Wai Sadeko",
+    "description": "Crunchy Wai Wai noodles tossed with red onion, tomato, green chilli, fresh coriander, and a zingy lime spice dressing.",
+    "price": "80.00",
+    "image": "menu_items/waiwai_sadeko.png",
+    "is_available": true,
+    "best_seller": false,
+    "veg": false,
+    "spice_level": "hot",
+    "preparation_time": 10,
+    "is_featured": false,
+    "station": "Snacks"
+  }
+},
+{
+  "model": "orders.menuitem",
+  "pk": 24,
+  "fields": {
+    "category": 3,
+    "name": "Veg Thukpa",
+    "description": "Tibetan style noodle soup brimming with seasonal vegetables, fresh herbs, and hand pulled noodles in a flavourful clear broth.",
+    "price": "220.00",
+    "image": "menu_items/veg_thukpa.png",
+    "is_available": true,
+    "best_seller": false,
+    "veg": true,
+    "spice_level": "medium",
+    "preparation_time": 25,
+    "is_featured": false,
+    "station": "Snacks"
+  }
+},
+{
+  "model": "orders.menuitem",
+  "pk": 25,
+  "fields": {
+    "category": 3,
+    "name": "Chicken Hot & Sour Soup",
+    "description": "A bold Chinese inspired broth loaded with tender chicken strips, silken tofu, wood ear mushrooms, and swirls of egg ribbon.",
+    "price": "220.00",
+    "image": "menu_items/chicken_spicy_soup.png",
+    "is_available": true,
+    "best_seller": false,
+    "veg": false,
+    "spice_level": "hot",
+    "preparation_time": 15,
+    "is_featured": false,
+    "station": "Snacks"
+  }
+},
+{
+  "model": "orders.menuitem",
+  "pk": 26,
+  "fields": {
+    "category": 3,
+    "name": "Cream of Mushroom Soup",
+    "description": "Velvety blended mushroom soup finished with fresh cream, garlic, and a hint of thyme earthy and satisfying.",
+    "price": "180.00",
+    "image": "menu_items/mushroom_soup.png",
+    "is_available": true,
+    "best_seller": false,
+    "veg": true,
+    "spice_level": "mild",
+    "preparation_time": 15,
+    "is_featured": false,
+    "station": "Snacks"
+  }
+},
+{
+  "model": "orders.menuitem",
+  "pk": 27,
+  "fields": {
+    "category": 4,
+    "name": "Coca Cola",
+    "description": "Ice cold classic Coke, served chilled.",
+    "price": "120.00",
+    "image": "menu_items/coke.png",
+    "is_available": true,
+    "best_seller": true,
+    "veg": true,
+    "spice_level": "neutral",
+    "preparation_time": 2,
+    "is_featured": false,
+    "station": "Bar"
+  }
+},
+{
+  "model": "orders.menuitem",
+  "pk": 28,
+  "fields": {
+    "category": 4,
+    "name": "Sprite",
+    "description": "Crisp, refreshing lemon lime soda, served chilled.",
+    "price": "120.00",
+    "image": "menu_items/sprite.png",
+    "is_available": true,
+    "best_seller": false,
+    "veg": true,
+    "spice_level": "neutral",
+    "preparation_time": 2,
+    "is_featured": false,
+    "station": "Bar"
+  }
+},
+{
+  "model": "orders.menuitem",
+  "pk": 29,
+  "fields": {
+    "category": 4,
+    "name": "Seasonal Milkshake",
+    "description": "Thick, creamy blended milkshake made with fresh seasonal fruit and full cream milk.",
+    "price": "220.00",
+    "image": "menu_items/milkshake.png",
+    "is_available": true,
+    "best_seller": false,
+    "veg": false,
+    "spice_level": "sweet",
+    "preparation_time": 10,
+    "is_featured": false,
+    "station": "Bar"
+  }
+},
+{
+  "model": "orders.menuitem",
+  "pk": 30,
+  "fields": {
+    "category": 4,
+    "name": "Milk Tea",
+    "description": "Classic Nepali style milk tea brewed strong with tea leaves, whole milk, and a hint of cardamom.",
+    "price": "60.00",
+    "image": "menu_items/milktea.png",
+    "is_available": true,
+    "best_seller": false,
+    "veg": true,
+    "spice_level": "sweet",
+    "preparation_time": 10,
+    "is_featured": false,
+    "station": "Bar"
+  }
+},
+{
+  "model": "orders.menuitem",
+  "pk": 31,
+  "fields": {
+    "category": 4,
+    "name": "Honey Lemon Tea",
+    "description": "Warm, soothing tea with raw honey, fresh lemon juice, and a touch of ginger.",
+    "price": "80.00",
+    "image": "menu_items/honey_lemon_tea.png",
+    "is_available": true,
+    "best_seller": false,
+    "veg": true,
+    "spice_level": "neutral",
+    "preparation_time": 10,
+    "is_featured": false,
+    "station": "Bar"
+  }
+},
+{
+  "model": "orders.menuitem",
+  "pk": 32,
+  "fields": {
+    "category": 4,
+    "name": "Fresh Orange Juice",
+    "description": "Freshly squeezed orange juice, served chilled and pulpy.",
+    "price": "120.00",
+    "image": "menu_items/orange_juice.png",
+    "is_available": true,
+    "best_seller": true,
+    "veg": true,
+    "spice_level": "neutral",
+    "preparation_time": 10,
+    "is_featured": true,
+    "station": "Bar"
+  }
+},
+{
+  "model": "orders.menuitem",
+  "pk": 33,
+  "fields": {
+    "category": 5,
+    "name": "Chocolate Brownie",
+    "description": "Warm, dense chocolate brownie with a fudgy centre served with a dusting of icing sugar and a scoop of vanilla ice cream.",
+    "price": "180.00",
+    "image": "menu_items/brownie.png",
+    "is_available": true,
+    "best_seller": false,
+    "veg": false,
+    "spice_level": "sweet",
+    "preparation_time": 10,
+    "is_featured": false,
+    "station": "DESSERT"
+  }
+},
+{
+  "model": "orders.menuitem",
+  "pk": 34,
+  "fields": {
+    "category": 5,
+    "name": "Kheer",
+    "description": "Traditional Nepali rice pudding slow cooked in full cream milk, sweetened with sugar, and perfumed with cardamom, saffron, and crushed nuts.",
+    "price": "120.00",
+    "image": "menu_items/kheer.png",
+    "is_available": true,
+    "best_seller": false,
+    "veg": true,
+    "spice_level": "sweet",
+    "preparation_time": 20,
+    "is_featured": false,
+    "station": "DESSERT"
+  }
+},
+{
+  "model": "orders.menuitem",
+  "pk": 35,
+  "fields": {
+    "category": 5,
+    "name": "Ice Cream",
+    "description": "Two generous scoops of premium ice cream ask your server for today's flavours.",
+    "price": "120.00",
+    "image": "menu_items/icecream.png",
+    "is_available": true,
+    "best_seller": false,
+    "veg": true,
+    "spice_level": "sweet",
+    "preparation_time": 5,
+    "is_featured": false,
+    "station": "DESSERT"
+  }
+},
+{
+  "model": "orders.order",
+  "pk": 1,
+  "fields": {
+    "user": null,
+    "table_number": 5,
+    "status": "completed",
+    "total_price": "1080.00",
+    "discount_amount": "0.00",
+    "is_paid": true,
+    "paid_at": "2026-07-23T13:14:27.492Z",
+    "paid_amount": "1080.00",
+    "created_at": "2026-07-23T12:57:13.833Z",
+    "updated_at": "2026-07-23T13:14:27.492Z"
+  }
+},
+{
+  "model": "orders.order",
+  "pk": 2,
+  "fields": {
+    "user": null,
+    "table_number": 5,
+    "status": "completed",
+    "total_price": "380.00",
+    "discount_amount": "0.00",
+    "is_paid": true,
+    "paid_at": "2026-07-23T13:34:07.937Z",
+    "paid_amount": "0.00",
+    "created_at": "2026-07-23T13:24:44.683Z",
+    "updated_at": "2026-07-23T13:32:32.518Z"
+  }
+},
+{
+  "model": "orders.order",
+  "pk": 3,
+  "fields": {
+    "user": null,
+    "table_number": 5,
+    "status": "completed",
+    "total_price": "1040.00",
+    "discount_amount": "0.00",
+    "is_paid": true,
+    "paid_at": "2026-07-23T13:47:41.508Z",
+    "paid_amount": "1040.00",
+    "created_at": "2026-07-23T13:47:27.310Z",
+    "updated_at": "2026-07-23T13:47:41.508Z"
+  }
+},
+{
+  "model": "orders.order",
+  "pk": 4,
+  "fields": {
+    "user": null,
+    "table_number": 5,
+    "status": "completed",
+    "total_price": "440.00",
+    "discount_amount": "0.00",
+    "is_paid": true,
+    "paid_at": "2026-07-24T05:29:46.802Z",
+    "paid_amount": "0.00",
+    "created_at": "2026-07-23T13:47:53.665Z",
+    "updated_at": "2026-07-23T13:47:57.004Z"
+  }
+},
+{
+  "model": "orders.order",
+  "pk": 5,
+  "fields": {
+    "user": null,
+    "table_number": 0,
+    "status": "completed",
+    "total_price": "360.00",
+    "discount_amount": "0.00",
+    "is_paid": true,
+    "paid_at": "2026-07-24T05:31:27.008Z",
+    "paid_amount": "360.00",
+    "created_at": "2026-07-24T05:30:25.746Z",
+    "updated_at": "2026-07-24T05:31:27.008Z"
+  }
+},
+{
+  "model": "orders.order",
+  "pk": 6,
+  "fields": {
+    "user": null,
+    "table_number": 0,
+    "status": "completed",
+    "total_price": "80.00",
+    "discount_amount": "0.00",
+    "is_paid": true,
+    "paid_at": "2026-07-24T05:31:21.678Z",
+    "paid_amount": "80.00",
+    "created_at": "2026-07-24T05:30:34.635Z",
+    "updated_at": "2026-07-24T05:31:21.679Z"
+  }
+},
+{
+  "model": "orders.order",
+  "pk": 7,
+  "fields": {
+    "user": null,
+    "table_number": 7,
+    "status": "completed",
+    "total_price": "1420.00",
+    "discount_amount": "0.00",
+    "is_paid": true,
+    "paid_at": "2026-07-25T02:55:11.869Z",
+    "paid_amount": "1420.00",
+    "created_at": "2026-07-25T02:52:14.839Z",
+    "updated_at": "2026-07-25T02:55:11.869Z"
+  }
+},
+{
+  "model": "orders.order",
+  "pk": 8,
+  "fields": {
+    "user": null,
+    "table_number": 0,
+    "status": "completed",
+    "total_price": "170.00",
+    "discount_amount": "0.00",
+    "is_paid": true,
+    "paid_at": "2026-07-25T02:55:59.985Z",
+    "paid_amount": "170.00",
+    "created_at": "2026-07-25T02:55:33.900Z",
+    "updated_at": "2026-07-25T02:55:59.985Z"
+  }
+},
+{
+  "model": "orders.order",
+  "pk": 9,
+  "fields": {
+    "user": null,
+    "table_number": 0,
+    "status": "completed",
+    "total_price": "700.00",
+    "discount_amount": "0.00",
+    "is_paid": true,
+    "paid_at": "2026-07-25T03:04:55.756Z",
+    "paid_amount": "700.00",
+    "created_at": "2026-07-25T03:04:31.640Z",
+    "updated_at": "2026-07-25T03:04:55.756Z"
+  }
+},
+{
+  "model": "orders.order",
+  "pk": 10,
+  "fields": {
+    "user": null,
+    "table_number": 3,
+    "status": "completed",
+    "total_price": "2960.00",
+    "discount_amount": "0.00",
+    "is_paid": true,
+    "paid_at": "2026-07-25T05:45:01.223Z",
+    "paid_amount": "2960.00",
+    "created_at": "2026-07-25T05:42:04.661Z",
+    "updated_at": "2026-07-25T05:45:01.223Z"
+  }
+},
+{
+  "model": "orders.order",
+  "pk": 11,
+  "fields": {
+    "user": null,
+    "table_number": 3,
+    "status": "completed",
+    "total_price": "1660.00",
+    "discount_amount": "0.00",
+    "is_paid": true,
+    "paid_at": "2026-07-25T05:45:03.148Z",
+    "paid_amount": "0.00",
+    "created_at": "2026-07-25T05:43:57.197Z",
+    "updated_at": "2026-07-25T05:43:57.202Z"
+  }
+},
+{
+  "model": "orders.order",
+  "pk": 12,
+  "fields": {
+    "user": null,
+    "table_number": 7,
+    "status": "completed",
+    "total_price": "200.00",
+    "discount_amount": "0.00",
+    "is_paid": true,
+    "paid_at": "2026-07-25T05:46:07.320Z",
+    "paid_amount": "0.00",
+    "created_at": "2026-07-25T05:45:11.752Z",
+    "updated_at": "2026-07-25T05:45:41.765Z"
+  }
+},
+{
+  "model": "orders.order",
+  "pk": 13,
+  "fields": {
+    "user": null,
+    "table_number": 7,
+    "status": "completed",
+    "total_price": "1800.00",
+    "discount_amount": "0.00",
+    "is_paid": true,
+    "paid_at": "2026-07-25T05:49:19.380Z",
+    "paid_amount": "0.00",
+    "created_at": "2026-07-25T05:47:04.293Z",
+    "updated_at": "2026-07-25T05:48:32.079Z"
+  }
+},
+{
+  "model": "orders.order",
+  "pk": 14,
+  "fields": {
+    "user": null,
+    "table_number": 7,
+    "status": "completed",
+    "total_price": "840.00",
+    "discount_amount": "0.00",
+    "is_paid": true,
+    "paid_at": "2026-07-25T05:49:19.380Z",
+    "paid_amount": "0.00",
+    "created_at": "2026-07-25T05:47:17.474Z",
+    "updated_at": "2026-07-25T05:47:17.482Z"
+  }
+},
+{
+  "model": "orders.order",
+  "pk": 15,
+  "fields": {
+    "user": null,
+    "table_number": 3,
+    "status": "completed",
+    "total_price": "920.00",
+    "discount_amount": "0.00",
+    "is_paid": true,
+    "paid_at": "2026-07-25T05:49:18.067Z",
+    "paid_amount": "0.00",
+    "created_at": "2026-07-25T05:48:41.670Z",
+    "updated_at": "2026-07-25T05:48:41.679Z"
+  }
+},
+{
+  "model": "orders.order",
+  "pk": 16,
+  "fields": {
+    "user": null,
+    "table_number": 2,
+    "status": "completed",
+    "total_price": "1920.00",
+    "discount_amount": "0.00",
+    "is_paid": true,
+    "paid_at": "2026-07-25T06:40:07.300Z",
+    "paid_amount": "1920.00",
+    "created_at": "2026-07-25T06:34:37.864Z",
+    "updated_at": "2026-07-25T06:40:07.300Z"
+  }
+},
+{
+  "model": "orders.order",
+  "pk": 17,
+  "fields": {
+    "user": null,
+    "table_number": 2,
+    "status": "completed",
+    "total_price": "520.00",
+    "discount_amount": "100.00",
+    "is_paid": true,
+    "paid_at": "2026-07-25T06:55:46.749Z",
+    "paid_amount": "0.00",
+    "created_at": "2026-07-25T06:45:50.737Z",
+    "updated_at": "2026-07-25T06:47:14.496Z"
+  }
+},
+{
+  "model": "orders.order",
+  "pk": 18,
+  "fields": {
+    "user": null,
+    "table_number": 5,
+    "status": "completed",
+    "total_price": "320.00",
+    "discount_amount": "0.00",
+    "is_paid": true,
+    "paid_at": "2026-07-25T06:55:48.736Z",
+    "paid_amount": "0.00",
+    "created_at": "2026-07-25T06:55:33.967Z",
+    "updated_at": "2026-07-25T06:55:43.501Z"
+  }
+},
+{
+  "model": "orders.order",
+  "pk": 19,
+  "fields": {
+    "user": null,
+    "table_number": 5,
+    "status": "completed",
+    "total_price": "320.00",
+    "discount_amount": "0.00",
+    "is_paid": true,
+    "paid_at": "2026-07-25T06:56:16.139Z",
+    "paid_amount": "0.00",
+    "created_at": "2026-07-25T06:56:06.806Z",
+    "updated_at": "2026-07-25T06:56:12.883Z"
+  }
+},
+{
+  "model": "orders.order",
+  "pk": 20,
+  "fields": {
+    "user": null,
+    "table_number": 5,
+    "status": "completed",
+    "total_price": "320.00",
+    "discount_amount": "0.00",
+    "is_paid": true,
+    "paid_at": "2026-07-25T06:58:12.700Z",
+    "paid_amount": "320.00",
+    "created_at": "2026-07-25T06:57:54.517Z",
+    "updated_at": "2026-07-25T06:58:12.700Z"
+  }
+},
+{
+  "model": "orders.order",
+  "pk": 21,
+  "fields": {
+    "user": null,
+    "table_number": 5,
+    "status": "completed",
+    "total_price": "320.00",
+    "discount_amount": "0.00",
+    "is_paid": true,
+    "paid_at": "2026-07-25T06:58:39.881Z",
+    "paid_amount": "0.00",
+    "created_at": "2026-07-25T06:58:32.521Z",
+    "updated_at": "2026-07-25T06:58:32.526Z"
+  }
+},
+{
+  "model": "orders.order",
+  "pk": 22,
+  "fields": {
+    "user": null,
+    "table_number": 5,
+    "status": "completed",
+    "total_price": "320.00",
+    "discount_amount": "0.00",
+    "is_paid": true,
+    "paid_at": "2026-07-25T06:59:15.001Z",
+    "paid_amount": "0.00",
+    "created_at": "2026-07-25T06:58:53.748Z",
+    "updated_at": "2026-07-25T06:59:00.567Z"
+  }
+},
+{
+  "model": "orders.order",
+  "pk": 23,
+  "fields": {
+    "user": null,
+    "table_number": 5,
+    "status": "completed",
+    "total_price": "320.00",
+    "discount_amount": "0.00",
+    "is_paid": true,
+    "paid_at": "2026-07-25T07:00:07.531Z",
+    "paid_amount": "320.00",
+    "created_at": "2026-07-25T06:59:30.688Z",
+    "updated_at": "2026-07-25T07:00:07.531Z"
+  }
+},
+{
+  "model": "orders.order",
+  "pk": 24,
+  "fields": {
+    "user": null,
+    "table_number": 5,
+    "status": "completed",
+    "total_price": "320.00",
+    "discount_amount": "0.00",
+    "is_paid": true,
+    "paid_at": "2026-07-25T07:00:55.641Z",
+    "paid_amount": "320.00",
+    "created_at": "2026-07-25T07:00:32.142Z",
+    "updated_at": "2026-07-25T07:00:55.641Z"
+  }
+},
+{
+  "model": "orders.order",
+  "pk": 25,
+  "fields": {
+    "user": null,
+    "table_number": 9,
+    "status": "completed",
+    "total_price": "10480.00",
+    "discount_amount": "0.00",
+    "is_paid": true,
+    "paid_at": "2026-07-25T10:09:53.108Z",
+    "paid_amount": "0.00",
+    "created_at": "2026-07-25T10:06:19.220Z",
+    "updated_at": "2026-07-25T10:06:19.243Z"
+  }
+},
+{
+  "model": "orders.order",
+  "pk": 26,
+  "fields": {
+    "user": null,
+    "table_number": 5,
+    "status": "completed",
+    "total_price": "380.00",
+    "discount_amount": "0.00",
+    "is_paid": true,
+    "paid_at": "2026-07-25T10:09:51.425Z",
+    "paid_amount": "0.00",
+    "created_at": "2026-07-25T10:08:22.122Z",
+    "updated_at": "2026-07-25T10:08:22.128Z"
+  }
+},
+{
+  "model": "orders.order",
+  "pk": 27,
+  "fields": {
+    "user": null,
+    "table_number": 9,
+    "status": "completed",
+    "total_price": "11340.00",
+    "discount_amount": "0.00",
+    "is_paid": true,
+    "paid_at": "2026-07-25T10:15:39.168Z",
+    "paid_amount": "0.00",
+    "created_at": "2026-07-25T10:14:22.456Z",
+    "updated_at": "2026-07-25T10:14:47.494Z"
+  }
+},
+{
+  "model": "orders.order",
+  "pk": 28,
+  "fields": {
+    "user": null,
+    "table_number": 9,
+    "status": "completed",
+    "total_price": "10140.00",
+    "discount_amount": "0.00",
+    "is_paid": true,
+    "paid_at": "2026-07-25T10:18:26.931Z",
+    "paid_amount": "10140.00",
+    "created_at": "2026-07-25T10:17:10.561Z",
+    "updated_at": "2026-07-25T10:18:26.931Z"
+  }
+},
+{
+  "model": "orders.order",
+  "pk": 29,
+  "fields": {
+    "user": null,
+    "table_number": 7,
+    "status": "completed",
+    "total_price": "1140.00",
+    "discount_amount": "100.00",
+    "is_paid": true,
+    "paid_at": "2026-07-25T10:29:37.002Z",
+    "paid_amount": "1040.00",
+    "created_at": "2026-07-25T10:24:33.097Z",
+    "updated_at": "2026-07-25T10:29:37.002Z"
+  }
+},
+{
+  "model": "orders.order",
+  "pk": 31,
+  "fields": {
+    "user": null,
+    "table_number": 9,
+    "status": "completed",
+    "total_price": "5720.00",
+    "discount_amount": "1000.00",
+    "is_paid": true,
+    "paid_at": "2026-07-25T10:33:43.755Z",
+    "paid_amount": "4720.00",
+    "created_at": "2026-07-25T10:33:10.110Z",
+    "updated_at": "2026-07-25T10:33:43.755Z"
+  }
+},
+{
+  "model": "orders.order",
+  "pk": 32,
+  "fields": {
+    "user": null,
+    "table_number": 7,
+    "status": "completed",
+    "total_price": "900.00",
+    "discount_amount": "0.00",
+    "is_paid": true,
+    "paid_at": "2026-07-25T10:40:39.919Z",
+    "paid_amount": "0.00",
+    "created_at": "2026-07-25T10:34:47.139Z",
+    "updated_at": "2026-07-25T10:35:48.782Z"
+  }
+},
+{
+  "model": "orders.order",
+  "pk": 33,
+  "fields": {
+    "user": null,
+    "table_number": 9,
+    "status": "completed",
+    "total_price": "9800.00",
+    "discount_amount": "0.00",
+    "is_paid": true,
+    "paid_at": "2026-07-25T10:37:05.923Z",
+    "paid_amount": "0.00",
+    "created_at": "2026-07-25T10:36:17.614Z",
+    "updated_at": "2026-07-25T10:36:21.773Z"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 1,
+  "fields": {
+    "order": 1,
+    "menu_item": 2,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 2,
+  "fields": {
+    "order": 1,
+    "menu_item": 24,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 3,
+  "fields": {
+    "order": 1,
+    "menu_item": 25,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 4,
+  "fields": {
+    "order": 1,
+    "menu_item": 35,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 5,
+  "fields": {
+    "order": 2,
+    "menu_item": 1,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 6,
+  "fields": {
+    "order": 3,
+    "menu_item": 1,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 7,
+  "fields": {
+    "order": 3,
+    "menu_item": 24,
+    "quantity": 3,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 8,
+  "fields": {
+    "order": 4,
+    "menu_item": 24,
+    "quantity": 2,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 9,
+  "fields": {
+    "order": 5,
+    "menu_item": 35,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 10,
+  "fields": {
+    "order": 5,
+    "menu_item": 9,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 11,
+  "fields": {
+    "order": 6,
+    "menu_item": 23,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 12,
+  "fields": {
+    "order": 7,
+    "menu_item": 2,
+    "quantity": 2,
+    "notes": "no ghee",
+    "paid_quantity": 2,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 13,
+  "fields": {
+    "order": 7,
+    "menu_item": 21,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 1,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 14,
+  "fields": {
+    "order": 7,
+    "menu_item": 28,
+    "quantity": 2,
+    "notes": "squeeze some lime",
+    "paid_quantity": 2,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 15,
+  "fields": {
+    "order": 8,
+    "menu_item": 22,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 16,
+  "fields": {
+    "order": 9,
+    "menu_item": 9,
+    "quantity": 2,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 17,
+  "fields": {
+    "order": 9,
+    "menu_item": 25,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 18,
+  "fields": {
+    "order": 10,
+    "menu_item": 2,
+    "quantity": 3,
+    "notes": "",
+    "paid_quantity": 3,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 19,
+  "fields": {
+    "order": 10,
+    "menu_item": 9,
+    "quantity": 2,
+    "notes": "",
+    "paid_quantity": 2,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 20,
+  "fields": {
+    "order": 10,
+    "menu_item": 28,
+    "quantity": 3,
+    "notes": "",
+    "paid_quantity": 3,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 21,
+  "fields": {
+    "order": 10,
+    "menu_item": 29,
+    "quantity": 2,
+    "notes": "",
+    "paid_quantity": 2,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 22,
+  "fields": {
+    "order": 10,
+    "menu_item": 32,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 1,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 23,
+  "fields": {
+    "order": 11,
+    "menu_item": 2,
+    "quantity": 2,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "received"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 24,
+  "fields": {
+    "order": 11,
+    "menu_item": 9,
+    "quantity": 2,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "received"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 25,
+  "fields": {
+    "order": 11,
+    "menu_item": 21,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "received"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 26,
+  "fields": {
+    "order": 12,
+    "menu_item": 23,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 27,
+  "fields": {
+    "order": 12,
+    "menu_item": 34,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 28,
+  "fields": {
+    "order": 13,
+    "menu_item": 1,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "received"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 29,
+  "fields": {
+    "order": 13,
+    "menu_item": 3,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "received"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 30,
+  "fields": {
+    "order": 13,
+    "menu_item": 9,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "received"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 31,
+  "fields": {
+    "order": 13,
+    "menu_item": 27,
+    "quantity": 4,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "received"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 32,
+  "fields": {
+    "order": 14,
+    "menu_item": 7,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "received"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 33,
+  "fields": {
+    "order": 14,
+    "menu_item": 8,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "received"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 34,
+  "fields": {
+    "order": 14,
+    "menu_item": 9,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "received"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 35,
+  "fields": {
+    "order": 14,
+    "menu_item": 21,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "received"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 36,
+  "fields": {
+    "order": 15,
+    "menu_item": 7,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "received"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 37,
+  "fields": {
+    "order": 15,
+    "menu_item": 8,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "received"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 38,
+  "fields": {
+    "order": 15,
+    "menu_item": 9,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "received"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 39,
+  "fields": {
+    "order": 15,
+    "menu_item": 21,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "received"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 40,
+  "fields": {
+    "order": 15,
+    "menu_item": 23,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "received"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 41,
+  "fields": {
+    "order": 16,
+    "menu_item": 1,
+    "quantity": 4,
+    "notes": "",
+    "paid_quantity": 4,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 42,
+  "fields": {
+    "order": 16,
+    "menu_item": 7,
+    "quantity": 2,
+    "notes": "",
+    "paid_quantity": 2,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 43,
+  "fields": {
+    "order": 17,
+    "menu_item": 2,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 44,
+  "fields": {
+    "order": 18,
+    "menu_item": 7,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 45,
+  "fields": {
+    "order": 18,
+    "menu_item": 27,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 46,
+  "fields": {
+    "order": 19,
+    "menu_item": 7,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 47,
+  "fields": {
+    "order": 19,
+    "menu_item": 27,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 48,
+  "fields": {
+    "order": 20,
+    "menu_item": 7,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 49,
+  "fields": {
+    "order": 20,
+    "menu_item": 27,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 50,
+  "fields": {
+    "order": 21,
+    "menu_item": 7,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "received"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 51,
+  "fields": {
+    "order": 21,
+    "menu_item": 27,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "received"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 52,
+  "fields": {
+    "order": 22,
+    "menu_item": 7,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 53,
+  "fields": {
+    "order": 22,
+    "menu_item": 27,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 54,
+  "fields": {
+    "order": 23,
+    "menu_item": 7,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 55,
+  "fields": {
+    "order": 23,
+    "menu_item": 27,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 56,
+  "fields": {
+    "order": 24,
+    "menu_item": 7,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 1,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 57,
+  "fields": {
+    "order": 24,
+    "menu_item": 27,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 1,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 58,
+  "fields": {
+    "order": 25,
+    "menu_item": 2,
+    "quantity": 12,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "received"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 59,
+  "fields": {
+    "order": 25,
+    "menu_item": 3,
+    "quantity": 4,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "received"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 60,
+  "fields": {
+    "order": 25,
+    "menu_item": 9,
+    "quantity": 6,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "received"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 61,
+  "fields": {
+    "order": 26,
+    "menu_item": 1,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "received"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 62,
+  "fields": {
+    "order": 27,
+    "menu_item": 2,
+    "quantity": 8,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 63,
+  "fields": {
+    "order": 27,
+    "menu_item": 3,
+    "quantity": 9,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 64,
+  "fields": {
+    "order": 27,
+    "menu_item": 23,
+    "quantity": 11,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 65,
+  "fields": {
+    "order": 28,
+    "menu_item": 3,
+    "quantity": 7,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 66,
+  "fields": {
+    "order": 28,
+    "menu_item": 9,
+    "quantity": 16,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 67,
+  "fields": {
+    "order": 28,
+    "menu_item": 21,
+    "quantity": 10,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 68,
+  "fields": {
+    "order": 29,
+    "menu_item": 1,
+    "quantity": 3,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 70,
+  "fields": {
+    "order": 31,
+    "menu_item": 2,
+    "quantity": 11,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 71,
+  "fields": {
+    "order": 32,
+    "menu_item": 1,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 72,
+  "fields": {
+    "order": 32,
+    "menu_item": 2,
+    "quantity": 1,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.orderitem",
+  "pk": 73,
+  "fields": {
+    "order": 33,
+    "menu_item": 3,
+    "quantity": 14,
+    "notes": "",
+    "paid_quantity": 0,
+    "status": "ready"
+  }
+},
+{
+  "model": "orders.review",
+  "pk": 1,
+  "fields": {
+    "order": 7,
+    "menu_item": 21,
+    "rating": 5,
+    "comment": "it was good, the momo was cooked perfectly and the aacchar stole the spotight",
+    "sentiment": "positive",
+    "created_at": "2026-07-25T02:54:42.775Z"
+  }
+},
+{
+  "model": "orders.review",
+  "pk": 2,
+  "fields": {
+    "order": 7,
+    "menu_item": 2,
+    "rating": 4,
+    "comment": "it as decent, just another chichen thali not so special",
+    "sentiment": "negative",
+    "created_at": "2026-07-25T02:54:42.787Z"
+  }
+},
+{
+  "model": "orders.review",
+  "pk": 3,
+  "fields": {
+    "order": 7,
+    "menu_item": 28,
+    "rating": 5,
+    "comment": "its sprite, its good",
+    "sentiment": "positive",
+    "created_at": "2026-07-25T02:54:42.797Z"
+  }
+},
+{
+  "model": "orders.review",
+  "pk": 4,
+  "fields": {
+    "order": 29,
+    "menu_item": 1,
+    "rating": 5,
+    "comment": "It was not good",
+    "sentiment": "negative",
+    "created_at": "2026-07-25T10:29:23.706Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 1,
+  "fields": {
+    "table_number": 5,
+    "reason": "paid",
+    "is_resolved": true,
+    "created_at": "2026-07-23T13:14:27.495Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 2,
+  "fields": {
+    "table_number": 5,
+    "reason": "food_ready",
+    "is_resolved": true,
+    "created_at": "2026-07-23T13:24:50.313Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 3,
+  "fields": {
+    "table_number": 0,
+    "reason": "help",
+    "is_resolved": true,
+    "created_at": "2026-07-23T13:29:08.069Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 4,
+  "fields": {
+    "table_number": 0,
+    "reason": "help",
+    "is_resolved": true,
+    "created_at": "2026-07-23T13:29:18.808Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 5,
+  "fields": {
+    "table_number": 0,
+    "reason": "help",
+    "is_resolved": true,
+    "created_at": "2026-07-23T13:32:18.995Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 6,
+  "fields": {
+    "table_number": 5,
+    "reason": "food_ready",
+    "is_resolved": true,
+    "created_at": "2026-07-23T13:32:32.515Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 7,
+  "fields": {
+    "table_number": 0,
+    "reason": "help",
+    "is_resolved": true,
+    "created_at": "2026-07-23T13:43:42.854Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 8,
+  "fields": {
+    "table_number": 5,
+    "reason": "food_ready",
+    "is_resolved": true,
+    "created_at": "2026-07-23T13:47:33.074Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 9,
+  "fields": {
+    "table_number": 5,
+    "reason": "paid",
+    "is_resolved": true,
+    "created_at": "2026-07-23T13:47:41.511Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 10,
+  "fields": {
+    "table_number": 5,
+    "reason": "paid",
+    "is_resolved": true,
+    "created_at": "2026-07-23T13:48:02.172Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 11,
+  "fields": {
+    "table_number": 5,
+    "reason": "paid",
+    "is_resolved": true,
+    "created_at": "2026-07-23T13:48:13.179Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 12,
+  "fields": {
+    "table_number": 5,
+    "reason": "paid",
+    "is_resolved": true,
+    "created_at": "2026-07-23T13:48:16.589Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 13,
+  "fields": {
+    "table_number": 5,
+    "reason": "paid",
+    "is_resolved": true,
+    "created_at": "2026-07-23T13:51:46.131Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 14,
+  "fields": {
+    "table_number": 5,
+    "reason": "bill",
+    "is_resolved": true,
+    "created_at": "2026-07-23T13:55:35.203Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 15,
+  "fields": {
+    "table_number": 5,
+    "reason": "cash",
+    "is_resolved": true,
+    "created_at": "2026-07-23T13:59:19.653Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 16,
+  "fields": {
+    "table_number": 0,
+    "reason": "food_ready",
+    "is_resolved": true,
+    "created_at": "2026-07-24T05:30:44.495Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 17,
+  "fields": {
+    "table_number": 0,
+    "reason": "cash",
+    "is_resolved": true,
+    "created_at": "2026-07-24T05:30:56.753Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 18,
+  "fields": {
+    "table_number": 0,
+    "reason": "cash",
+    "is_resolved": true,
+    "created_at": "2026-07-24T05:31:01.377Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 19,
+  "fields": {
+    "table_number": 0,
+    "reason": "paid",
+    "is_resolved": true,
+    "created_at": "2026-07-24T05:31:21.680Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 20,
+  "fields": {
+    "table_number": 0,
+    "reason": "paid",
+    "is_resolved": true,
+    "created_at": "2026-07-24T05:31:27.009Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 21,
+  "fields": {
+    "table_number": 7,
+    "reason": "food_ready",
+    "is_resolved": true,
+    "created_at": "2026-07-25T02:52:56.022Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 22,
+  "fields": {
+    "table_number": 7,
+    "reason": "paid",
+    "is_resolved": true,
+    "created_at": "2026-07-25T02:55:11.871Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 23,
+  "fields": {
+    "table_number": 0,
+    "reason": "food_ready",
+    "is_resolved": true,
+    "created_at": "2026-07-25T02:55:36.001Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 24,
+  "fields": {
+    "table_number": 0,
+    "reason": "cash",
+    "is_resolved": true,
+    "created_at": "2026-07-25T02:55:41.693Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 25,
+  "fields": {
+    "table_number": 0,
+    "reason": "cash",
+    "is_resolved": true,
+    "created_at": "2026-07-25T02:55:56.906Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 26,
+  "fields": {
+    "table_number": 0,
+    "reason": "paid",
+    "is_resolved": true,
+    "created_at": "2026-07-25T02:55:59.987Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 27,
+  "fields": {
+    "table_number": 0,
+    "reason": "food_ready",
+    "is_resolved": true,
+    "created_at": "2026-07-25T03:04:38.269Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 28,
+  "fields": {
+    "table_number": 0,
+    "reason": "paid",
+    "is_resolved": true,
+    "created_at": "2026-07-25T03:04:55.759Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 29,
+  "fields": {
+    "table_number": 3,
+    "reason": "food_ready",
+    "is_resolved": true,
+    "created_at": "2026-07-25T05:42:48.812Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 30,
+  "fields": {
+    "table_number": 3,
+    "reason": "paid",
+    "is_resolved": true,
+    "created_at": "2026-07-25T05:44:51.615Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 31,
+  "fields": {
+    "table_number": 3,
+    "reason": "paid",
+    "is_resolved": true,
+    "created_at": "2026-07-25T05:44:56.532Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 32,
+  "fields": {
+    "table_number": 3,
+    "reason": "paid",
+    "is_resolved": true,
+    "created_at": "2026-07-25T05:45:01.227Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 33,
+  "fields": {
+    "table_number": 3,
+    "reason": "bill",
+    "is_resolved": true,
+    "created_at": "2026-07-25T05:45:18.408Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 34,
+  "fields": {
+    "table_number": 7,
+    "reason": "food_ready",
+    "is_resolved": true,
+    "created_at": "2026-07-25T05:45:41.763Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 35,
+  "fields": {
+    "table_number": 0,
+    "reason": "help",
+    "is_resolved": true,
+    "created_at": "2026-07-25T06:38:23.625Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 36,
+  "fields": {
+    "table_number": 2,
+    "reason": "food_ready",
+    "is_resolved": true,
+    "created_at": "2026-07-25T06:38:43.324Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 37,
+  "fields": {
+    "table_number": 2,
+    "reason": "paid",
+    "is_resolved": true,
+    "created_at": "2026-07-25T06:40:07.306Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 38,
+  "fields": {
+    "table_number": 2,
+    "reason": "food_ready",
+    "is_resolved": true,
+    "created_at": "2026-07-25T06:47:14.494Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 39,
+  "fields": {
+    "table_number": 5,
+    "reason": "food_ready",
+    "is_resolved": true,
+    "created_at": "2026-07-25T06:55:43.499Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 40,
+  "fields": {
+    "table_number": 5,
+    "reason": "food_ready",
+    "is_resolved": true,
+    "created_at": "2026-07-25T06:56:12.880Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 41,
+  "fields": {
+    "table_number": 5,
+    "reason": "food_ready",
+    "is_resolved": true,
+    "created_at": "2026-07-25T06:58:04.349Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 42,
+  "fields": {
+    "table_number": 5,
+    "reason": "paid",
+    "is_resolved": true,
+    "created_at": "2026-07-25T06:58:12.713Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 43,
+  "fields": {
+    "table_number": 5,
+    "reason": "food_ready",
+    "is_resolved": true,
+    "created_at": "2026-07-25T06:59:00.564Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 44,
+  "fields": {
+    "table_number": 5,
+    "reason": "cash",
+    "is_resolved": true,
+    "created_at": "2026-07-25T06:59:07.724Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 45,
+  "fields": {
+    "table_number": 5,
+    "reason": "food_ready",
+    "is_resolved": true,
+    "created_at": "2026-07-25T06:59:53.338Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 46,
+  "fields": {
+    "table_number": 5,
+    "reason": "paid",
+    "is_resolved": true,
+    "created_at": "2026-07-25T07:00:04.120Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 47,
+  "fields": {
+    "table_number": 5,
+    "reason": "paid",
+    "is_resolved": true,
+    "created_at": "2026-07-25T07:00:07.543Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 48,
+  "fields": {
+    "table_number": 5,
+    "reason": "food_ready",
+    "is_resolved": true,
+    "created_at": "2026-07-25T07:00:35.549Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 49,
+  "fields": {
+    "table_number": 5,
+    "reason": "paid",
+    "is_resolved": true,
+    "created_at": "2026-07-25T07:00:55.643Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 50,
+  "fields": {
+    "table_number": 9,
+    "reason": "food_ready",
+    "is_resolved": true,
+    "created_at": "2026-07-25T10:14:47.491Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 51,
+  "fields": {
+    "table_number": 9,
+    "reason": "cash",
+    "is_resolved": true,
+    "created_at": "2026-07-25T10:15:18.092Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 52,
+  "fields": {
+    "table_number": 9,
+    "reason": "food_ready",
+    "is_resolved": true,
+    "created_at": "2026-07-25T10:18:12.563Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 53,
+  "fields": {
+    "table_number": 9,
+    "reason": "paid",
+    "is_resolved": true,
+    "created_at": "2026-07-25T10:18:26.958Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 54,
+  "fields": {
+    "table_number": 7,
+    "reason": "food_ready",
+    "is_resolved": true,
+    "created_at": "2026-07-25T10:28:49.977Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 55,
+  "fields": {
+    "table_number": 7,
+    "reason": "paid",
+    "is_resolved": true,
+    "created_at": "2026-07-25T10:29:33.698Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 56,
+  "fields": {
+    "table_number": 7,
+    "reason": "paid",
+    "is_resolved": true,
+    "created_at": "2026-07-25T10:29:37.020Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 57,
+  "fields": {
+    "table_number": 9,
+    "reason": "food_ready",
+    "is_resolved": true,
+    "created_at": "2026-07-25T10:33:31.912Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 58,
+  "fields": {
+    "table_number": 9,
+    "reason": "paid",
+    "is_resolved": true,
+    "created_at": "2026-07-25T10:33:43.774Z"
+  }
+},
+{
+  "model": "orders.waitercall",
+  "pk": 59,
+  "fields": {
+    "table_number": 9,
+    "reason": "cash",
+    "is_resolved": true,
+    "created_at": "2026-07-25T10:36:28.524Z"
+  }
+},
+{
+  "model": "orders.tablesession",
+  "pk": 1,
+  "fields": {
+    "table_number": 5,
+    "session_token": "124e891d-e8ba-4caf-bfff-9d410545d87b",
+    "session_passcode": null,
+    "host_name": "Host",
+    "host_user": null,
+    "is_active": false,
+    "created_at": "2026-07-23T12:55:42.217Z"
+  }
+},
+{
+  "model": "orders.tablesession",
+  "pk": 2,
+  "fields": {
+    "table_number": 5,
+    "session_token": "ee988305-8bdc-464a-9f98-adf483a4e105",
+    "session_passcode": null,
+    "host_name": "Host",
+    "host_user": null,
+    "is_active": false,
+    "created_at": "2026-07-23T13:51:43.450Z"
+  }
+},
+{
+  "model": "orders.tablesession",
+  "pk": 3,
+  "fields": {
+    "table_number": 0,
+    "session_token": "2a5b7c86-468e-44a6-8b55-047c4181f8e4",
+    "session_passcode": null,
+    "host_name": "Host",
+    "host_user": null,
+    "is_active": true,
+    "created_at": "2026-07-24T05:30:30.748Z"
+  }
+},
+{
+  "model": "orders.tablesession",
+  "pk": 4,
+  "fields": {
+    "table_number": 0,
+    "session_token": "fd65d301-9dfb-4b7e-ba5b-c4224462b732",
+    "session_passcode": null,
+    "host_name": "Host",
+    "host_user": null,
+    "is_active": true,
+    "created_at": "2026-07-25T02:48:38.290Z"
+  }
+},
+{
+  "model": "orders.tablesession",
+  "pk": 5,
+  "fields": {
+    "table_number": 7,
+    "session_token": "62ed1fac-b18f-451c-9f12-58aaaabf273b",
+    "session_passcode": null,
+    "host_name": "Host",
+    "host_user": null,
+    "is_active": false,
+    "created_at": "2026-07-25T02:50:30.264Z"
+  }
+},
+{
+  "model": "orders.tablesession",
+  "pk": 6,
+  "fields": {
+    "table_number": 0,
+    "session_token": "ad88738a-3c58-4187-822b-a12c952ed53f",
+    "session_passcode": null,
+    "host_name": "Host",
+    "host_user": null,
+    "is_active": true,
+    "created_at": "2026-07-25T02:55:29.190Z"
+  }
+},
+{
+  "model": "orders.tablesession",
+  "pk": 7,
+  "fields": {
+    "table_number": 4,
+    "session_token": "18a72261-993d-4f91-853a-d6473d66daa7",
+    "session_passcode": null,
+    "host_name": "Host",
+    "host_user": null,
+    "is_active": true,
+    "created_at": "2026-07-25T04:07:16.117Z"
+  }
+},
+{
+  "model": "orders.tablesession",
+  "pk": 8,
+  "fields": {
+    "table_number": 2,
+    "session_token": "3694bae6-a947-4908-b370-51d5f934fa56",
+    "session_passcode": null,
+    "host_name": "Host",
+    "host_user": null,
+    "is_active": false,
+    "created_at": "2026-07-25T05:33:38.551Z"
+  }
+},
+{
+  "model": "orders.tablesession",
+  "pk": 9,
+  "fields": {
+    "table_number": 3,
+    "session_token": "dcc8fa67-a84e-4a5f-ba3a-db3b56926c9f",
+    "session_passcode": null,
+    "host_name": "Host",
+    "host_user": null,
+    "is_active": false,
+    "created_at": "2026-07-25T05:37:47.430Z"
+  }
+},
+{
+  "model": "orders.tablesession",
+  "pk": 10,
+  "fields": {
+    "table_number": 6,
+    "session_token": "21c78593-04b7-4894-8c2b-2fc81a7a8549",
+    "session_passcode": null,
+    "host_name": "Host",
+    "host_user": null,
+    "is_active": true,
+    "created_at": "2026-07-25T05:41:14.990Z"
+  }
+},
+{
+  "model": "orders.tablesession",
+  "pk": 11,
+  "fields": {
+    "table_number": 3,
+    "session_token": "68b216f8-52d3-473b-b755-24a2ead2d410",
+    "session_passcode": null,
+    "host_name": "Host",
+    "host_user": null,
+    "is_active": true,
+    "created_at": "2026-07-25T05:45:02.125Z"
+  }
+},
+{
+  "model": "orders.tablesession",
+  "pk": 12,
+  "fields": {
+    "table_number": 2,
+    "session_token": "c519f0c8-8e95-4a80-bac1-d4e9565e94b4",
+    "session_passcode": null,
+    "host_name": "Host",
+    "host_user": null,
+    "is_active": true,
+    "created_at": "2026-07-25T06:40:10.452Z"
+  }
+},
+{
+  "model": "orders.tablesession",
+  "pk": 13,
+  "fields": {
+    "table_number": 5,
+    "session_token": "1f41de25-0026-4635-9348-0dc11b1c0e30",
+    "session_passcode": null,
+    "host_name": "Host",
+    "host_user": null,
+    "is_active": false,
+    "created_at": "2026-07-25T06:58:12.992Z"
+  }
+},
+{
+  "model": "orders.tablesession",
+  "pk": 14,
+  "fields": {
+    "table_number": 5,
+    "session_token": "95a3c0c0-74af-4123-8328-140c1739ce47",
+    "session_passcode": null,
+    "host_name": "Host",
+    "host_user": null,
+    "is_active": false,
+    "created_at": "2026-07-25T07:00:07.952Z"
+  }
+},
+{
+  "model": "orders.tablesession",
+  "pk": 15,
+  "fields": {
+    "table_number": 5,
+    "session_token": "f006c44a-d98d-45d9-8be6-a5ab45405b8a",
+    "session_passcode": null,
+    "host_name": "Host",
+    "host_user": null,
+    "is_active": true,
+    "created_at": "2026-07-25T07:00:55.892Z"
+  }
+},
+{
+  "model": "orders.tablesession",
+  "pk": 16,
+  "fields": {
+    "table_number": 9,
+    "session_token": "1fe66a0e-82aa-46ca-87c9-c154eb6d36f8",
+    "session_passcode": null,
+    "host_name": "Host",
+    "host_user": null,
+    "is_active": false,
+    "created_at": "2026-07-25T10:02:45.587Z"
+  }
+},
+{
+  "model": "orders.tablesession",
+  "pk": 17,
+  "fields": {
+    "table_number": 9,
+    "session_token": "08906a0b-d7e9-46fa-8b51-78b5c7cabe0c",
+    "session_passcode": null,
+    "host_name": "Host",
+    "host_user": null,
+    "is_active": false,
+    "created_at": "2026-07-25T10:18:32.430Z"
+  }
+},
+{
+  "model": "orders.tablesession",
+  "pk": 18,
+  "fields": {
+    "table_number": 7,
+    "session_token": "294aab0a-2161-4764-a83e-e956537c5548",
+    "session_passcode": null,
+    "host_name": "Host",
+    "host_user": null,
+    "is_active": true,
+    "created_at": "2026-07-25T10:32:38.795Z"
+  }
+},
+{
+  "model": "orders.tablesession",
+  "pk": 19,
+  "fields": {
+    "table_number": 9,
+    "session_token": "8442f020-507f-4858-a074-4154a244f1c5",
+    "session_passcode": null,
+    "host_name": "Host",
+    "host_user": null,
+    "is_active": true,
+    "created_at": "2026-07-25T10:33:47.884Z"
+  }
+},
+{
+  "model": "orders.tablesession",
+  "pk": 20,
+  "fields": {
+    "table_number": 8,
+    "session_token": "0e019593-fbf6-4c15-8b5b-d539cd59436c",
+    "session_passcode": null,
+    "host_name": "Host",
+    "host_user": null,
+    "is_active": true,
+    "created_at": "2026-07-25T10:37:40.260Z"
+  }
+},
+{
+  "model": "orders.kitchenbroadcast",
+  "pk": 1,
+  "fields": {
+    "message": "fast",
+    "created_at": "2026-07-25T06:38:14.513Z"
+  }
+}
+]

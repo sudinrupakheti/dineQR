@@ -23,7 +23,7 @@
         <i data-lucide="search" class="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-gray-900 transition-colors"></i>
 
         {% if query %}
-            <a href="?table={{ request.GET.table|default:'' }}" onclick="if(!this.search.includes('table=') && localStorage.getItem('dineqr_table')) this.href='?table=' + localStorage.getItem('dineqr_table');" class="...">Clear</a>
+            <a href="?table={{ request.GET.table|default:'' }}" onclick="if(!this.search.includes('table=') && localStorage.getItem('dineqr_table')) this.href='?table=' + localStorage.getItem('dineqr_table');" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs font-bold bg-gray-100 px-2 py-1 rounded-lg uppercase">Clear</a>
         {% endif %}
     </form>
 </div>
@@ -50,8 +50,7 @@
 </div>
 
 {% if recommended_items %}
-<!-- Recommended Slider Container -->
-<div class="mb-10 animate-in fade-in duration-500 max-w-2xl md:max-w-5xl lg:max-w-7xl mx-auto px-4">
+<div class="mb-10 max-w-2xl md:max-w-5xl lg:max-w-7xl mx-auto px-4">
     <div class="flex justify-between items-end mb-4">
         <h2 class="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
             <i data-lucide="sparkles" class="w-3.5 h-3.5 text-gray-900"></i> Recommended
@@ -61,7 +60,7 @@
 
     <div class="flex gap-4 overflow-x-auto no-scrollbar pb-3 -mx-2 px-2 snap-x">
         {% for item in recommended_items %}
-        <div class="snap-start shrink-0 w-60 bg-gray-950 rounded-2xl p-3 shadow-md relative overflow-hidden group cursor-pointer flex flex-col justify-between"
+        <div class="snap-start shrink-0 w-60 bg-white rounded-2xl p-3 border border-gray-200/80 shadow-sm relative overflow-hidden group cursor-pointer flex flex-col justify-between hover:shadow-md hover:border-gray-300 transition-all"
              onclick="openItemModal(this)"
              data-id="{{ item.id }}"
              data-name="{{ item.name|escapejs }}"
@@ -75,29 +74,29 @@
              data-companion-name="{{ item.frequent_companion.name }}"
              data-companion-price="{{ item.frequent_companion.price|default:0 }}">
 
-            <div class="absolute top-0 right-0 bg-white border-b border-l border-gray-800 text-gray-900 text-[8px] font-extrabold px-2 py-0.5 rounded-bl-lg tracking-widest uppercase z-10">
+            <div class="absolute top-0 right-0 bg-gray-950 text-white text-[8px] font-extrabold px-2 py-0.5 rounded-bl-lg tracking-widest uppercase z-10">
                 House Pick
             </div>
 
             <div class="flex gap-3 items-center">
-                <div class="w-16 h-16 rounded-xl overflow-hidden bg-gray-900 border border-gray-800 flex-shrink-0">
+                <div class="w-16 h-16 rounded-xl overflow-hidden bg-gray-50 border border-gray-100 flex-shrink-0">
                     {% if item.image %}
-                        <img src="{{ item.image.url }}" class="w-full h-full object-cover opacity-85 group-hover:opacity-100 transition-opacity">
+                        <img src="{{ item.image.url }}" class="w-full h-full object-cover">
                     {% else %}
-                        <div class="w-full h-full flex items-center justify-center text-gray-700">
+                        <div class="w-full h-full flex items-center justify-center text-gray-200">
                             <i data-lucide="image" class="w-4 h-4"></i>
                         </div>
                     {% endif %}
                 </div>
 
                 <div class="min-w-0 flex-1">
-                    <h3 class="text-xs font-bold text-white leading-snug truncate mb-0.5">{{ item.name }}</h3>
-                    <p class="text-gray-400 font-serif text-xs font-bold">Rs. {{ item.price|floatformat:0|intcomma }}</p>
+                    <h3 class="text-xs font-bold text-gray-900 leading-snug truncate mb-0.5">{{ item.name }}</h3>
+                    <p class="text-gray-900 font-serif text-xs font-bold">Rs. {{ item.price|floatformat:0|intcomma }}</p>
                 </div>
             </div>
 
             <div class="flex justify-end mt-2">
-                <button onclick="event.stopPropagation(); openItemModal(this.closest('.group'))" class="w-7 h-7 rounded-lg bg-white/10 text-white flex items-center justify-center hover:bg-white hover:text-gray-950 transition-all active:scale-95">
+                <button onclick="event.stopPropagation(); openItemModal(this.closest('.group'))" class="w-7 h-7 rounded-lg bg-gray-950 text-white flex items-center justify-center hover:bg-gray-800 transition-all active:scale-95">
                     <i data-lucide="plus" class="w-3.5 h-3.5"></i>
                 </button>
             </div>

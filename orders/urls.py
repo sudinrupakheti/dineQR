@@ -1,5 +1,8 @@
 from django.urls import path  # type: ignore
 from . import views
+from django.conf import settings    # type: ignore
+from django.conf.urls.static import static # type: ignore
+
 
 urlpatterns = [
     path("", views.menu_view, name="menu"),
@@ -102,5 +105,16 @@ urlpatterns = [
     path("api/customer/convert-guest/", views.convert_guest_account_api, name="convert_guest_account_api"),
     path("api/customer/history/", views.user_order_history_api, name="user_order_history_api"),
     path("customer/portal/", views.customer_portal, name="customer_portal"),
+    path("api/table-cart/update/", views.update_table_cart, name="update_table_cart"),
+    path("api/table-cart/get/", views.get_table_cart, name="get_table_cart"),
+    path(
+    "management/table/<int:table_num>/reset-session/",
+    views.reset_table_session,
+    name="reset_table_session",
+    ),
+    path("api/table-split/update/", views.update_table_split, name="update_table_split"),
+    path("api/table-split/get/", views.get_table_split, name="get_table_split"),
 ]
 
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
