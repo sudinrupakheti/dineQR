@@ -65,12 +65,12 @@
         <div id="bill-review-section" class="pt-6 border-t border-gray-100 space-y-4 {% if not has_ready_orders %}hidden{% endif %}">
 
             <div class="grid grid-cols-2 gap-2">
-                <a href="{% if request.GET.order %}{% url 'single_order_bill' request.GET.order %}{% else %}{% url 'table_bill' request.GET.table|default:0 %}{% endif %}" target="_blank" class="bg-white border border-gray-200 text-gray-700 font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 text-xs uppercase tracking-wider hover:bg-gray-50 transition-colors shadow-sm">
+                <a id="view-bill-link" href="{% url 'table_bill' request.GET.table|default:0 %}" target="_blank" class="bg-white border border-gray-200 text-gray-700 font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 text-xs uppercase tracking-wider hover:bg-gray-50 transition-colors shadow-sm">
                     <i data-lucide="printer" class="w-3.5 h-3.5"></i> View Bill
                 </a>
                 {% with first_order=previous_orders|first %}
                 {% if not first_order.has_review %}
-                <a href="{% url 'order_review' first_order.id %}" class="bg-gray-950 text-white font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 text-xs uppercase tracking-wider hover:bg-gray-800 transition-colors shadow-sm">
+                <a id="review-meal-link" href="{% url 'order_review' first_order.id %}" class="bg-gray-950 text-white font-bold py-2.5 rounded-xl flex items-center justify-center gap-1.5 text-xs uppercase tracking-wider hover:bg-gray-800 transition-colors shadow-sm">
                     <i data-lucide="star" class="w-3.5 h-3.5 text-amber-400 fill-amber-400"></i> Review Meal
                 </a>
                 {% endif %}
@@ -540,7 +540,7 @@
                         clearInterval(window.pollingInterval);
                         clearSplitSession();
                         localStorage.removeItem(`cart_table_${tableNum}`);
-                        window.location.href = `/order-success/${id}/`;
+                        window.location.href = `{% url 'menu' %}?table=${tableNum}`;
                         break;
                     }
 
@@ -807,7 +807,7 @@
                     if (data.table_cleared) {
                         clearSplitSession();
                         localStorage.removeItem(`cart_table_${tableNum}`);
-                        window.location.href = `/order-success/${orderIdParam || 0}/`;
+                        window.location.href = `{% url 'menu' %}?table=${tableNum}`;
                     } else {
                         if (currentPersonIdx !== null && !paidGuests.includes(currentPersonIdx)) {
                             paidGuests.push(currentPersonIdx);
@@ -830,5 +830,22 @@
         pullSplitFromServer();
         setInterval(pullSplitFromServer, 5000);
     });
+
+    const table = new URLSearchParams(window.location.search).get('table');
+    const token = table ? localStorage.getItem(`dineqr_session_table_${table}`) : null;
+    const reviewLink = document.getElementById('review-meal-link');
+    if (reviewLink && token) {
+        const url = new URL(reviewLink.href, window.location.origin);
+        url.searchParams.set('token', token);
+        reviewLink.href = url.toString();
+    }
+
+    const viewBillLink = document.getElementById('view-bill-link');
+    if (viewBillLink && token) {
+        const url = new URL(viewBillLink.href, window.location.origin);
+        url.searchParams.set('token', token);
+        viewBillLink.href = url.toString();
+    }
+
 </script>
 {% endblock %}

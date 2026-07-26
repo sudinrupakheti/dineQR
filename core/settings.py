@@ -23,6 +23,8 @@ CSRF_TRUSTED_ORIGINS = [
     'http://localhost:8000',
     'http://127.0.0.1:8000',
     'https://dineqr.sudinrupakheti.com.np',
+    'https://dineqr.sudinrupakheti.com.np/'
+    'http://dineqr.sudinrupakheti.com.np/cart/',
 ]
 
 LOGIN_URL = 'login'

@@ -53,10 +53,10 @@
     {% endif %}
 
     <div class="flex flex-col gap-2">
-        <a href="{% url 'cart_detail' %}?table={{ order.table_number }}&order={{ order.id }}" class="w-full bg-gray-950 text-white font-bold py-3.5 rounded-xl text-xs uppercase tracking-widest hover:bg-gray-800 transition-all shadow-sm">
+        <a id="track-order-link" href="{% url 'cart_detail' %}?table={{ order.table_number }}&order={{ order.id }}" class="w-full bg-gray-950 text-white font-bold py-3.5 rounded-xl text-xs uppercase tracking-widest hover:bg-gray-800 transition-all shadow-sm">
             Track Order & Settle Bill
         </a>
-        <a id="track-order-link" href="{% url 'menu' %}?table={{ order.table_number }}" class="w-full bg-white border border-gray-200 text-gray-600 font-bold py-3 rounded-xl text-xs uppercase tracking-wider hover:bg-gray-50 transition-all">
+        <a href="{% url 'menu' %}?table={{ order.table_number }}" class="w-full bg-white border border-gray-200 text-gray-600 font-bold py-3 rounded-xl text-xs uppercase tracking-wider hover:bg-gray-50 transition-all">
             Back to Menu
         </a>
     </div>
