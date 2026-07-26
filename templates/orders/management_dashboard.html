@@ -1200,8 +1200,9 @@
 
         // --- CLIPBOARD QR LINK SHORTCUT ---
         function copyTableUrl(button, tableNum) {
-            const baseUrl = 'https://reversion-bounce-drew.ngrok-free.dev';
-            const targetUrl = `${baseUrl}/?table=${tableNum}`;
+            //const baseUrl = 'https://reversion-bounce-drew.ngrok-free.dev';
+            const baseUrl = 'https://dineqr.sudinrupakheti.com.np';
+            const targetUrl = `${baseUrl}/welcome/?table=${tableNum}`;
             navigator.clipboard.writeText(targetUrl).then(() => {
                 const originalHTML = button.innerHTML;
                 button.innerHTML = `<i data-lucide="check" class="w-4 h-4 text-emerald-600"></i>`;

@@ -52,10 +52,10 @@
                     <i data-lucide="key-round" class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4"></i>
                     <input type="password" id="table-password" placeholder="{% if has_password %}Enter table password{% else %}Optional passcode for others to join{% endif %}"
                            class="w-full pl-11 pr-11 py-3 rounded-xl border border-gray-200 focus:border-gray-900 focus:ring-1 focus:ring-gray-900 outline-none text-sm transition-all placeholder:text-gray-300 font-medium">
-                    <button type="button" id="toggle-table-password" tabindex="-1"
+                    <!-- <button type="button" id="toggle-table-password" tabindex="-1"
                             class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                         <i data-lucide="eye" class="w-4 h-4"></i>
-                    </button>
+                    </button> -->
                 </div>
             </div>
 
@@ -190,16 +190,21 @@
         }
     }
 
-    const pwInput = document.getElementById('table-password');
-    const pwToggle = document.getElementById('toggle-table-password');
+    // const pwInput = document.getElementById('table-password');
+    // const pwToggle = document.getElementById('toggle-table-password');
 
-    pwToggle.addEventListener('click', () => {
-        const show = pwInput.type === 'password';
-        pwInput.type = show ? 'text' : 'password';
-        pwToggle.innerHTML = show
-            ? '<i data-lucide="eye-off" class="w-4 h-4"></i>'
-            : '<i data-lucide="eye" class="w-4 h-4"></i>';
-        lucide.createIcons();
-    });
+    // pwToggle.addEventListener('click', (e) => {
+    //     e.preventDefault(); // Prevent accidental form triggers or blur side-effects
+
+    //     const show = pwInput.type === 'password';
+    //     pwInput.type = show ? 'text' : 'password';
+
+    //     // Safely replace icon without breaking input state
+    //     const icon = pwToggle.querySelector('[data-lucide]');
+    //     if (icon) {
+    //         icon.setAttribute('data-lucide', show ? 'eye-off' : 'eye');
+    //         lucide.createIcons();
+    //     }
+    // });
 </script>
 {% endblock %}

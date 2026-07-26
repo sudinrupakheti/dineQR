@@ -1052,8 +1052,7 @@ def verify_table_session(request):
         except json.JSONDecodeError:
             pass
 
-    passcode = request.GET.get("passcode") or body_data.get("passcode")
-    # Default host_name to "Guest" automatically
+    passcode = (request.GET.get("passcode") or body_data.get("passcode") or "").strip()
     host_name = request.GET.get("host_name") or body_data.get("host_name") or "Guest"
 
     if not table_num:
@@ -1069,6 +1068,11 @@ def verify_table_session(request):
     ).first()
 
     if session:
+        # FIX: Save passcode to active session if it wasn't set previously
+        if not session.session_passcode and passcode:
+            session.session_passcode = passcode
+            session.save()
+
         if client_token and str(session.session_token) == client_token:
             return JsonResponse({"status": "success", "token": str(session.session_token)})
 
@@ -1267,8 +1271,9 @@ def generate_split_qr_api(request):
 @login_required
 @user_passes_test(is_management_or_owner)
 def serve_table_qr(request, table_num):
-    host_address = 'https://reversion-bounce-drew.ngrok-free.dev/'
-    target_url = f"{host_address}welcome/?table={table_num}"
+    # host_address = 'https://reversion-bounce-drew.ngrok-free.dev/'
+    host_address = 'https://dineqr.sudinrupakheti.com.np/'
+    target_url = f"{host_address}/welcome/?table={table_num}"
 
     qr = qrcode.QRCode(
         version=1,
